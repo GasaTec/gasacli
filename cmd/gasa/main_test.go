@@ -5,9 +5,58 @@ import (
 	"context"
 	"io"
 	"os"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestVersionCommand(t *testing.T) {
+	oldVersion, oldCommit, oldDate := version, commit, date
+	version, commit, date = "1.2.3-rc.1", "abc123", "2026-10-27T12:34:56Z"
+	t.Cleanup(func() { version, commit, date = oldVersion, oldCommit, oldDate })
+
+	for _, args := range [][]string{{"--version"}, {"version"}} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("GASACLI_HOME", home)
+			output, err := captureStdout(t, func() error { return run(context.Background(), args) })
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := "gasa 1.2.3-rc.1 (abc123, 2026-10-27T12:34:56Z, " + runtime.GOOS + "/" + runtime.GOARCH + ")\n"
+			if output != want {
+				t.Fatalf("output = %q, want %q", output, want)
+			}
+			entries, err := os.ReadDir(home)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("version command created files in GASACLI_HOME: %v", entries)
+			}
+		})
+	}
+}
+
+func captureStdout(t *testing.T, f func() error) (string, error) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		return "", err
+	}
+	old := os.Stdout
+	os.Stdout = w
+	callErr := f()
+	_ = w.Close()
+	os.Stdout = old
+	output, readErr := io.ReadAll(r)
+	_ = r.Close()
+	if readErr != nil {
+		return "", readErr
+	}
+	return string(output), callErr
+}
 
 func TestBrowserPreference(t *testing.T) {
 	for _, tc := range []struct {

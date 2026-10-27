@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"strings"
 	"time"
 
@@ -17,6 +18,12 @@ import (
 	"github.com/GasaTec/gasacli/internal/trust"
 	"github.com/GasaTec/gasacli/internal/tui"
 	"github.com/GasaTec/gasacli/internal/web"
+)
+
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 func main() {
@@ -29,6 +36,10 @@ func main() {
 }
 
 func run(ctx context.Context, args []string) error {
+	if len(args) == 1 && (args[0] == "--version" || args[0] == "version") {
+		printVersion(os.Stdout)
+		return nil
+	}
 	flags := flag.NewFlagSet("gasa", flag.ContinueOnError)
 	noBrowser := flags.Bool("no-browser", false, "Do not open the dashboard automatically")
 	flags.Usage = help
@@ -160,6 +171,10 @@ func run(ctx context.Context, args []string) error {
 	return err
 }
 
+func printVersion(out io.Writer) {
+	fmt.Fprintf(out, "gasa %s (%s, %s, %s/%s)\n", version, commit, date, runtime.GOOS, runtime.GOARCH)
+}
+
 func shouldOpen(mode string, noBrowser bool) bool { return !noBrowser && mode != "manual" }
 
 func diagnostics(ctx context.Context, out io.Writer) error {
@@ -212,6 +227,7 @@ func launchBrowser(url string, out io.Writer) {
 
 func help() {
 	fmt.Println(`GasaCLI pre-alpha commands
+  gasa --version         Show version and build information
   gasa [--no-browser]     Open terminal shell and local dashboard
   gasa doctor            Discover installed coding CLIs
   gasa web open          Start dashboard and wait for Ctrl+C
