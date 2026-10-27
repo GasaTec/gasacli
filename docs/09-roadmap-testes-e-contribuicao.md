@@ -2,12 +2,13 @@
 
 ## Etapas
 M0: especificação, licença MIT, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, templates de issues/PR.
-M1: monorepo TypeScript, TUI `gasa`, trust gate, discovery e adapter real.
+M1: monorepo Go-first, TUI `gasa`, trust gate, discovery e adapter real.
 M2: `/goal`, Run/Task/Dispatch, SQLite, prompts padrão, quality gate e retomada.
 M3: segundo adapter e revisão cross-provider, worktrees e benchmarks de consumo.
 M4: plugins GitHub e JEV, skills versionadas e segundo cérebro local.
 M5: integração Orca opcional, hardening, CI e lançamento público.
 M6: sync E2EE self-hostable, Cloud gerenciado, billing e painel.
+Rust entra somente quando benchmarks justificarem; TypeScript é destinado ao dashboard Cloud.
 
 ## Critérios do MVP
 Um usuário instala a CLI, abre `gasa`, autoriza a pasta, detecta um agente existente, inicia `/goal`, vê progresso, recebe mudança real, testes verificáveis e resultado DONE ou BLOCKED honesto. Sem nova chave de API exigida pela Gasatec.
@@ -20,7 +21,7 @@ Segurança: prompt injection, vazamento de secrets, plugin malicioso, symlinks, 
 Cloud: conflitos, criptografia, troca/revogação de dispositivo e recuperação.
 
 ## Contribuições
-Issues pequenas com critérios de aceite; branches por issue; PRs com testes, evidências e revisão. Consulte CONTRIBUTING.md, CODE_OF_CONDUCT.md e SECURITY.md. CI deve rodar lint/typecheck/test/build assim que scripts existirem. Nunca alegar que CI passou antes de executá-lo.
+Issues pequenas com critérios de aceite; branches por issue; PRs com testes, evidências e revisão. Consulte CONTRIBUTING.md, CODE_OF_CONDUCT.md e SECURITY.md. CI deve rodar gofmt, go vet, go test e build quando o código existir; Rust opcional deve rodar cargo fmt, clippy e test. Nunca alegar CI verde antes de executar.
 
 ## Checklist de publicação
 Licenças e titularidade revisadas, secret scan, dependências auditadas, canal privado de vulnerabilidade, proteção de branch, CI, documentação de instalação, termos de Cloud e privacidade quando aplicáveis. Alterar visibilidade apenas após verificação.
