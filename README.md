@@ -17,6 +17,9 @@ Run `gasa` in a trusted project directory to open a terminal chat. Use `/goal` t
 - Optional GitHub Issues integration via the `gh` CLI; Linear may follow.
 - Optional Orca integration, both as an executor and (if supported upstream) a selectable hosted agent.
 
+## Technology decisions
+**Go** powers the CLI, native orchestrator, agent discovery and local SQLite integration. **Rust** is reserved for isolated components when profiling justifies it. **TypeScript** may power the optional Cloud web dashboard. See [ADR-0006](docs/adr/0006-go-rust-stack.md). Earlier TypeScript CLI proposals are superseded.
+
 ## Community and Cloud in one repository
 **Community:** fully functional local orchestration, no Gasatec account required, free and open-source.
 
