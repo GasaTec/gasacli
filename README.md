@@ -29,14 +29,22 @@ All repository code is MIT-licensed. The commercial offering charges for hosting
 
 See [monorepo design](docs/monorepo.md), [interactive UX](docs/adr/0004-interactive-cli-and-github-plugin.md), [orchestration contract](docs/adr/0003-quality-gated-orchestration.md), and [open-source direction](docs/adr/0005-open-source-and-cloud.md).
 
-## Planned commands (not yet available)
-```sh
-gasa
-gasa doctor
-gasa goal "Implement a login screen"
-gasa brain connect ~/Obsidian/Vault
-gasa integration install orca
+## Install
+
+GasaCLI is **pre-alpha**; interactive orchestration commands are still in development.
+
+```powershell
+irm https://raw.githubusercontent.com/GasaTec/gasacli/main/scripts/install.ps1 | iex
 ```
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/GasaTec/gasacli/main/scripts/install.sh | sh
+npm i -g gasacli
+npx gasacli --version
+go install github.com/GasaTec/gasacli/cmd/gasa@latest
+```
+
+The direct installers download an archive (about 3 MB; measured at 2.9–3.3 MB in a GoReleaser snapshot) and `checksums.txt` from this repository's GitHub Releases, then verify the archive's SHA-256 before installing. Windows installs to `%LOCALAPPDATA%\Programs\gasacli\bin`; Linux/macOS use `~/.local/bin`. Windows adds the install directory to the user PATH; Unix prints a PATH command if needed. No administrator or `sudo` access is needed, and GasaCLI sends no telemetry. The Windows command was exercised with Windows PowerShell 5.1 and PowerShell 7 using the source-loading and local download-flow tests described in the [installation guide](docs/install.md); the one-line command follows mutable `main`, so inspect or pin the script when needed.
 
 ## Contribute
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md). Issues and PRs are welcome once the repository is public.
