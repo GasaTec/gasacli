@@ -1,41 +1,45 @@
 # GasaCLI
 
-AI agent orchestration with fast personal knowledge retrieval, model routing and cost controls.
+**Make your coding AIs work together.** A local-first, open-source terminal orchestrator for coding agents already installed on your machine.
 
-> Status: private, early-stage MVP.
+> **Status:** pre-alpha. The architecture, governance and roadmap are documented; the interactive CLI and cloud service are not implemented yet.
 
 ## Vision
-GasaCLI exposes a single `gasa` command to connect an Obsidian/Markdown vault, retrieve project decisions, select an execution strategy and delegate work to agents via pluggable runtimes such as Orca.
+Run `gasa` in a trusted project directory to open a terminal chat. Use `/goal` to request an outcome, not a sequence of prompts. GasaCLI will discover available coding CLIs, plan work, coordinate implementers and independent reviewers, and only mark tasks DONE after applicable verification gates pass. If blocked, it must explain why rather than loop indefinitely.
 
-## Architecture
-- **CLI:** TypeScript/Node.js command interface.
-- **Decision Engine:** intent, relevant context, task risk and execution strategy.
-- **Memory:** local-first Obsidian/Markdown adapter; incremental indexing with SQLite FTS5; explicit approval for vault writes.
-- **Model Router:** configurable providers, capabilities, budgets and fallback.
-- **Execution Adapter:** Orca integration without coupling core domain logic to Orca.
-- **Quality Gate:** tests, review, audit trail and checkpoint/recovery.
+## Planned capabilities
+- Interactive chat with `/goal`, `/agents`, `/config`, `/prompts`, `/skills`, `/brain`, `/github` and `/resume`.
+- Installed agent discovery for supported CLIs (Claude Code, Codex, Gemini CLI, Cursor CLI, OpenCode and others), subject to each provider's supported interfaces and account limits.
+- Native durable orchestration: run/task/dispatch/worker events, retries, checkpoints, worktrees, test/build gates and independent review.
+- Fixed agent routing through editable YAML, or optional intelligent routing via the JEV plugin.
+- Versioned, editable prompts, microagents and opt-in third-party skills.
+- Optional Markdown/Obsidian second brain, indexed locally using SQLite FTS5.
+- Optional GitHub Issues integration via the `gh` CLI; Linear may follow.
+- Optional Orca integration, both as an executor and (if supported upstream) a selectable hosted agent.
 
-## Planned commands (not implemented)
+## Community and Cloud in one repository
+**Community:** fully functional local orchestration, no Gasatec account required, free and open-source.
+
+**GasaCLI Cloud (planned):** paid managed multi-device synchronization, encrypted backups and device management. Sync is opt-in, and a self-hosted implementation may be used instead. Cloud does not bundle third-party AI subscriptions.
+
+All repository code is MIT-licensed. The commercial offering charges for hosting and service, not exclusive rights to the source.
+
+See [monorepo design](docs/monorepo.md), [interactive UX](docs/adr/0004-interactive-cli-and-github-plugin.md), [orchestration contract](docs/adr/0003-quality-gated-orchestration.md), and [open-source direction](docs/adr/0005-open-source-and-cloud.md).
+
+## Planned commands (not yet available)
 ```sh
-gasa init
+gasa
+gasa doctor
+gasa goal "Implement a login screen"
 gasa brain connect ~/Obsidian/Vault
-gasa project add ./my-project
-gasa plan "Implement authentication"
-gasa run --budget 2
-gasa status
+gasa integration install orca
 ```
 
-## MVP success criteria
-1. Connect and index a local Markdown vault without uploading it.
-2. Retrieve relevant notes with source paths and show why they were selected.
-3. Produce a validated execution plan and select providers under a configurable budget.
-4. Run a real task through an execution adapter and resume after interruption.
-5. Require approval for consequential writes and report tests, decisions and costs.
+## Contribute
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md). Issues and PRs are welcome once the repository is public.
 
-See [architecture](docs/architecture.md) and [roadmap](docs/roadmap.md).
-
-## Security
-Treat retrieved notes and tool output as untrusted data. Never execute instructions embedded in notes automatically. Do not expose API keys or private vault contents in logs. Require user approval for sensitive actions.
+## Security and privacy
+Project trust approval comes before accessing files. Credentials belong in the OS credential vault, not Git or logs. Source files and Markdown are untrusted input. No automatic code or vault upload to Gasatec. Third-party model providers process data according to their own terms when used.
 
 ## License
-Not selected. This repository is private; open-source licensing will be decided before any public release.
+[MIT](LICENSE) © 2026 Gasatec.
