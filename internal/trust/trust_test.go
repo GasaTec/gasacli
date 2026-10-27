@@ -16,11 +16,17 @@ import (
 func TestTrustRelativePersistenceAndRevoke(t *testing.T) {
 	home := t.TempDir()
 	store := NewStore(home)
-	project := t.TempDir()
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Create the project under the working directory: a relative path to it always exists,
+	// even when TEMP is on another volume (Windows CI: workspace on D:, TEMP on C:).
+	project, err := os.MkdirTemp(cwd, "trust-rel-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(project) })
 	rel, err := filepath.Rel(cwd, project)
 	if err != nil {
 		t.Fatal(err)

@@ -35,9 +35,15 @@ func TestCanonicalWindowsJunction(t *testing.T) {
 	if err := os.Mkdir(child, 0700); err != nil {
 		t.Fatal(err)
 	}
+	// The temp root may be an 8.3 short path (e.g. C:\Users\RUNNER~1); canonical() expands it,
+	// so compare against the canonical form of the real child, not the raw temp path.
+	wantChild, err := canonical(child)
+	if err != nil {
+		t.Fatal(err)
+	}
 	resolvedChild, err := Canonical(filepath.Join(junction, "child"))
-	if err != nil || resolvedChild != child {
-		t.Fatalf("junction ancestor = %q, %v; want %q", resolvedChild, err, child)
+	if err != nil || resolvedChild != wantChild {
+		t.Fatalf("junction ancestor = %q, %v; want %q", resolvedChild, err, wantChild)
 	}
 	store := NewStore(t.TempDir())
 	if err := store.Grant(junction); err != nil {
