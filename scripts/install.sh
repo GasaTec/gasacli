@@ -35,8 +35,10 @@ canonical_dir() {
         check=${check%/*}; [ -n "$check" ] || check=/
     done
     [ ! -L / ] || return 2
-    physical=$(CDPATH= cd -P -- "$rest" 2>/dev/null && pwd -P) || return 1
-    printf '%s\n' "${physical%/}$suffix" | sed 's#^$#/##'
+    physical=$(CDPATH='' cd -P -- "$rest" 2>/dev/null && pwd -P) || return 1
+    canonical_result="${physical%/}$suffix"
+    [ -n "$canonical_result" ] || canonical_result=/
+    printf '%s\n' "$canonical_result"
 }
 safe_install_dir() {
     unsafe_reason=''
@@ -79,7 +81,7 @@ fi
 if [ "${GASA_UNINSTALL:-}" = 1 ]; then
     safe_install_dir "$install_dir" || fail "Install directory rejected: $unsafe_reason ($install_dir)" "Install directory rejected: $unsafe_reason ($install_dir)"
     [ "$install_dir" = "$HOME/.local/bin" ] || install_dir=$(canonical_dir "$install_dir") || fail "Invalid install directory." "Invalid install directory."
-    [ -f "$install_dir/gasa" ] && [ ! -L "$install_dir/gasa" ] || fail "gasa não encontrado como arquivo regular em $install_dir." "gasa was not found as a regular file in $install_dir."
+    if [ ! -f "$install_dir/gasa" ] || [ -L "$install_dir/gasa" ]; then fail "gasa não encontrado como arquivo regular em $install_dir." "gasa was not found as a regular file in $install_dir."; fi
     rm -f "$install_dir/gasa" "$install_dir/gasa.old"
     rmdir "$install_dir" 2>/dev/null || :
     msg "Binário removido; os dados em ~/.config/gasacli/ foram preservados." "Binary removed; data in ~/.config/gasacli/ was preserved."
@@ -139,7 +141,7 @@ else actual=$(shasum -a 256 "$tmp/$archive" | awk '{print tolower($1)}'); fi
 [ "$actual" = "$expected" ] || fail "SHA-256 divergente para $archive; nada foi instalado." "SHA-256 mismatch for $archive; nothing was installed."
 mkdir -p "$tmp/extract" || fail "Não foi possível preparar extração." "Could not prepare extraction."
 tar -xf "$tmp/$archive" -C "$tmp/extract" || fail "Não foi possível extrair o archive." "Could not extract the archive."
-[ -f "$tmp/extract/gasa" ] && [ ! -L "$tmp/extract/gasa" ] || fail "O archive não contém gasa como arquivo regular na raiz." "Archive does not contain gasa as a regular file at its root."
+if [ ! -f "$tmp/extract/gasa" ] || [ -L "$tmp/extract/gasa" ]; then fail "O archive não contém gasa como arquivo regular na raiz." "Archive does not contain gasa as a regular file at its root."; fi
 [ -z "$(find "$tmp/extract" -type f -links +1 -print -quit)" ] || fail "Hard links não são aceitos no archive." "Hard links are not accepted in the archive."
 [ "$(wc -c < "$tmp/extract/gasa")" -ge 1024 ] || fail "Executável extraído pequeno demais." "Extracted executable is too small."
 chmod 755 "$tmp/extract/gasa"
