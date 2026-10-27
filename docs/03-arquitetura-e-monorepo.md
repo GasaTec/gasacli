@@ -1,28 +1,25 @@
 # 03 — Arquitetura e monorepo
 
-## Stack proposta
-TypeScript/Node.js; SQLite local com WAL e FTS5; subprocessos para CLIs externas; sem Redis/Celery obrigatórios. Bibliotecas concretas serão definidas com testes de compatibilidade.
+## Stack aprovada
+**Go** para CLI, TUI, orquestrador, discovery, adapters, plugins e persistência. **Rust** para componentes isolados somente quando benchmarks justificarem. **SQLite** com WAL/FTS5 local. **TypeScript** para o dashboard Cloud. API Cloud: Go preferencial, ainda a validar. Sem Redis/Celery obrigatórios. Veja [ADR-0006](adr/0006-go-rust-stack.md).
 
 ## Estrutura planejada
 ```text
-apps/cli/
+cmd/gasa/
+internal/tui/
+internal/core/
+internal/orchestrator/
+internal/discovery/
+internal/adapters/
+internal/routing/
+internal/quality/
+internal/storage/
+internal/memory/
+internal/plugins/
+pkg/pluginprotocol/
+rust/
 apps/cloud-api/
 apps/cloud-web/
-packages/core/
-packages/tui/
-packages/discovery/
-packages/agent-adapters/
-packages/orchestrator/
-packages/decision-engine/
-packages/model-router/
-packages/quality/
-packages/prompts/
-packages/memory/
-packages/plugin-sdk/
-packages/plugins-github/
-packages/plugins-jev/
-packages/plugins-orca/
-packages/sync-protocol/
 docs/
 ```
 
