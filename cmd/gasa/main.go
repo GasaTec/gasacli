@@ -1,123 +1,225 @@
 package main
 
 import (
- "bufio"
- "context"
- "errors"
- "flag"
- "fmt"
- "net"
- "net/http"
- "os"
- "os/exec"
- "os/signal"
- "path/filepath"
- "runtime"
- "strings"
- "time"
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"os/signal"
+	"strings"
+	"time"
+
+	"github.com/GasaTec/gasacli/internal/config"
+	"github.com/GasaTec/gasacli/internal/discovery"
+	"github.com/GasaTec/gasacli/internal/trust"
+	"github.com/GasaTec/gasacli/internal/tui"
+	"github.com/GasaTec/gasacli/internal/web"
 )
 
 func main() {
- if err := run(os.Args[1:]); err != nil { fmt.Fprintln(os.Stderr, "gasa:", err); os.Exit(1) }
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if err := run(ctx, os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, "gasa:", err)
+		os.Exit(1)
+	}
 }
 
-func run(args []string) error {
- flags := flag.NewFlagSet("gasa", flag.ContinueOnError)
- noBrowser := flags.Bool("no-browser", false, "Do not open the dashboard in a browser")
- flags.Usage = func(){ help() }
- if err:=flags.Parse(args); err!=nil { return err }
- rest:=flags.Args()
- if len(rest)>0 {
-  switch rest[0] {
-  case "help": help(); return nil
-  case "doctor": doctor(); return nil
-  case "web":
-   if len(rest)>1 && rest[1]=="open" { return serve(context.Background(),true,true) }
-   return errors.New("usage: gasa web open")
-  default: return fmt.Errorf("unknown command %q (try gasa --help)",rest[0])
-  }
- }
- cwd,err:=os.Getwd(); if err!=nil{return err}
- fmt.Println("GasaCLI pre-alpha |",cwd)
- fmt.Println("This build is a local chat shell; /goal is not implemented.")
- fmt.Print("Trust this directory for future project operations? [y/N]: ")
- reader:=bufio.NewReader(os.Stdin)
- answer,_:=reader.ReadString('\n')
- if strings.ToLower(strings.TrimSpace(answer))!="y" {return errors.New("project not trusted")}
- ctx,stop:=signal.NotifyContext(context.Background(),os.Interrupt);defer stop()
- server,endpoint,err:=startServer();if err!=nil{return err}
- defer server.Shutdown(context.Background())
- fmt.Println("Dashboard:",endpoint)
- if !*noBrowser { _=openBrowser(endpoint) }
- fmt.Println("Type /help or /exit.")
- for {
-  fmt.Print("gasa> ")
-  line,err:=reader.ReadString('\n')
-  if err!=nil {return nil}
-  input:=strings.TrimSpace(line)
-  switch input {
-  case "/exit","/quit":return nil
-  case "/help":help()
-  case "/agents","/doctor":doctor()
-  case "/status":fmt.Println("No active run. Orchestration is not implemented yet.")
-  case "":continue
-  default:
-   if strings.HasPrefix(input,"/goal") {fmt.Println("/goal is planned but not implemented. No code was changed.")} else {fmt.Println("Interactive model chat is not connected yet. Use /help.")}
-  }
-  select {case <-ctx.Done():return nil;default:}
- }
+func run(ctx context.Context, args []string) error {
+	flags := flag.NewFlagSet("gasa", flag.ContinueOnError)
+	noBrowser := flags.Bool("no-browser", false, "Do not open the dashboard automatically")
+	flags.Usage = help
+	// Accept the global switch on either side of a subcommand.
+	var positional []string
+	for _, arg := range args {
+		if arg == "--no-browser" {
+			*noBrowser = true
+		} else {
+			positional = append(positional, arg)
+		}
+	}
+	if err := flags.Parse(positional); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	rest := flags.Args()
+	if len(rest) == 1 && rest[0] == "help" {
+		help()
+		return nil
+	}
+	if err := config.Ensure(); err != nil {
+		return fmt.Errorf("initialize config: %w", err)
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+	if cfg.Web.Mode == "always" {
+		fmt.Println("always: serviço em background ainda não implementado; usando auto")
+	}
+	if len(rest) > 0 {
+		switch {
+		case len(rest) == 1 && rest[0] == "doctor":
+			return diagnostics(ctx, os.Stdout)
+		case len(rest) == 2 && rest[0] == "web" && rest[1] == "open":
+			server, err := startDashboard(ctx, cfg)
+			if err != nil {
+				return err
+			}
+			defer shutdown(server)
+			if !*noBrowser {
+				launchBrowser(server.LaunchURL(), os.Stderr)
+			}
+			fmt.Println("Press Ctrl+C to stop")
+			<-ctx.Done()
+			return nil
+		default:
+			return fmt.Errorf("unknown command %q (try gasa --help)", strings.Join(rest, " "))
+		}
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	home, err := config.Home()
+	if err != nil {
+		return err
+	}
+	fmt.Println("GasaCLI pre-alpha |", cwd)
+	fmt.Println("This build is a local chat shell; /goal is not implemented.")
+	var server *web.Server
+	defer func() { shutdown(server) }()
+	// Closing the pipe on cancellation unblocks the TUI even while stdin is idle.
+	input, writer := io.Pipe()
+	defer input.Close()
+	done := make(chan struct{})
+	defer close(done)
+	stdin := os.Stdin
+	go func() { _, err := io.Copy(writer, stdin); _ = writer.CloseWithError(err) }()
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = writer.CloseWithError(ctx.Err())
+		case <-done:
+		}
+	}()
+	session := tui.Session{
+		In: input, Out: os.Stdout, ProjectPath: cwd, TrustStore: trust.NewStore(home),
+		Agents: func(out io.Writer) {
+			if err := diagnostics(ctx, out); err != nil {
+				fmt.Fprintln(os.Stderr, "discovery:", err)
+			}
+		},
+		Doctor: func(out io.Writer) {
+			if err := diagnostics(ctx, out); err != nil {
+				fmt.Fprintln(os.Stderr, "discovery:", err)
+			}
+		},
+		OnTrusted: func() error {
+			var err error
+			server, err = startDashboard(ctx, cfg)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Warning: dashboard unavailable:", err)
+				return nil
+			}
+			if shouldOpen(cfg.Web.Mode, *noBrowser) {
+				launchBrowser(server.LaunchURL(), os.Stderr)
+			}
+			return nil
+		},
+		Web: func(out io.Writer, args []string) error {
+			action := "status"
+			if len(args) > 1 {
+				return fmt.Errorf("usage: /web [open|status]")
+			}
+			if len(args) == 1 {
+				action = args[0]
+			}
+			if action != "open" && action != "status" {
+				return fmt.Errorf("%s: planejado (not implemented)", action)
+			}
+			if server == nil {
+				return fmt.Errorf("dashboard unavailable")
+			}
+			fmt.Fprintln(out, "Dashboard:", server.URL())
+			if action == "open" && !*noBrowser {
+				launchBrowser(server.LaunchURL(), out)
+			}
+			return nil
+		},
+	}
+	err = session.Run()
+	if ctx.Err() != nil {
+		return nil
+	}
+	return err
 }
 
-func help(){
- fmt.Println("GasaCLI pre-alpha commands")
- fmt.Println("  gasa [--no-browser]   Open terminal shell and local dashboard")
- fmt.Println("  gasa doctor           Discover installed coding CLIs")
- fmt.Println("  gasa web open         Start standalone local dashboard")
- fmt.Println("  gasa --help           Show this help")
- fmt.Println("  /help /agents /status /exit")
- fmt.Println("  /goal /permissions /backup /restore (planned, not implemented)")
+func shouldOpen(mode string, noBrowser bool) bool { return !noBrowser && mode != "manual" }
+
+func diagnostics(ctx context.Context, out io.Writer) error {
+	return discovery.Format(out, discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{}))
 }
 
-func doctor(){
- for _,name:=range []string{"claude","codex","gemini","cursor","opencode","orca","gh"} {
-  path,err:=exec.LookPath(name)
-  if err!=nil {fmt.Printf("%-10s not found\n",name);continue}
-  fmt.Printf("%-10s installed at %s (authentication not checked)\n",name,path)
- }
+func startDashboard(ctx context.Context, cfg config.Config) (*web.Server, error) {
+	server, err := web.Start(ctx, web.Options{Host: cfg.Web.Host, Port: cfg.Web.Port, Fallback: cfg.Web.FallbackPort})
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("Dashboard:", server.URL())
+	go func() {
+		<-server.Done()
+		if err := server.ServeError(); err != nil {
+			fmt.Fprintln(os.Stderr, "Warning: dashboard stopped:", err)
+		}
+	}()
+	return server, nil
 }
 
-func startServer()(*http.Server,string,error){
- mux:=http.NewServeMux()
- mux.HandleFunc("/",func(w http.ResponseWriter,r *http.Request){
-  if r.URL.Path!="/" {http.NotFound(w,r);return}
-  w.Header().Set("Content-Type","text/html; charset=utf-8")
-  w.Header().Set("Cache-Control","no-store")
-  fmt.Fprint(w,`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GasaCLI</title><style>body{font:16px system-ui;background:#101722;color:#e9f1fa;max-width:760px;margin:12vh auto;padding:24px}section{border:1px solid #35465c;border-radius:16px;padding:24px}small{color:#aebed0}</style><section><h1>GasaCLI</h1><p>Dashboard local — pre-alpha</p><small>Monitoramento, agentes e analytics ainda não implementados. Nenhum dado de tokens ou custo foi coletado.</small></section></html>`)
- })
- listener,err:=net.Listen("tcp","127.0.0.1:3199")
- if err!=nil {listener,err=net.Listen("tcp","127.0.0.1:0")}
- if err!=nil{return nil,"",err}
- srv:=&http.Server{Handler:mux,ReadHeaderTimeout:5*time.Second}
- go func(){_ = srv.Serve(listener)}()
- return srv,"http://"+listener.Addr().String(),nil
+func shutdown(server *web.Server) {
+	if server == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		fmt.Fprintln(os.Stderr, "Warning: dashboard shutdown:", err)
+	}
 }
 
-func serve(ctx context.Context,launch,wait bool)error{
- srv,url,err:=startServer();if err!=nil{return err};defer srv.Shutdown(context.Background())
- fmt.Println("Dashboard:",url)
- if launch {_=openBrowser(url)}
- if wait {fmt.Println("Press Ctrl+C to stop");sig,stop:=signal.NotifyContext(ctx,os.Interrupt);defer stop();<-sig.Done()}
- return nil
+func launchBrowser(url string, out io.Writer) {
+	if url == "" {
+		fmt.Fprintln(out, "Warning: could not create a browser session; open the Dashboard URL manually")
+		return
+	}
+	err := web.OpenBrowser(url, func(name string, args ...string) error {
+		cmd := exec.Command(name, args...)
+		if err := cmd.Start(); err != nil {
+			return err
+		}
+		go func() { _ = cmd.Wait() }()
+		return nil
+	})
+	if err != nil {
+		fmt.Fprintln(out, "Warning: browser unavailable")
+	}
 }
 
-func openBrowser(url string)error{
- var cmd *exec.Cmd
- switch runtime.GOOS {
- case "windows":cmd=exec.Command("rundll32","url.dll,FileProtocolHandler",url)
- case "darwin":cmd=exec.Command("open",url)
- default:cmd=exec.Command("xdg-open",url)
- }
- return cmd.Start()
+func help() {
+	fmt.Println(`GasaCLI pre-alpha commands
+  gasa [--no-browser]     Open terminal shell and local dashboard
+  gasa doctor            Discover installed coding CLIs
+  gasa web open          Start dashboard and wait for Ctrl+C
+  gasa help | --help     Show this help
+  --no-browser           Suppress browser launches, including /web open
+  web.mode auto          Open browser at startup
+  web.mode manual        Open browser only with /web open
+  web.mode always        Background service not implemented; uses auto with warning
+  /help /exit /quit /agents /doctor /status /goal /web [open|status]
+  /permissions /backup /restore /web stop|restart: planejado (not implemented)`)
 }
-
-var _ = filepath.Separator
