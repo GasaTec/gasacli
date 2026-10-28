@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"sort"
 	"strings"
@@ -29,15 +30,32 @@ func SetLanguage(language string) {
 	current.Store(language)
 }
 
-// Configure selects the onboarding preference, then GASACLI_LANG, then the OS locale.
+// Configure selects GASACLI_LANG, then the configured/onboarding preference, then the OS locale.
 func Configure(onboardingLanguage string) {
-	for _, candidate := range []string{onboardingLanguage, os.Getenv("GASACLI_LANG"), os.Getenv("LC_ALL"), os.Getenv("LC_MESSAGES"), os.Getenv("LANG")} {
+	for _, candidate := range []string{os.Getenv("GASACLI_LANG"), onboardingLanguage, os.Getenv("LC_ALL"), os.Getenv("LC_MESSAGES"), os.Getenv("LANG")} {
 		if strings.TrimSpace(candidate) != "" {
 			SetLanguage(candidate)
 			return
 		}
 	}
 	SetLanguage("pt-BR")
+}
+
+// EffectiveLanguage returns the selected language and the setting that supplied it.
+func EffectiveLanguage(configured, onboarding string) (language, source string) {
+	for _, candidate := range []struct{ value, source string }{
+		{os.Getenv("GASACLI_LANG"), "env"},
+		{configured, "config"},
+		{onboarding, "onboarding"},
+		{os.Getenv("LC_ALL"), "os"},
+		{os.Getenv("LC_MESSAGES"), "os"},
+		{os.Getenv("LANG"), "os"},
+	} {
+		if selected := normalize(candidate.value); selected == "en" || selected == "pt-BR" {
+			return selected, candidate.source
+		}
+	}
+	return "pt-BR", "default"
 }
 
 func normalize(language string) string {
@@ -60,12 +78,17 @@ func Language() string { return current.Load().(string) }
 
 // T looks up a message and applies fmt.Sprintf arguments when supplied.
 func T(key string, args ...any) string {
-	data, err := files.ReadFile("catalogs/" + Language() + ".json")
-	if err != nil {
-		return key
+	return TFor(Language(), key, args...)
+}
+
+// TFor looks up a message in a requested supported locale without changing the process locale.
+func TFor(language, key string, args ...any) string {
+	language = normalize(language)
+	if language != "en" && language != "pt-BR" {
+		language = "pt-BR"
 	}
-	var messages catalog
-	if json.Unmarshal(data, &messages) != nil {
+	messages, err := loadCatalog(files, language)
+	if err != nil {
 		return key
 	}
 	message, ok := messages[key]
@@ -84,12 +107,8 @@ func CatalogKeys(language string) ([]string, error) {
 	if language != "en" && language != "pt-BR" {
 		return nil, fmt.Errorf("unsupported language %q", language)
 	}
-	data, err := files.ReadFile("catalogs/" + language + ".json")
+	messages, err := loadCatalog(files, language)
 	if err != nil {
-		return nil, err
-	}
-	var messages catalog
-	if err := json.Unmarshal(data, &messages); err != nil {
 		return nil, err
 	}
 	keys := make([]string, 0, len(messages))
@@ -98,4 +117,36 @@ func CatalogKeys(language string) ([]string, error) {
 	}
 	sort.Strings(keys)
 	return keys, nil
+}
+
+func loadCatalog(source fs.FS, language string) (catalog, error) {
+	entries, err := fs.ReadDir(source, "catalogs")
+	if err != nil {
+		return nil, err
+	}
+	merged := catalog{}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !(name == language+".json" || strings.HasSuffix(name, "."+language+".json")) {
+			continue
+		}
+		data, err := fs.ReadFile(source, "catalogs/"+name)
+		if err != nil {
+			return nil, err
+		}
+		var part catalog
+		if err := json.Unmarshal(data, &part); err != nil {
+			return nil, fmt.Errorf("decode catalog %s: %w", name, err)
+		}
+		for key, value := range part {
+			if _, exists := merged[key]; exists {
+				return nil, fmt.Errorf("duplicate catalog key %q in %s", key, name)
+			}
+			merged[key] = value
+		}
+	}
+	if len(merged) == 0 {
+		return nil, fmt.Errorf("catalog %s not found", language)
+	}
+	return merged, nil
 }

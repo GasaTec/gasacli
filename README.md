@@ -103,6 +103,10 @@ Run `gasa` in a project folder. The first time, it offers to install missing age
 | `gasa uninstall` | `reset --all` plus how to remove the binary |
 | `gasa --version` | Version and build information |
 
+### Commands
+
+In the terminal, `/help` lists the available chat commands. Local commands include `gasa config`, `gasa prompts list|show|path|reset`, `gasa skills`, `gasa brain`, `gasa permissions`, `gasa run|runs|resume`, `gasa backup|backups|restore`, and `gasa doctor`. Availability depends on local setup and permissions; provider-backed actions require the relevant CLI or account. See the [CLI guide](docs/02-cli-e-comandos.md) for current behavior and planned work.
+
 Your data lives in `%AppData%\gasacli` on Windows, `${XDG_DATA_HOME:-~/.local/share}/gasacli` on Linux and `~/Library/Application Support/gasacli` on macOS. See [onboarding and reset](docs/onboarding.md) (Portuguese) for the safety rules.
 
 ## Contribute

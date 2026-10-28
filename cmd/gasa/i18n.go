@@ -31,24 +31,25 @@ func localizedHelp() { fmt.Fprint(os.Stdout, i18n.T("cli.help")) }
 func formatDiagnosticOutput(out io.Writer, results []discovery.Result) error {
 	writer := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 	for _, result := range results {
-		status := "doctor.status." + string(result.Status)
-		if result.Status == discovery.Installed {
-			status = "doctor.status.installed"
-		} else if result.Status == discovery.Missing {
-			status = "doctor.status.missing"
-		}
-		auth := "doctor.auth.unknown"
+		verdict := result.Status
 		switch result.Auth {
 		case discovery.AuthReady:
-			auth = "doctor.auth.ready"
+			verdict = discovery.Ready
 		case discovery.AuthNeedsLogin:
-			auth = "doctor.auth.needs_login"
+			verdict = discovery.NeedsLogin
 		}
+		status := "doctor.status." + string(verdict)
+		reason := "doctor.reason." + string(verdict)
 		errText := result.Err
+		if errText != "" {
+			reason = cliDiagnosticField(errText, 200)
+		} else {
+			reason = i18n.T(reason)
+		}
 		if _, err := fmt.Fprintf(writer, i18n.T("doctor.row")+"\n",
 			cliDiagnosticField(result.Name, 200), i18n.T(status),
 			cliDiagnosticField(result.Version, 200), cliDiagnosticField(result.Path, 4096),
-			i18n.T(auth), cliDiagnosticField(errText, 200)); err != nil {
+			reason, cliDiagnosticField(errText, 200)); err != nil {
 			return err
 		}
 	}

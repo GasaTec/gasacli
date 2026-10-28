@@ -111,9 +111,13 @@ func commandSummary(command Command) string {
 }
 
 func helpText() string {
+	return helpTextFor(RegisteredCommands())
+}
+
+func helpTextFor(commands []Command) string {
 	var output strings.Builder
 	output.WriteString("GasaCLI commands:\n")
-	for _, command := range RegisteredCommands() {
+	for _, command := range commands {
 		description := commandSummary(command)
 		if command.Planned {
 			description += " (" + i18n.T("command.planned", command.IssueRef) + ")"

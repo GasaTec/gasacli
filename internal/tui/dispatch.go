@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/GasaTec/gasacli/internal/config"
 	"github.com/GasaTec/gasacli/internal/i18n"
 	"github.com/GasaTec/gasacli/internal/permissions"
 )
@@ -25,7 +26,16 @@ type sessionCommandContext struct {
 
 func (c *sessionCommandContext) ProjectPath() string { return c.project }
 func (c *sessionCommandContext) Trusted() bool       { return c.trusted }
-func (c *sessionCommandContext) ConfigHome() string  { return c.session.ConfigHome }
+func (c *sessionCommandContext) ConfigHome() string {
+	if c.session.ConfigHome != "" {
+		return c.session.ConfigHome
+	}
+	home, err := config.Home()
+	if err != nil {
+		return ""
+	}
+	return home
+}
 func (c *sessionCommandContext) DiscoveryResults() any {
 	if c.session.DiscoveryResults != nil {
 		return c.session.DiscoveryResults()
@@ -55,6 +65,16 @@ func (c *sessionCommandContext) Ask(request PermissionRequest) (bool, error) {
 		return false, err
 	}
 	return decision.Effect == permissions.Allow, nil
+}
+
+func (c *sessionCommandContext) Confirm(request PermissionRequest) (bool, error) {
+	if c.ask == nil {
+		return false, fmt.Errorf("approval is unavailable")
+	}
+	if request.ExactCommand == "" {
+		request.ExactCommand = c.command
+	}
+	return c.ask(c.ctx, request)
 }
 
 type sessionApprover struct {

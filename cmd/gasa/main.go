@@ -74,7 +74,7 @@ func run(ctx context.Context, args []string) error {
 	noOnboarding := flags.Bool("no-onboarding", false, "Skip first-run onboarding")
 	plain := flags.Bool("plain", false, "Use line-oriented mode instead of the interactive terminal UI")
 	doctorJSON := flags.Bool("json", false, "Write doctor results as JSON")
-	flags.Usage = localizedHelp
+	flags.Usage = help
 	// Accept the global switch on either side of a subcommand.
 	var positional []string
 	for _, arg := range args {
@@ -446,4 +446,7 @@ func launchBrowser(url string, out io.Writer) {
 	}
 }
 
-func help() { localizedHelp() }
+func help() {
+	configureCLILanguage()
+	localizedHelp()
+}

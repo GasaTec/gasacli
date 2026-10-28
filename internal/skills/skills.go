@@ -56,7 +56,7 @@ func (m Manager) Discover() ([]Skill, error) {
 	add(filepath.Join(project, ".claude", "skills"), "project-claude")
 	add(filepath.Join(project, ".agents", "skills"), "project-agents")
 	add(filepath.Join(m.Home, "skills"), "gasacli")
-	seen := map[string]bool{}
+	seen := map[string]int{}
 	var out []Skill
 	for _, base := range paths {
 		count := 0
@@ -94,9 +94,14 @@ func (m Manager) Discover() ([]Skill, error) {
 			if err != nil {
 				return err
 			}
-			key := strings.ToLower(skill.Name + "\x00" + skill.Path)
-			if !seen[key] {
-				seen[key] = true
+			key := strings.ToLower(skill.Name + "\x00" + skill.Hash)
+			if index, exists := seen[key]; exists {
+				sources := strings.Split(out[index].Source, ",")
+				if !containsSource(sources, skill.Source) {
+					out[index].Source += "," + skill.Source
+				}
+			} else {
+				seen[key] = len(out)
 				out = append(out, skill)
 			}
 			return nil
@@ -115,6 +120,15 @@ func (m Manager) Discover() ([]Skill, error) {
 		return out[i].Name < out[j].Name
 	})
 	return out, nil
+}
+
+func containsSource(sources []string, source string) bool {
+	for _, existing := range sources {
+		if existing == source {
+			return true
+		}
+	}
+	return false
 }
 
 func parseManifest(path, source string) (Skill, error) {

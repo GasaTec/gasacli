@@ -29,8 +29,35 @@ type Upgrade struct {
 	Candidate string
 }
 
+// Entry describes the effective prompt file for one built-in role.
+type Entry struct {
+	Role   string
+	Source string
+	Path   string
+}
+
 var roles = []string{"orchestrator", "tech-lead", "developer", "tester"}
 var languages = []string{"pt-BR", "en"}
+
+// List reports each built-in role and the highest-priority override that exists.
+func List(home, project, language string) []Entry {
+	entries := make([]Entry, 0, len(roles))
+	for _, role := range roles {
+		entry := Entry{Role: role, Source: "default", Path: "embedded: " + role + "-" + language}
+		userPath := filepath.Join(home, "prompts", role+"-"+language+".yaml")
+		if _, err := os.Stat(userPath); err == nil {
+			entry.Source, entry.Path = "user", userPath
+		}
+		if project != "" {
+			projectPath := filepath.Join(project, "gasacli", "prompts", role+"-"+language+".yaml")
+			if _, err := os.Stat(projectPath); err == nil {
+				entry.Source, entry.Path = "project", projectPath
+			}
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
 
 func Validate(data []byte) (Prompt, error) {
 	var p Prompt

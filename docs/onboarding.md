@@ -1,10 +1,14 @@
 ﻿# Primeira execução e ciclo de vida dos dados
 
-Na primeira execução interativa, o GasaCLI detecta CLIs de agentes e o Obsidian, que é opcional. A autenticação não é verificada. A seleção permite navegar com setas ou `k`/`j`, marcar com espaço, marcar todos com `a`, limpar com `n`, confirmar com Enter ou pular com Esc/`q`. Ctrl+C cancela o onboarding. Se o terminal não permitir modo raw, a seleção numerada é usada.
+Na primeira execução interativa, o GasaCLI detecta CLIs de agentes e o Obsidian, que é opcional. Para cada agente, a descoberta distingue instalação, prontidão e necessidade de login quando o provedor oferece uma verificação local segura; isso não prova que uma futura chamada ao agente terá sucesso. A seleção permite navegar com setas ou `k`/`j`, marcar com espaço, marcar todos com `a`, limpar com `n`, confirmar com Enter ou pular com Esc/`q`. Ctrl+C cancela o onboarding. Se o terminal não permitir modo raw, a seleção numerada é usada.
 
 Claude Code e Codex aparecem selecionados por padrão quando ausentes. O plano mostra o comando exato e a origem oficial. A execução automática pergunta `Run the automatic installs now? [y/N/s]`; o padrão é `N`. Scripts oficiais `curl | sh` e `irm | iex` são exibidos como instruções e nunca executados pelo GasaCLI.
 
 `gasa setup` fora do chat pode executar os comandos selecionados após a confirmação. `/setup` dentro do chat mostra status, seleção numerada e plano, sem executar comandos. Para instalar, rode `gasa setup` fora do chat. Para pular o onboarding inicial, use `GASA_SKIP_ONBOARDING=1` ou `--no-onboarding`; isso não impede `gasa setup`.
+
+## Estado dos recursos
+
+O onboarding local, a descoberta de agentes, a configuração de permissões, os prompts locais, as skills encontradas no disco e a conexão opcional com um vault Markdown são recursos locais disponíveis, sujeitos à versão e às dependências instaladas. O chat não envia texto livre a um modelo. Orquestração com agente requer uma ferramenta instalada e pronta; descoberta não significa autenticação ou execução garantida. Sincronização Cloud, serviço em segundo plano e integrações ainda não ligadas a um provedor continuam planejados. Consulte `gasa doctor` e `gasa --help` para verificar o estado desta instalação.
 
 ## Adoção do diretório de dados
 

@@ -67,8 +67,8 @@ func TestRegistryDrivesPaletteAndHelp(t *testing.T) {
 	if len(matches) != len(RegisteredCommands()) {
 		t.Fatalf("palette has %d commands, registry has %d", len(matches), len(RegisteredCommands()))
 	}
-	if !strings.Contains(helpText(), "/permissions") || !strings.Contains(helpText(), "#31") {
-		t.Fatalf("help omitted registered planned command: %s", helpText())
+	if !strings.Contains(helpText(), "/permissions") || strings.Contains(helpText(), "/permissions     Configure execution permissions (planned") {
+		t.Fatalf("help omitted active permissions command: %s", helpText())
 	}
 	for _, language := range []string{"pt-BR", "en"} {
 		keys, err := i18n.CatalogKeys(language)
@@ -83,6 +83,12 @@ func TestRegistryDrivesPaletteAndHelp(t *testing.T) {
 			if !available[command.Summary] {
 				t.Errorf("%s catalog missing %s", language, command.Summary)
 			}
+			if strings.TrimSpace(commandSummary(command)) == "" || commandSummary(command) == command.Summary {
+				t.Errorf("%s registry command %s has no translated summary", language, command.Name)
+			}
+		}
+		if !strings.Contains(helpText(), "GasaCLI commands:") {
+			t.Errorf("real registry did not render for %s", language)
 		}
 	}
 }
@@ -116,7 +122,7 @@ func TestHelpCatalogGoldens(t *testing.T) {
 	for _, language := range []string{"pt-BR", "en"} {
 		t.Run(language, func(t *testing.T) {
 			i18n.SetLanguage(language)
-			got := helpText() + "\n"
+			got := helpTextFor(helpGoldenFixture()) + "\n"
 			path := filepath.Join("testdata", "help-"+language+"-80x24.golden")
 			if os.Getenv("UPDATE_GOLDEN") == "1" {
 				if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
@@ -131,6 +137,30 @@ func TestHelpCatalogGoldens(t *testing.T) {
 				t.Fatalf("/help differs from %s\n--- got ---\n%s\n--- want ---\n%s", path, got, want)
 			}
 		})
+	}
+}
+
+func helpGoldenFixture() []Command {
+	return []Command{
+		{Name: "/agents", Summary: "command.agents"},
+		{Name: "/backup", Summary: "command.backup"},
+		{Name: "/backups", Summary: "command.backups"},
+		{Name: "/brain", Summary: "command.brain"},
+		{Name: "/config", Summary: "command.config"},
+		{Name: "/doctor", Summary: "command.doctor"},
+		{Name: "/exit", Summary: "command.exit"},
+		{Name: "/github", Summary: "command.github"},
+		{Name: "/goal", Summary: "command.goal", Planned: true, IssueRef: "#11"},
+		{Name: "/help", Summary: "command.help"},
+		{Name: "/permissions", Summary: "command.permissions", Planned: true, IssueRef: "#31"},
+		{Name: "/prompts", Summary: "command.prompts"},
+		{Name: "/quit", Summary: "command.exit"},
+		{Name: "/restore", Summary: "command.restore"},
+		{Name: "/resume", Summary: "command.resume", Planned: true, IssueRef: "#11"},
+		{Name: "/setup", Summary: "command.setup"},
+		{Name: "/skills", Summary: "command.skills"},
+		{Name: "/status", Summary: "command.status"},
+		{Name: "/web", Summary: "command.web"},
 	}
 }
 

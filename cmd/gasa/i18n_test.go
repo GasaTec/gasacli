@@ -20,8 +20,8 @@ func TestFormatDiagnosticOutputUsesSelectedCatalog(t *testing.T) {
 		language string
 		want     string
 	}{
-		{language: "en", want: "available"},
-		{language: "pt-BR", want: "disponível"},
+		{language: "en", want: "installed"},
+		{language: "pt-BR", want: "instalado"},
 	} {
 		t.Run(test.language, func(t *testing.T) {
 			i18n.SetLanguage(test.language)

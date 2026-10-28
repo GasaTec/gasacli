@@ -13,7 +13,7 @@ import (
 
 func runPrompts(ctx context.Context, args []string, out *os.File) error {
 	if len(args) < 1 || len(args) > 2 {
-		return errors.New("usage: gasa prompts show|path|reset [role]")
+		return errors.New("usage: gasa prompts list | show|path|reset [role]")
 	}
 	home, err := config.Home()
 	if err != nil {
@@ -26,6 +26,17 @@ func runPrompts(ctx context.Context, args []string, out *os.File) error {
 	project, _ := os.Getwd()
 	if err = ctx.Err(); err != nil {
 		return err
+	}
+	if args[0] == "list" {
+		if len(args) != 1 {
+			return errors.New("usage: gasa prompts list")
+		}
+		for _, entry := range prompts.List(home, project, language) {
+			if _, err := fmt.Fprintf(out, "%s\t%s\t%s\n", entry.Role, entry.Source, entry.Path); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	if _, err = prompts.Ensure(home, ""); err != nil {
 		return err

@@ -1,0 +1,10 @@
+{
+  "permissions.usage": "Uso: /permissions [show|set-profile <restricted|balanced|autonomous>|allow|deny|ask <permissão> [--agent <id>|--project]|reset [--agent <id>|--project]]",
+  "permissions.profile.changed": "Perfil de permissões alterado para %s.",
+  "permissions.rule.changed": "Regra salva: %s %s no escopo %s.",
+  "permissions.reset.done": "Regras de permissão redefinidas no escopo %s.",
+  "permissions.project_not_trusted": "Confirme a confiança do projeto antes de alterar a política de permissões.",
+  "permissions.no_self_elevation": "Uma regra de projeto ou agente não pode afrouxar uma permissão de escopo superior.",
+  "permissions.approval_unavailable": "Esta alteração exige um diálogo interativo de aprovação.",
+  "permissions.change.denied": "A alteração da política de permissões não foi aprovada."
+}

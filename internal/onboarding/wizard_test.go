@@ -19,7 +19,8 @@ func TestWizardScreenViews(t *testing.T) {
 		options:  WizardOptions{ctx: context.Background(), Home: t.TempDir(), Project: filepath.Join(t.TempDir(), "project")},
 		missing:  []Item{{ID: "cursor", Name: "Cursor CLI", URL: "https://example.com", Methods: map[string][]Method{"windows": {manual("manual", "install manually", "https://example.com")}}}},
 		selected: map[string]bool{"cursor": true},
-		results:  []discovery.Result{{Name: "Codex", Version: "1.2.3", Status: discovery.Available, Path: "C:/tools/codex.exe"}},
+		language: 1,
+		results:  []discovery.Result{{Name: "Codex", Version: "1.2.3", Status: discovery.Ready, Auth: discovery.AuthReady, Path: "C:/tools/codex.exe"}},
 		width:    100,
 	}
 	cases := []struct {
@@ -28,7 +29,7 @@ func TestWizardScreenViews(t *testing.T) {
 	}{
 		{0, []string{"Passo 1 de 6", "Idioma do terminal", "Português (Brasil)"}},
 		{1, []string{"Passo 2 de 6", "Agentes e ferramentas locais", "Codex", "1.2.3", "READY"}},
-		{2, []string{"Passo 3 de 6", "Instalar ferramentas ausentes", "Cursor CLI", "Command:"}},
+		{2, []string{"Passo 3 de 6", "Instalar ferramentas ausentes", "Cursor CLI", "Comando:"}},
 		{3, []string{"Confirmação de workspace", "Confirmação de pasta confiável", "Manter sem confiança"}},
 		{4, []string{"Passo 4 de 6", "Perfil de permissões", "restricted"}},
 		{5, []string{"Passo 5 de 6", "Modo do dashboard:", "Community"}},
@@ -61,12 +62,13 @@ func TestWizardGoldenTerminalSizes(t *testing.T) {
 			name := fmt.Sprintf("%s-%dx%d.golden", screen.name, size.width, size.height)
 			t.Run(name, func(t *testing.T) {
 				model := wizardModel{
-					options: WizardOptions{ctx: context.Background(), Project: "C:/workspace", Home: t.TempDir()},
-					step:    screen.step,
-					width:   size.width,
-					height:  size.height,
-					missing: []Item{{ID: "cursor", Name: "Cursor CLI", URL: "https://example.com", Methods: map[string][]Method{"windows": {manual("manual", "install manually", "https://example.com")}}}},
-					results: []discovery.Result{{Name: "Codex", Version: "1.2.3", Status: discovery.Available, Path: "C:/tools/codex.exe"}},
+					options:  WizardOptions{ctx: context.Background(), Project: "C:/workspace", Home: t.TempDir()},
+					step:     screen.step,
+					width:    size.width,
+					height:   size.height,
+					language: 1,
+					missing:  []Item{{ID: "cursor", Name: "Cursor CLI", URL: "https://example.com", Methods: map[string][]Method{"windows": {manual("manual", "install manually", "https://example.com")}}}},
+					results:  []discovery.Result{{Name: "Codex", Version: "1.2.3", Status: discovery.Ready, Auth: discovery.AuthReady, Path: "C:/tools/codex.exe"}},
 				}
 				got := normalizeWizardGolden(model.View())
 				path := filepath.Join("testdata", name)
@@ -100,7 +102,7 @@ func normalizeWizardGolden(view string) string {
 }
 
 func TestWizardWelcomeAndBackNavigation(t *testing.T) {
-	model := wizardModel{options: WizardOptions{Project: "C:/workspace"}, step: -1, width: 80}
+	model := wizardModel{options: WizardOptions{Project: "C:/workspace"}, step: -1, width: 80, language: 1}
 	if view := model.View(); !strings.Contains(view, "Bem-vindo ao GasaCLI") || !strings.Contains(view, "Enter inicia a configuração") {
 		t.Fatalf("welcome view is incomplete: %s", view)
 	}
@@ -117,14 +119,29 @@ func TestWizardWelcomeAndBackNavigation(t *testing.T) {
 }
 
 func TestWizardAgentRowsUseBoundedStatusesAndPaths(t *testing.T) {
-	model := wizardModel{step: 1, width: 80, results: []discovery.Result{
-		{Name: "A very long agent name which must be shortened", Status: discovery.Available, Version: "version output that is much too long", Path: "C:/tools/a/very/long/path/agent.exe"},
+	model := wizardModel{step: 1, width: 80, language: 1, results: []discovery.Result{
+		{Name: "A very long agent name which must be shortened", Status: discovery.Ready, Auth: discovery.AuthReady, Version: "version output that is much too long", Path: "C:/tools/a/very/long/path/agent.exe"},
 		{Name: "missing", Status: discovery.NotFound},
 		{Name: "installed", Status: discovery.VersionUnknown, Path: "C:/tools/installed.exe"},
 		{Name: "unknown", Status: discovery.Error},
 	}}
 	view := model.View()
 	for _, want := range []string{"READY", "AUSENTE", "INSTALADO", "DESCONHECIDO", "…"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("agent table missing %q: %s", want, view)
+		}
+	}
+}
+
+func TestWizardAgentRowsUseAuthReadinessVerdicts(t *testing.T) {
+	model := wizardModel{step: 1, width: 80, language: 1, results: []discovery.Result{
+		{Name: "ready", Status: discovery.Ready, Auth: discovery.AuthReady},
+		{Name: "login", Status: discovery.NeedsLogin, Auth: discovery.AuthNeedsLogin},
+		{Name: "installed", Status: discovery.Installed, Auth: discovery.AuthUnknown},
+		{Name: "missing", Status: discovery.Missing},
+	}}
+	view := model.View()
+	for _, want := range []string{"[READY]", "[LOGIN NECESSÁRIO]", "[INSTALADO]", "[AUSENTE]"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("agent table missing %q: %s", want, view)
 		}

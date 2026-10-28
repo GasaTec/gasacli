@@ -1,0 +1,10 @@
+{
+  "permissions.usage": "Usage: /permissions [show|set-profile <restricted|balanced|autonomous>|allow|deny|ask <permission> [--agent <id>|--project]|reset [--agent <id>|--project]]",
+  "permissions.profile.changed": "Permission profile set to %s.",
+  "permissions.rule.changed": "Rule saved: %s %s at %s scope.",
+  "permissions.reset.done": "Permission rules reset at %s scope.",
+  "permissions.project_not_trusted": "Trust this project before changing its permission policy.",
+  "permissions.no_self_elevation": "A project or agent rule cannot loosen a higher-scope permission.",
+  "permissions.approval_unavailable": "This change requires an interactive approval dialog.",
+  "permissions.change.denied": "Permission policy change was not approved."
+}

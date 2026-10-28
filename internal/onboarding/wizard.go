@@ -286,41 +286,45 @@ func (m wizardModel) View() string {
 	box := lipgloss.NewStyle().Border(lipgloss.Border{Top: "─", Bottom: "─", Left: "│", Right: "│", TopLeft: "┌", TopRight: "┐", BottomLeft: "└", BottomRight: "┘"}).BorderForeground(accent).Foreground(lipgloss.AdaptiveColor{Light: "#172A46", Dark: "#F4F7FB"}).Padding(1, 2).Width(max(44, min(96, m.width-4)))
 	var body strings.Builder
 	if m.step == -1 {
-		body.WriteString("Bem-vindo ao GasaCLI\n\n")
-		fmt.Fprintf(&body, "Projeto: %s\nConfiança: pendente de confirmação\n\n", m.options.Project)
-		body.WriteString("Configure as opções locais e revise as ferramentas antes de continuar.\n\nEnter inicia a configuração. Esc sai sem alterar o projeto.")
+		body.WriteString(onboardingT(m, "onboarding.welcome") + "\n\n")
+		fmt.Fprintf(&body, onboardingT(m, "onboarding.project")+"\n\n", m.options.Project)
+		body.WriteString(onboardingT(m, "onboarding.intro"))
 	} else if m.step == 3 {
-		body.WriteString("Confirmação de workspace\n\n")
+		body.WriteString(onboardingT(m, "onboarding.workspace") + "\n\n")
 	} else if m.step < 6 {
 		visibleStep := m.step + 1
 		if m.step > 3 {
 			visibleStep--
 		}
-		fmt.Fprintf(&body, "Passo %d de 6\n\n", visibleStep)
+		fmt.Fprintf(&body, onboardingT(m, "onboarding.step")+"\n\n", visibleStep)
 	} else {
-		fmt.Fprintf(&body, "Passo 6 de 6\n\n")
-		body.WriteString("Resumo da configuração\n\n")
+		fmt.Fprintf(&body, onboardingT(m, "onboarding.step")+"\n\n", 6)
+		body.WriteString(onboardingT(m, "onboarding.summary.title") + "\n\n")
 	}
 	switch m.step {
 	case 0:
-		fmt.Fprintf(&body, "Idioma do terminal\n\nPortuguês (Brasil) é recomendado. A saída padrão pode ser alterada depois.\n\nIdioma: %s (←/→ para alterar)\n", map[bool]string{true: "Português (Brasil)", false: "English (US)"}[m.language == 1])
+		languageKey := "onboarding.language.pt"
+		if m.language == 1 {
+			languageKey = "onboarding.language.en"
+		}
+		fmt.Fprintf(&body, "%s\n\n%s\n\n%s\n", onboardingT(m, "onboarding.language.title"), onboardingT(m, "onboarding.language.help"), onboardingT(m, "onboarding.language.label", onboardingT(m, languageKey)))
 	case 1:
-		body.WriteString("Agentes e ferramentas locais\n\nNOME                 VERSÃO          STATUS\n")
+		fmt.Fprintf(&body, "%s\n\n%s\n", onboardingT(m, "onboarding.agents.title"), onboardingT(m, "onboarding.agents.header"))
 		for _, result := range m.results {
 			name := truncateColumns(result.Name, 20)
 			version := result.Version
 			if version == "" {
-				version = "N/D"
+				version = onboardingT(m, "onboarding.version.unknown")
 			}
 			version = truncateColumns(version, 15)
-			fmt.Fprintf(&body, "%-20s %-15s [%s]\n", name, version, readinessLabel(result.Status))
+			fmt.Fprintf(&body, "%-20s %-15s [%s]\n", name, version, readinessLabel(m, result.Status))
 			if result.Path != "" {
 				pathWidth := max(12, min(68, m.width-12))
 				fmt.Fprintf(&body, "  %s\n", lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#5B6B80", Dark: "#9AAAC0"}).Render(truncateColumns(result.Path, pathWidth)))
 			}
 		}
 	case 2:
-		body.WriteString("Instalar ferramentas ausentes\nUse Espaço para selecionar. Nada será instalado sem confirmação explícita.\n\n")
+		fmt.Fprintf(&body, "%s\n%s\n\n", onboardingT(m, "onboarding.install.title"), onboardingT(m, "onboarding.install.help"))
 		for index, item := range m.missing {
 			mark, cursor := "[ ]", "  "
 			if m.selected[item.ID] {
@@ -330,27 +334,27 @@ func (m wizardModel) View() string {
 				cursor = "> "
 			}
 			method, _ := chooseMethod(m.options.ctx, item, normalizeOS(runtime.GOOS), execLookPath, runCommand)
-			kind := "manual"
+			kind := onboardingT(m, "onboarding.install.manual")
 			if method.Auto {
-				kind = "auto"
+				kind = onboardingT(m, "onboarding.install.auto")
 			}
 			fmt.Fprintf(&body, "%s%s %s (%s)\n", cursor, mark, item.Name, kind)
 			if index == m.cursor && m.selected[item.ID] {
 				if item.Note != "" {
 					fmt.Fprintf(&body, "    %s\n", item.Note)
 				}
-				fmt.Fprintf(&body, "    Command: %s\n    Official: %s\n", commandText(method), item.URL)
+				fmt.Fprintf(&body, "    %s: %s\n    %s: %s\n", onboardingT(m, "onboarding.install.command"), commandText(method), onboardingT(m, "onboarding.install.official"), item.URL)
 			}
 		}
 		if m.confirmInstall {
-			body.WriteString("\nConfirmar este plano exato? Pressione y para aceitar ou n para pular.\n")
+			body.WriteString(onboardingT(m, "onboarding.install.confirm"))
 		}
 	case 3:
-		body.WriteString("Confirmação de pasta confiável\n\nA confiança permite descobrir ferramentas e acessar arquivos do projeto quando solicitado. Ela não aprova comandos ou instalações.\n\n")
+		body.WriteString(onboardingT(m, "onboarding.trust.title") + "\n\n" + onboardingT(m, "onboarding.trust.help"))
 		if m.trustFolder {
-			body.WriteString("> Sim, confiar em " + m.options.Project)
+			fmt.Fprintf(&body, "> %s", onboardingT(m, "onboarding.trust.yes", m.options.Project))
 		} else {
-			body.WriteString("  Sim, confiar em " + m.options.Project)
+			fmt.Fprintf(&body, "  %s", onboardingT(m, "onboarding.trust.yes", m.options.Project))
 		}
 		body.WriteString("\n")
 		if !m.trustFolder {
@@ -358,45 +362,45 @@ func (m wizardModel) View() string {
 		} else {
 			body.WriteString("  ")
 		}
-		body.WriteString("Manter sem confiança (padrão). Pressione y ou n para escolher.")
+		body.WriteString(onboardingT(m, "onboarding.trust.keep"))
 	case 4:
-		fmt.Fprintf(&body, "Perfil de permissões (←/→ para alterar: %s)\n\n", permissionProfiles[m.permission])
-		for i, name := range permissionProfiles {
+		fmt.Fprintf(&body, onboardingT(m, "onboarding.permissions.title")+"\n\n", profileLabel(m, m.permission))
+		for i := range permissionProfiles {
 			mark := "[ ]"
 			if i == m.permission {
 				mark = "[x]"
 			}
-			description := []string{"Pergunta antes de gravar, executar comandos, instalar ou acessar a rede.", "Permite ações comuns; pergunta antes de ações arriscadas ou externas.", "Permite ações comuns; operações sensíveis ainda exigem aprovação."}[i]
-			fmt.Fprintf(&body, "%s %s - %s\n", mark, name, description)
+			description := []string{"onboarding.profile.restricted.help", "onboarding.profile.balanced.help", "onboarding.profile.autonomous.help"}[i]
+			fmt.Fprintf(&body, "%s %s - %s\n", mark, profileLabel(m, i), onboardingT(m, description))
 		}
 	case 5:
-		fmt.Fprintf(&body, "Modo do dashboard: %s\nEdição: %s\n\n↑/↓ altera o modo do dashboard; Tab altera a edição.\n", dashboardModes[m.dashboard], editionLabel(m.edition))
+		fmt.Fprintf(&body, "%s\n%s\n%s", onboardingT(m, "onboarding.dashboard.mode", dashboardModes[m.dashboard]), onboardingT(m, "onboarding.edition", editionLabel(m, m.edition)), onboardingT(m, "onboarding.dashboard.help"))
 	case 6:
-		installPlan := "Nenhuma (não confirmada)"
+		installPlan := onboardingT(m, "onboarding.summary.none.pending")
 		if m.installConfirmed {
 			installPlan = selectedNames(m.missing, m.selected)
 			if installPlan == "none" {
-				installPlan = "Nenhuma"
+				installPlan = onboardingT(m, "onboarding.summary.none")
 			}
 		}
-		trustStatus := "Não confiável"
+		trustStatus := onboardingT(m, "onboarding.trust.untrusted")
 		if m.trustFolder {
-			trustStatus = "Confiável"
+			trustStatus = onboardingT(m, "onboarding.trust.trusted")
 		}
-		fmt.Fprintf(&body, "Revise suas escolhas\n\nPerfil de permissões: %s\nDashboard: %s\nEdição: %s\nConfiança do workspace: %s\nInstalações confirmadas: %s\n\nEnter inicia o GasaCLI.", permissionProfiles[m.permission], dashboardModes[m.dashboard], editionLabel(m.edition), trustStatus, installPlan)
+		fmt.Fprintf(&body, "%s\n\n%s\n%s\n%s\n%s\n%s%s", onboardingT(m, "onboarding.summary.review"), onboardingT(m, "onboarding.summary.profile", profileLabel(m, m.permission)), onboardingT(m, "onboarding.summary.dashboard", dashboardModes[m.dashboard]), onboardingT(m, "onboarding.edition", editionLabel(m, m.edition)), onboardingT(m, "onboarding.summary.trust", trustStatus), onboardingT(m, "onboarding.summary.installs", installPlan), onboardingT(m, "onboarding.summary.start"))
 	}
 	if m.err != nil {
-		body.WriteString("\n\nNão foi possível salvar o progresso da configuração: " + m.err.Error())
+		body.WriteString(fmt.Sprintf(onboardingT(m, "onboarding.error.save"), m.err.Error()))
 	}
-	footer := "Enter: Iniciar configuração | Esc: Sair"
+	footer := onboardingT(m, "onboarding.footer.start")
 	if m.step >= 0 {
-		footer = "Enter: Avançar | S: Pular"
+		footer = onboardingT(m, "onboarding.footer.next")
 	}
 	if m.step > 0 && m.step < 6 {
-		footer = "←: Voltar | Enter: Avançar | S: Pular"
+		footer = onboardingT(m, "onboarding.footer.back")
 	}
 	if m.step == 6 {
-		footer = "Enter: Concluir | Esc: Voltar"
+		footer = onboardingT(m, "onboarding.footer.finish")
 	}
 	mark := "╭G›╮"
 	if os.Getenv("TERM") == "dumb" {
@@ -406,24 +410,44 @@ func (m wizardModel) View() string {
 	return box.Render(title + "\n\n" + body.String() + "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#475569", Dark: "#94a3b8"}).Render(footer))
 }
 
-func readinessLabel(status discovery.Status) string {
+func readinessLabel(m wizardModel, status discovery.Status) string {
 	switch status {
-	case discovery.Available:
-		return "READY"
-	case discovery.VersionUnknown:
-		return "INSTALADO"
-	case discovery.NotFound:
-		return "AUSENTE"
+	case discovery.Ready:
+		return onboardingT(m, "onboarding.status.ready")
+	case discovery.NeedsLogin:
+		return onboardingT(m, "onboarding.status.needs_login")
+	case discovery.Installed, discovery.VersionUnknown:
+		return onboardingT(m, "onboarding.status.installed")
+	case discovery.Missing:
+		return onboardingT(m, "onboarding.status.missing")
+	case discovery.Error:
+		return onboardingT(m, "onboarding.status.unknown")
 	default:
-		return "DESCONHECIDO"
+		return onboardingT(m, "onboarding.status.unknown")
 	}
 }
 
-func editionLabel(index int) string {
+func editionLabel(m wizardModel, index int) string {
 	if index == 1 {
-		return "Pro (ativação depois)"
+		return onboardingT(m, "onboarding.edition.pro")
 	}
-	return "Community"
+	return onboardingT(m, "onboarding.edition.community")
+}
+
+func wizardLanguage(m wizardModel) string {
+	if m.language == 1 {
+		return "pt-BR"
+	}
+	return "en"
+}
+
+func onboardingT(m wizardModel, key string, args ...any) string {
+	return i18n.TFor(wizardLanguage(m), key, args...)
+}
+
+func profileLabel(m wizardModel, index int) string {
+	keys := []string{"onboarding.profile.restricted", "onboarding.profile.balanced", "onboarding.profile.autonomous"}
+	return onboardingT(m, keys[index])
 }
 
 func truncateColumns(value string, width int) string {

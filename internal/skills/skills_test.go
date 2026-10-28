@@ -75,6 +75,38 @@ func TestPreviewRejectsSymlink(t *testing.T) {
 	}
 }
 
+func TestDiscoverDeduplicatesSameSkillByNameAndHash(t *testing.T) {
+	root := t.TempDir()
+	project := filepath.Join(root, "project")
+	projectClaude, projectAgents := filepath.Join(project, ".claude", "skills"), filepath.Join(project, ".agents", "skills")
+	content := []byte("---\nname: architecture\nversion: 1\ndescription: Same skill\n---\n")
+	for _, dir := range []string{filepath.Join(projectClaude, "architecture"), filepath.Join(projectAgents, "architecture")} {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), content, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("USERPROFILE", root)
+	t.Setenv("HOME", root)
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(project); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(old) })
+	items, err := (Manager{Home: filepath.Join(root, "gasacli")}).Discover()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Name != "architecture" || items[0].Source != "project-claude,project-agents" {
+		t.Fatalf("deduplicated skills=%+v", items)
+	}
+}
+
 func TestParseGitSourceRequiresPinnedHTTPSCommit(t *testing.T) {
 	valid := "https://example.com/repo.git#" + strings.Repeat("a", 40)
 	remote, commit, ok := ParseGitSource(valid)

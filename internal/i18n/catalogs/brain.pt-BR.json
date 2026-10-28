@@ -1,0 +1,3 @@
+{
+  "brain.not_connected": "Nenhum vault está conectado. Execute `gasa brain connect <caminho>` primeiro."
+}

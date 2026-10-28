@@ -1,36 +1,28 @@
-# 02 — CLI interativa e comandos
+# CLI e comandos
 
-## Entrada
-`gasa` abre uma TUI de chat na pasta atual. Primeira execução: confiança, descoberta de agentes, escolha inicial de perfis. Sessões e histórico persistem localmente.
+## O que funciona hoje
 
-## Slash commands planejados
-| Comando | Ação |
+`gasa` abre o terminal local. Após a confirmação de confiança para a pasta, a TUI oferece `/help`, `/agents`, `/doctor`, `/setup`, `/status`, `/config`, `/prompts`, `/skills`, `/brain`, `/github`, `/permissions`, `/backup`, `/backups`, `/restore`, `/web`, `/goal`, `/runs`, `/resume` e `/cancel`. Comandos de agentes e provedores dependem das ferramentas instaladas e da autenticação configurada no próprio provedor. Texto livre não é enviado a um modelo pelo GasaCLI.
+
+Comandos locais disponíveis incluem:
+
+| Comando | Comportamento atual |
 |---|---|
-| /goal | Criar execução supervisionada |
-| /agents | Listar, habilitar e configurar agentes |
-| /config | Exibir/editar configuração efetiva |
-| /prompts | Visualizar e editar templates |
-| /skills | Listar e instalar skills com consentimento |
-| /brain | Configurar vault Markdown |
-| /github | Conectar issues via gh |
-| /plugins | Instalar/desativar plugins |
-| /status | Mostrar tarefas, workers e gates |
-| /resume | Retomar execução |
-| /cancel | Cancelar e persistir estado |
-| /help | Ajuda |
-| /exit | Encerrar chat |
+| `gasa doctor [--json]` | Descobre CLIs locais e informa instalação e prontidão observável. |
+| `gasa setup` | Reabre onboarding e pode executar instalações selecionadas após exibir os comandos e obter confirmação. |
+| `gasa config show|set|path|edit` | Consulta ou altera a configuração local. |
+| `gasa prompts list` | Lista os papéis, a origem efetiva (`default`, `user` ou `project`) e o caminho. |
+| `gasa prompts show|path|reset [role]` | Inspeciona ou restaura o prompt local de um papel. |
+| `gasa skills` | Lista skills encontradas localmente; instalação e remoção dependem das opções e permissões disponíveis. |
+| `gasa brain status|connect|reindex|search|disconnect` | Gerencia o índice local de um vault Markdown conectado. |
+| `gasa permissions` | Consulta a política de permissões local. |
+| `gasa run`, `runs`, `resume` | Inicia, lista e retoma execuções locais, conforme o estado do orquestrador. |
+| `gasa backup`, `backups`, `restore` | Cria, lista e restaura dados locais com prévia. |
+| `gasa web open` | Inicia o painel local e aguarda Ctrl+C. |
+| `gasa reset`, `gasa uninstall` | Mostra um plano antes de remover dados locais. |
 
-## Comandos fora da TUI
-`gasa doctor`, `gasa agents`, `gasa config`, `gasa goal "objetivo"`, `gasa brain`, `gasa github`.
+## Limites atuais
 
-## Local commands
+O chat não encaminha texto livre a um modelo. O orquestrador local pode executar tarefas com agentes instalados, mas não oferece sincronização em nuvem. Integrações com GitHub usam o CLI `gh` e exigem configuração e escopos adequados. O painel é local; serviços remotos, Linear e recursos Cloud continuam planejados. A lista de comandos registra o estado exposto pelo build atual, que pode variar entre versões.
 
-`gasa config [show|set <key> <value>|path|edit]`, `gasa backup [create]`, `gasa backups` and `gasa restore <file> [--preview|--yes]` manage local state. Backups support `config`, `prompts`, `skills`, `agents`, `segundo-cerebro` and `database`, with a versioned manifest and SHA-256 hashes. Add `--encrypt` to create a passphrase-protected archive; the passphrase is requested without echo. Restore requires reviewing `--preview` and passing `--yes` on the CLI. `/prompts` lists and shows existing override files while the prompt subsystem is unavailable.
-
-## Estados de interface
-IDLE, TRUST_REQUIRED, PLANNING, EXECUTING, VERIFYING, REVIEWING, NEEDS_APPROVAL, BLOCKED, DONE, CANCELLED. Exibir progresso, agente atual, logs resumidos, consumo real ou estimado devidamente identificado.
-
-## Requisitos
-Streaming, teclado, histórico, retomada, cancelamento propagado a subprocessos, modo sem cor, mensagens acessíveis e confirmação de ações destrutivas. Erros devem oferecer próximo passo sem inventar sucesso.
-
-Orchestration, run lifecycle and provider integrations remain planned; local config, backup, restore and prompt file inspection are available.
+Comandos de projeto e agente respeitam o estado de confiança e as permissões configuradas. Operações externas ou sensíveis podem solicitar aprovação. A ausência de uma integração ou credencial não é apresentada como execução bem-sucedida.

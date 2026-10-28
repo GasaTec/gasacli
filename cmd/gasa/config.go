@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/GasaTec/gasacli/internal/config"
+	"github.com/GasaTec/gasacli/internal/i18n"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,7 +21,13 @@ func runConfig(_ context.Context, args []string, out *os.File) error {
 		if err != nil {
 			return err
 		}
-		for _, value := range [][2]string{{"web.mode", cfg.Web.Mode}, {"web.host", cfg.Web.Host}, {"web.port", fmt.Sprint(cfg.Web.Port)}, {"web.fallback_port", fmt.Sprint(cfg.Web.FallbackPort)}, {"language", cfg.Language}, {"permissions.profile", permissionProfile(home)}} {
+		state, _ := config.LoadState(home)
+		language, languageSource := i18n.EffectiveLanguage(cfg.Language, state.Onboarding.Language)
+		for _, value := range [][2]string{{"web.mode", cfg.Web.Mode}, {"web.host", cfg.Web.Host}, {"web.port", fmt.Sprint(cfg.Web.Port)}, {"web.fallback_port", fmt.Sprint(cfg.Web.FallbackPort)}, {"language", language + " (" + languageSource + ")"}, {"permissions.profile", permissionProfile(home)}} {
+			if value[0] == "language" {
+				fmt.Fprintf(out, "%s: %s\n", value[0], value[1])
+				continue
+			}
 			fmt.Fprintf(out, "%s: %s (%s)\n", value[0], value[1], config.SourceOf(home, value[0]))
 		}
 		for role, agent := range cfg.Agents.Defaults {

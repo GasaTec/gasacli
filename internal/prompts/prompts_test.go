@@ -3,8 +3,35 @@ package prompts
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestListReportsEffectiveSourceAndPath(t *testing.T) {
+	home, project := t.TempDir(), t.TempDir()
+	entries := List(home, project, "en")
+	if len(entries) != 4 || entries[0].Role != "orchestrator" || entries[0].Source != "default" || !strings.HasPrefix(entries[0].Path, "embedded:") {
+		t.Fatalf("default entries=%+v", entries)
+	}
+	user := filepath.Join(home, "prompts", "developer-en.yaml")
+	projectOverride := filepath.Join(project, "gasacli", "prompts", "developer-en.yaml")
+	for _, path := range []string{user, projectOverride} {
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("override"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, entry := range List(home, project, "en") {
+		if entry.Role == "developer" && (entry.Source != "project" || entry.Path != projectOverride) {
+			t.Fatalf("project override should win: %+v", entry)
+		}
+	}
+	if _, err := os.Stat(user); err != nil {
+		t.Fatal("listing should not write or remove user prompts:", err)
+	}
+}
 
 func TestBundledPromptsValidateForEveryRoleAndLanguage(t *testing.T) {
 	for _, role := range roles {

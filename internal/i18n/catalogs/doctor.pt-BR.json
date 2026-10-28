@@ -1,0 +1,15 @@
+{
+  "doctor.row": "%s\t%s\t%s\t%s\t%s\t%s",
+  "doctor.status.ready": "pronto",
+  "doctor.status.needs_login": "login_necessario",
+  "doctor.status.installed": "instalado",
+  "doctor.status.missing": "ausente",
+  "doctor.status.version_unknown": "instalado",
+  "doctor.status.error": "erro",
+  "doctor.reason.ready": "Verificação de prontidão concluída",
+  "doctor.reason.needs_login": "Entre na conta pelo CLI do provedor",
+  "doctor.reason.installed": "A prontidão de autenticação não foi verificada",
+  "doctor.reason.missing": "CLI não encontrado no PATH",
+  "doctor.reason.version_unknown": "CLI encontrado; não foi possível conferir a versão",
+  "doctor.reason.error": "Falha na verificação local"
+}
