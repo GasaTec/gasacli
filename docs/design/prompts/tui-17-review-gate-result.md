@@ -7,8 +7,7 @@
 - **Implementation status:** **planned**, based on inspected code on 2026-10-28; this is a design, not an implementation claim.
 
 ## Layout, region by region
-
-Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision. Sample a84e1c2, tests/build PASS, claude-sonnet-5-5 APPROVED, 3/3. Enter details, r refresh. No stale/same-provider review.
+Character-cell composition: Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision. Keep primary context, selection and action visible at 80x24; reveal secondary detail at 120x36. Never add planned/status banners to the mockup.
 
 ## Wireframes
 
@@ -17,10 +16,8 @@ Commit header, automated checks separate from independent reviewer, findings, ev
 ```text
 +------------------------------------------------------------------------------+
 | Review and quality gate result                                               |
-| Status: planned                                                              |
 | Project: vitrine-api                                                         |
 | Trust: granted | Run: none                                                   |
-| Commit header, automated checks separate from independent reviewer, findings |
 |                                                                              |
 | Enter confirm | Esc back                                                     |
 | Ctrl+C cancel safely                                                         |
@@ -46,12 +43,7 @@ Commit header, automated checks separate from independent reviewer, findings, ev
 ```text
 +----------------------------------------------------------------------------------------------------------------------+
 | Review and quality gate result                                                                                       |
-| Status planned | Issues #10,#21                                                                                      |
 | Project vitrine-api | worktree feature/catalogo                                                                      |
-| Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision. Samp |
-| Run R-204 | Worker Codex gpt-6-luna | working                                                                        |
-| Tokens 1.2k provider-reported | cost N/D                                                                             |
-| Selected > Task T2 | attempt 1 | checks visible                                                                      |
 |                                                                                                                      |
 | Enter open | Esc back | / filter | ? help                                                                            |
 |                                                                                                                      |
@@ -83,34 +75,24 @@ Commit header, automated checks separate from independent reviewer, findings, ev
 ```
 
 ## Components and states
-
-Components: Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision. Sample a84e1c2, tests/build PASS, claude-sonnet-5-5 APPROVED, 3/3. Enter details, r refresh. No stale/same-provider review.
-
-- **Default:** show the representative content and current selection.
-- **Hover/focus:** terminal has no hover; show visible keyboard focus without relying on color.
-- **Selected:** use a text marker and semantic color plus a distinct label.
-- **Disabled:** state why unavailable and never imply it ran.
-- **Loading:** restrained spinner, “verificando…” and last-updated hint; allow safe cancellation.
-- **Empty:** explain absence and offer a relevant next step, not synthetic records.
-- **Error:** show plain-language cause, safe recovery and preserve input/completed work.
-- **Offline:** keep local data visible and disable only network-dependent functions; otherwise not applicable.
+Present only controls needed for the task. Use explicit labels for default, selected, disabled, loading, empty and error states; show offline only on network-dependent actions. Keep focus visible. TUI has no hover; show visible keyboard focus.
 
 ## Sample data
-
-Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision. Sample a84e1c2, tests/build PASS, claude-sonnet-5-5 APPROVED, 3/3. Enter details, r refresh. No stale/same-provider review. Sample content: Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision. Sample a84e1c2, tests/build PASS, claude-sonnet-5-5 APPROVED, 3/3. Enter details, r refresh. No stale/same-provider review. Use fictional project/session records; claude-sonnet-5-5 and gpt-6-luna are illustrative. Use relative local timestamps and label every metric provider-reported, measured, estimated or unavailable.
+Use only the fictional sample values specified in the screen's composition and wireframe. Keep UI copy in pt-BR; do not add users, secrets, prices, versions, metrics or agent activity. Unknown values stay unavailable, never zero.
 
 ## Keyboard, transitions, accessibility, exclusions
-
-Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision. Sample a84e1c2, tests/build PASS, claude-sonnet-5-5 APPROVED, 3/3. Enter details, r refresh. No stale/same-provider review. Follow [the TUI shared prompt](00-design-system-tui.md) and [DESIGN.md](../DESIGN.md): readable labels and glyphs, logical reading order, visible focus, NO_COLOR, reduced motion, and essential controls inside 80x24. Wide layouts add detail without changing command semantics.
-
-**Not included:** Features and actions outside this screen scope; no secrets, hidden reasoning, or fabricated behavior.
+Follow the screen's stated shortcuts and transitions. Keep labels understandable without color and preserve safe cancellation and confirmation behavior. Privacy wording: "GasaCLI does not collect telemetry; each agent follows its provider's policy". Never claim no bytes leave the machine, isolation is confirmed, or code has zero telemetry. Exclude secrets and private model reasoning.
 
 ## Copy-paste prompt
 
 ```PROMPT
-Read docs/design/DESIGN.md and docs/design/prompts/00-design-system-tui.md first, then draw the GasaCLI Review and quality gate result for a local-first coding-agent orchestrator. This is currently planned; label planned and unavailable actions honestly. Follow this screen plan exactly: Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision. Sample a84e1c2, tests/build PASS, claude-sonnet-5-5 APPROVED, 3/3. Enter details, r refresh. No stale/same-provider review. Keep project identity, focus, state and usable input visible. Render matching versions at exactly 80x24 and 120x36, use ASCII borders where needed, and never clip primary controls.
+Design the GasaCLI — Review and quality gate result screen for a local-first coding-agent workspace. The user's goal is: Review the displayed information in Review and quality gate result and complete its main task or choose the next safe action.
 
-Use these Brazilian Portuguese sample strings and data: Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision. Sample a84e1c2, tests/build PASS, claude-sonnet-5-5 APPROVED, 3/3. Enter details, r refresh. No stale/same-provider review. Optional adjacent-session sample, show only when relevant: project vitrine-api; Worker Codex using gpt-6-luna; activity há 8 min; 1.2k tokens provider-reported; API-equivalent cost N/D. First-run and empty screens must not surface session metrics. Include the listed components and show default, selected, disabled, loading, empty, error and offline states. Terminals do not have hover, so make keyboard focus obvious. Display the documented shortcuts and transitions. Preserve Run, Task, Dispatch and Worker vocabulary where useful. Use relative timestamps and label usage by provenance. Never invent a successful Run, agent output, review, approval, progress, token usage or cost; do not expose credentials or private model reasoning.
+Screen composition: Commit header, automated checks separate from independent reviewer, findings, evidence times and core decision.
 
-Match the referenced design system in dark/light themes and NO_COLOR/16-color terminals. Status must remain understandable without color. Use only actions described for this screen and explain anything unavailable. Exclude unrelated capabilities. Make the result look like a credible terminal product interface, not marketing art, while keeping both sizes equally usable.
+Render only a real character-cell terminal: monospace grid, square borders, box-drawing/ASCII, ANSI-style colors, visible block cursor/selection and keyboard hint bar in a plain terminal frame. No web chrome, sidebar, app bar, Material icons, rounded cards, blur, glow or emoji. Use 120x36, or 80x24 where specified. Exact documented hex values only, especially navy #172A46 and teal #1ECFA5. Draw a compact G+chevron box-drawing mark of at most 7 lines; no block-letter GASACLI banner. Use only glossary names. Onboarding has exactly 6 numbered steps; trust confirmation is an unnumbered interstitial. No external fonts/CDN. NO status banners in the mockup.
+
+Use only the sample values from the screen specification: Sample a84e1c2, tests/build PASS, claude-sonnet-5-5 APPROVED, 3/3.. Do not extend them with new facts. Use only glossary names: GasaCLI, Claude Code, Codex CLI, Gemini CLI, Cursor CLI, OpenCode, Orca, Kimi, claude-sonnet-5-5 and gpt-6-luna. Render UI copy in pt-BR. Use exact color tokens from docs/design/DESIGN.md, especially navy #172A46 and teal #1ECFA5. Status must have a readable label as well as color. Never invent product facts, names, versions, RFCs, sockets, prices, metrics, progress, costs, approvals or successful Runs. Use Run, Task, Dispatch and Worker accurately. Unknown usage is unavailable, not zero. Never show credentials, raw environment values or private model reasoning. Privacy copy: "GasaCLI does not collect telemetry; each agent follows its provider's policy". Never claim no bytes leave the machine, isolation is confirmed, or code has zero telemetry.
+
+Follow the screen's listed actions and shortcuts. Show default, focus/selected, disabled, loading, empty and error states; show offline only for network-dependent functions. TUI has no hover; make focus unmistakable, keep primary controls visible at both sizes, and preserve meaning with NO_COLOR/ANSI fallbacks. Keep the design focused on its stated purpose. Do not add marketing copy, invented data or unrelated controls.
 ```
