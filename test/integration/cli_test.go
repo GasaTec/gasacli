@@ -282,8 +282,8 @@ func TestCLI(t *testing.T) {
 	t.Run("SetupPrintsManualGuidanceWithoutTTY", func(t *testing.T) {
 		_, home, project := newHome(t)
 		out := run(t, home, project, "", 0, "setup")
-		contains(t, out, "Claude Code", "Cursor CLI", "Obsidian", "Suggested commands", "Comando:", "Origem oficial:")
-		if strings.Contains(out, "Run the automatic installs") {
+		contains(t, out, "Claude Code", "Cursor CLI", "Obsidian", "Comandos sugeridos", "Comando:", "Origem oficial:")
+		if strings.Contains(out, "Executar as instalações automáticas") {
 			t.Fatal("non-TTY setup prompted")
 		}
 		if _, err := os.Stat(filepath.Join(home, "state.json")); !os.IsNotExist(err) {

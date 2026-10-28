@@ -2,10 +2,13 @@ package onboarding
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
 	"strings"
+
+	"github.com/GasaTec/gasacli/internal/i18n"
 )
 
 type Key int
@@ -35,7 +38,7 @@ func (s Selector) Select(items []Item, defaults map[string]bool) (map[string]boo
 	for id, v := range defaults {
 		selected[id] = v
 	}
-	if _, err := fmt.Fprintln(s.Out, "Select what to install (space = toggle, enter = confirm, a = all, n = clear, esc = skip)"); err != nil {
+	if _, err := fmt.Fprintln(s.Out, i18n.T("onboarding.select.prompt")); err != nil {
 		return nil, err
 	}
 	pos := 0
@@ -77,12 +80,12 @@ func (s Selector) Select(items []Item, defaults map[string]bool) (map[string]boo
 		case KeyEnter:
 			return selected, nil
 		case KeyCancel:
-			return selected, fmt.Errorf("selection canceled")
+			return selected, errors.New(i18n.T("onboarding.select.cancelled"))
 		}
 	}
 }
 func (s Selector) render(items []Item, selected map[string]bool, pos int) error {
-	if _, err := fmt.Fprint(s.Out, "\x1b[2J\x1b[HSelect what to install (space = toggle, enter = confirm, a = all, n = clear, esc = skip)\n"); err != nil {
+	if _, err := fmt.Fprint(s.Out, "\x1b[2J\x1b[H"+i18n.T("onboarding.select.prompt")+"\n"); err != nil {
 		return err
 	}
 	for i, it := range items {
@@ -103,7 +106,7 @@ func (s Selector) render(items []Item, selected map[string]bool, pos int) error 
 func methodLabel(i Item) string {
 	m := i.Methods[currentOS()]
 	if len(m) == 0 {
-		return "manual"
+		return i18n.T("onboarding.select.manual")
 	}
 	for _, x := range m {
 		if x.Auto {
@@ -179,7 +182,7 @@ func selectNumbers(reader *bufio.Reader, out io.Writer, items []Item, defaults m
 		}
 		fmt.Fprintf(out, "%d) [%s] %s (%s)\n", i+1, mark, it.Name, methodLabel(it))
 	}
-	fmt.Fprint(out, "Digite n\u00fameros separados por espa\u00e7o, Enter = padr\u00e3o, n = nenhum: ")
+	fmt.Fprint(out, i18n.T("onboarding.select.numbered_prompt"))
 	line, err := reader.ReadString('\n')
 	if err != nil && len(line) == 0 {
 		return selected, err
@@ -199,11 +202,11 @@ func selectNumbers(reader *bufio.Reader, out io.Writer, items []Item, defaults m
 	}
 	for _, part := range strings.Fields(line) {
 		if !regexp.MustCompile(`^[0-9]+$`).MatchString(part) {
-			return nil, fmt.Errorf("sele\u00e7\u00e3o inv\u00e1lida: %s (use somente n\u00fameros inteiros)", part)
+			return nil, fmt.Errorf("%s", i18n.T("onboarding.select.invalid_number", part))
 		}
 		var n int
 		if _, e := fmt.Sscanf(part, "%d", &n); e != nil || n < 1 || n > len(items) {
-			return nil, fmt.Errorf("sele\u00e7\u00e3o inv\u00e1lida: %s", part)
+			return nil, fmt.Errorf("%s", i18n.T("onboarding.select.out_of_range", part))
 		}
 		selected[items[n-1].ID] = true
 	}

@@ -17,9 +17,16 @@ import (
 	"time"
 
 	"github.com/GasaTec/gasacli/internal/discovery"
+	"github.com/GasaTec/gasacli/internal/i18n"
 )
 
 type keys []Key
+
+func TestMain(m *testing.M) {
+	_ = os.Setenv("GASACLI_LANG", "pt-BR")
+	i18n.Configure("")
+	os.Exit(m.Run())
+}
 
 func (k *keys) ReadKey() (Key, error) {
 	if len(*k) == 0 {
@@ -154,6 +161,10 @@ func TestPlanOnlyNeverRunsInstallRunner(t *testing.T) {
 }
 
 func TestRawSelectionCancellationDoesNotFallBack(t *testing.T) {
+	previousLanguage := i18n.Language()
+	t.Cleanup(func() { i18n.SetLanguage(previousLanguage) })
+	t.Setenv("GASACLI_LANG", "en")
+	i18n.Configure("")
 	var out bytes.Buffer
 	in, inW, _ := os.Pipe()
 	defer in.Close()
@@ -338,7 +349,7 @@ func TestRunFailureDoesNotBlockNextAndInheritsStreams(t *testing.T) {
 	if err := Run(context.Background(), o); err != nil {
 		t.Fatal(err)
 	}
-	if calls != 2 || !strings.Contains(out.String(), "exit code") {
+	if calls != 2 || !strings.Contains(out.String(), "código de saída") {
 		t.Fatalf("calls=%d output=%s", calls, out.String())
 	}
 }
@@ -357,7 +368,7 @@ func TestCancellationAndTimeout(t *testing.T) {
 		return ctx.Err()
 	}}
 	err := Run(context.Background(), o)
-	if err != nil || !called || !strings.Contains(out.String(), "timeout") {
+	if err != nil || !called || !strings.Contains(out.String(), "tempo esgotado") {
 		t.Fatalf("timed out command: err=%v called=%v output=%s", err, called, out.String())
 	}
 }

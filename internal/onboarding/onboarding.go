@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/GasaTec/gasacli/internal/discovery"
+	"github.com/GasaTec/gasacli/internal/i18n"
 )
 
 const installTimeout = 20 * time.Minute
@@ -38,7 +39,7 @@ func DetectApps(ctx context.Context, goos string, deps AppDeps) map[string]disco
 	if deps.Getenv == nil {
 		deps.Getenv = os.Getenv
 	}
-	r := discovery.Result{ID: "obsidian", Name: "Obsidian", Status: discovery.NotFound, Note: "app; authentication not checked"}
+	r := discovery.Result{ID: "obsidian", Name: "Obsidian", Status: discovery.NotFound, Note: i18n.T("onboarding.note.app_auth_not_checked")}
 	if goos == "windows" {
 		if local := deps.Getenv("LOCALAPPDATA"); local != "" {
 			p := filepath.Join(local, "Programs", "Obsidian", "Obsidian.exe")
@@ -194,14 +195,14 @@ func Run(ctx context.Context, o Options) error {
 	}
 	missing := missingItems(rows)
 	if len(missing) == 0 {
-		fmt.Fprintln(o.Out, "Não falta nenhum agente.")
+		fmt.Fprintln(o.Out, i18n.T("onboarding.no_missing_agent"))
 		if app, ok := o.Apps["obsidian"]; ok && app.Status == discovery.NotFound {
-			fmt.Fprintln(o.Out, "Obsidian é opcional (segundo cérebro).")
+			fmt.Fprintln(o.Out, i18n.T("onboarding.obsidian_optional"))
 		}
 	}
 	if len(missing) == 0 {
 		if o.PlanOnly {
-			fmt.Fprintln(o.Out, "Para instalar, rode `gasa setup` fora do chat.")
+			fmt.Fprintln(o.Out, i18n.T("onboarding.install_outside_chat"))
 		}
 		return nil
 	}
@@ -244,7 +245,7 @@ func Run(ctx context.Context, o Options) error {
 		for _, it := range missing {
 			selection[it.ID] = true
 		}
-		fmt.Fprintln(o.Out, "Suggested commands (no interactive terminal):")
+		fmt.Fprintln(o.Out, i18n.T("onboarding.suggested_commands"))
 	}
 	var plan []planned
 	for _, it := range missing {
@@ -258,27 +259,27 @@ func Run(ctx context.Context, o Options) error {
 		for _, p := range plan {
 			fmt.Fprintf(o.Out, "\n%s — %s\nComando: %s\nOrigem oficial: %s\n", p.item.Name, p.method.Label, commandText(p.method), p.item.URL)
 			if p.reason != "" {
-				fmt.Fprintln(o.Out, "Motivo manual:", p.reason)
+				fmt.Fprintln(o.Out, i18n.T("onboarding.plan.manual_reason", p.reason))
 			}
 			if p.item.Note != "" {
 				fmt.Fprintln(o.Out, p.item.Note)
 			}
 		}
 		if len(plan) == 0 {
-			fmt.Fprintln(o.Out, "Nenhum item selecionado.")
+			fmt.Fprintln(o.Out, i18n.T("onboarding.plan.none_selected"))
 		}
-		fmt.Fprintln(o.Out, "Plano apenas; nenhuma instalacao sera executada.")
-		fmt.Fprintln(o.Out, "Para instalar, rode `gasa setup` fora do chat.")
+		fmt.Fprintln(o.Out, i18n.T("onboarding.plan_only"))
+		fmt.Fprintln(o.Out, i18n.T("onboarding.install_outside_chat"))
 		return nil
 	}
 	if len(plan) == 0 {
-		fmt.Fprintln(o.Out, "Nenhum item selecionado.")
+		fmt.Fprintln(o.Out, i18n.T("onboarding.plan.none_selected"))
 		return nil
 	}
 	for _, p := range plan {
 		fmt.Fprintf(o.Out, "\n%s — %s\nComando: %s\nOrigem oficial: %s\n", p.item.Name, p.method.Label, commandText(p.method), p.item.URL)
 		if p.reason != "" {
-			fmt.Fprintln(o.Out, "Motivo manual:", p.reason)
+			fmt.Fprintln(o.Out, i18n.T("onboarding.plan.manual_reason", p.reason))
 		}
 		if p.item.Note != "" {
 			fmt.Fprintln(o.Out, p.item.Note)
@@ -290,18 +291,18 @@ func Run(ctx context.Context, o Options) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	fmt.Fprint(o.Out, "Run the automatic installs now? [y/N/s] ")
+	fmt.Fprint(o.Out, i18n.T("onboarding.install.confirm"))
 	line, err := o.Input.ReadString('\n')
 	if err != nil && len(line) == 0 {
 		return err
 	}
 	answer := strings.ToLower(strings.TrimSpace(line))
 	if answer != "y" && answer != "s" {
-		fmt.Fprintln(o.Out, "Instalações não executadas.")
+		fmt.Fprintln(o.Out, i18n.T("onboarding.install.not_run"))
 		return nil
 	}
 	if answer == "s" {
-		fmt.Fprintln(o.Out, "Comandos exibidos; nenhuma instalação executada.")
+		fmt.Fprintln(o.Out, i18n.T("onboarding.install.commands_only"))
 		return nil
 	}
 	for _, p := range plan {
@@ -311,20 +312,20 @@ func Run(ctx context.Context, o Options) error {
 		}
 		path, err := o.Lookup(p.method.Manager)
 		if err != nil {
-			fmt.Fprintf(o.Out, "%s: falhou antes de iniciar: %v\n", p.item.Name, err)
+			fmt.Fprintf(o.Out, i18n.T("onboarding.install.failed_before_start")+"\\n", p.item.Name, err)
 			continue
 		}
 		itemCtx, cancel := context.WithTimeout(ctx, o.Timeout)
 		err = o.Command(itemCtx, path, p.method.Args, o.In, o.Out, o.Out)
 		cancel()
 		if err != nil {
-			fmt.Fprintf(o.Out, "%s: falhou (%s). %v\n", p.item.Name, exitDescription(err), safeErr(err))
+			fmt.Fprintf(o.Out, i18n.T("onboarding.install.failed")+"\\n", p.item.Name, exitDescription(err), safeErr(err))
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			continue
 		}
-		fmt.Fprintf(o.Out, "%s: comando concluído.\n", p.item.Name)
+		fmt.Fprintf(o.Out, i18n.T("onboarding.install.completed")+"\\n", p.item.Name)
 		verifyInstalled(ctx, p.item, o, o.Out)
 	}
 	if err := ctx.Err(); err != nil {
@@ -335,15 +336,15 @@ func Run(ctx context.Context, o Options) error {
 }
 
 func writeTable(w io.Writer, rows []discovery.Result) error {
-	fmt.Fprintln(w, "Nome\tTipo\tStatus\tVersão\tNota")
+	fmt.Fprintln(w, i18n.T("onboarding.table.header"))
 	for _, r := range rows {
-		kind := "agent"
-		status := "missing"
+		kind := i18n.T("onboarding.type.agent")
+		status := i18n.T("onboarding.status.missing")
 		if r.Status == discovery.Available {
-			status = "installed"
+			status = i18n.T("onboarding.status.installed")
 		}
 		if r.ID == "obsidian" {
-			kind = "app"
+			kind = i18n.T("onboarding.type.app")
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", r.Name, kind, status, r.Version, r.Note)
 	}
@@ -379,15 +380,15 @@ func commandText(m Method) string {
 func exitDescription(err error) string {
 	var e *exec.ExitError
 	if errors.As(err, &e) {
-		return fmt.Sprintf("exit code %d", e.ExitCode())
+		return i18n.T("onboarding.status.exit_code", e.ExitCode())
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return "timeout"
+		return i18n.T("onboarding.status.timeout")
 	}
 	if errors.Is(err, context.Canceled) {
-		return "cancelado"
+		return i18n.T("onboarding.status.cancelled")
 	}
-	return "erro"
+	return i18n.T("onboarding.status.error")
 }
 func safeErr(err error) string {
 	if err == nil {
@@ -398,9 +399,9 @@ func safeErr(err error) string {
 func verifyInstalled(ctx context.Context, it Item, o Options, out io.Writer) {
 	if it.ID == "obsidian" {
 		if app := DetectApps(ctx, normalizeOS(o.GOOS), AppDeps{LookPath: o.Lookup, Run: o.Run})["obsidian"]; app.Status == discovery.Available {
-			fmt.Fprintf(out, "Verificação: Obsidian encontrado em %s\n", app.Path)
+			fmt.Fprintf(out, i18n.T("onboarding.verify.obsidian_found")+"\n", app.Path)
 		} else {
-			fmt.Fprintln(out, "Verificação: app não localizado no PATH atual.")
+			fmt.Fprintln(out, i18n.T("onboarding.verify.app_missing"))
 		}
 		return
 	}
@@ -414,15 +415,15 @@ func verifyInstalled(ctx context.Context, it Item, o Options, out io.Writer) {
 		}
 		result := discovery.Discover(ctx, []discovery.Agent{agent}, discovery.Deps{LookPath: o.Lookup, Run: o.Run})[0]
 		if result.Status == discovery.Available {
-			fmt.Fprintf(out, "Verificação: %s %s em %s\n", it.Name, result.Version, result.Path)
+			fmt.Fprintf(out, i18n.T("onboarding.verify.agent_found")+"\n", it.Name, result.Version, result.Path)
 			return
 		}
 		break
 	}
-	fmt.Fprintf(out, "Verificação: %s ainda não encontrado no PATH atual.\n", it.Name)
+	fmt.Fprintf(out, i18n.T("onboarding.verify.agent_missing")+"\n", it.Name)
 	for _, p := range extraPaths(ctx, it, o) {
 		if _, e := o.Stat(p); e == nil {
-			fmt.Fprintf(out, "Instalado em %s; abra um novo terminal.\n", p)
+			fmt.Fprintf(out, i18n.T("onboarding.verify.reopen_terminal")+"\n", p)
 			return
 		}
 	}
@@ -463,7 +464,7 @@ func extraPaths(ctx context.Context, it Item, o Options) []string {
 	return out
 }
 func printNextSteps(out io.Writer, plan []planned) {
-	fmt.Fprintln(out, "Próximos passos:")
+	fmt.Fprintln(out, i18n.T("onboarding.next_steps"))
 	for _, p := range plan {
 		if p.item.Login != "" {
 			fmt.Fprintf(out, "- %s: %s\n", p.item.Name, p.item.Login)
