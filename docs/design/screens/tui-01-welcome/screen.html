@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI TUI — Boas-vindas</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #070c16;
+    color: #F4F7FB;
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, Consolas, 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.42;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 120x36 character terminal container */
+  .terminal-window {
+    width: 100%;
+    max-width: 1060px;
+    background-color: #0B1220;
+    border: 1px solid #596982;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Top status bar */
+  .top-bar {
+    padding: 8px 16px;
+    border-bottom: 1px solid #596982;
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #9AAAC0;
+    background-color: #0B1220;
+  }
+
+  .top-bar-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .term-name {
+    color: #F4F7FB;
+    font-weight: 700;
+  }
+
+  .term-meta {
+    color: #1ECFA5;
+  }
+
+  .term-proj {
+    color: #C3CFDF;
+  }
+
+  .sub-bar {
+    padding: 6px 16px;
+    border-bottom: 1px solid #596982;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #9AAAC0;
+    background-color: #0d1627;
+  }
+
+  /* Terminal body / workarea */
+  .terminal-body {
+    padding: 32px 32px 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    background-color: #0B1220;
+  }
+
+  /* Brand and header section */
+  .brand-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .brand-prompt {
+    color: #1ECFA5;
+  }
+
+  .brand-title {
+    color: #F4F7FB;
+  }
+
+  .main-title-block {
+    margin-top: 8px;
+  }
+
+  .screen-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #F4F7FB;
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+  }
+
+  .screen-purpose {
+    font-size: 14px;
+    color: #C3CFDF;
+    max-width: 820px;
+  }
+
+  /* Privacy callout box */
+  .privacy-box {
+    border: 1px dashed #596982;
+    background-color: #111C2E;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #C3CFDF;
+  }
+
+  .privacy-tag {
+    color: #1ECFA5;
+    font-weight: 700;
+    margin-right: 8px;
+  }
+
+  .privacy-text {
+    color: #F4F7FB;
+  }
+
+  /* Main options frame */
+  .panel-box {
+    border: 1px solid #596982;
+    background-color: #111C2E;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-header {
+    border-bottom: 1px solid #596982;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #9AAAC0;
+    background-color: #172A46;
+    display: flex;
+    justify-content: space-between;
+    letter-spacing: 0.05em;
+  }
+
+  .panel-content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Action row item */
+  .action-row {
+    border: 1px solid #596982;
+    background-color: #0B1220;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .action-row.primary-focus {
+    border-color: #1ECFA5;
+    background-color: #1B2A40;
+  }
+
+  .action-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .action-marker {
+    color: #1ECFA5;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .action-key {
+    background-color: #1ECFA5;
+    color: #172A46;
+    font-weight: 700;
+    padding: 3px 8px;
+    font-size: 13px;
+  }
+
+  .action-key.key-secondary {
+    background-color: transparent;
+    color: #F4F7FB;
+    border: 1px solid #596982;
+  }
+
+  .action-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #F4F7FB;
+  }
+
+  .action-desc {
+    font-size: 13px;
+    color: #9AAAC0;
+  }
+
+  .action-status-badge {
+    font-size: 12px;
+    color: #1ECFA5;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  /* Information hint */
+  .info-note {
+    font-size: 13px;
+    color: #9AAAC0;
+    padding: 0 4px;
+  }
+
+  .info-note span {
+    color: #C3CFDF;
+  }
+
+  /* Terminal footer / keybindings */
+  .terminal-footer {
+    border-top: 1px solid #596982;
+    background-color: #0B1220;
+    padding: 10px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .footer-context {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #9AAAC0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #1B2A40;
+  }
+
+  .footer-keys {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+
+  .keys-group {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .key-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .badge-key {
+    background-color: #172A46;
+    border: 1px solid #596982;
+    color: #F4F7FB;
+    padding: 2px 7px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .badge-key.badge-accent {
+    background-color: #1ECFA5;
+    border-color: #1ECFA5;
+    color: #172A46;
+    font-weight: 700;
+  }
+
+  .key-text {
+    color: #C3CFDF;
+    font-size: 13px;
+  }
+
+  .status-ready {
+    color: #1ECFA5;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-ready::before {
+    content: "•";
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="terminal-window">
+<!-- Top bar -->
+<div class="top-bar">
+<div class="top-bar-left">
+<span class="term-name">Terminal 120x36</span>
+<span>•</span>
+<span class="term-meta">gasacli — tela inicial</span>
+<span>•</span>
+<span class="term-proj">projeto: vitrine-api</span>
+</div>
+<div>
+<span>UTF-8 | NO_COLOR: DESATIVADO</span>
+</div>
+</div>
+<!-- Secondary context bar -->
+<div class="sub-bar">
+<div>PROJETO: vitrine-api</div>
+<div>MODO: LOCAL</div>
+</div>
+<!-- Terminal body -->
+<div class="terminal-body">
+<!-- Brand and title -->
+<div class="brand-header">
+<div class="brand-lockup">
+<span class="brand-prompt">G&gt;</span>
+<span class="brand-title">gasacli</span>
+</div>
+<div class="main-title-block">
+<div class="screen-title">Bem-vindo ao GasaCLI</div>
+<div class="screen-purpose">Ambiente local-first para orquestração de agentes no seu fluxo de trabalho. Revise as opções e inicie a configuração assistida ou saia com segurança.</div>
+</div>
+</div>
+<!-- Privacy statement banner -->
+<div class="privacy-box">
+<span class="privacy-tag">garantia de privacidade:</span>
+<span class="privacy-text">O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.</span>
+</div>
+<!-- Actions Panel -->
+<div class="panel-box">
+<div class="panel-header">
+<span>AÇÕES DISPONÍVEIS</span>
+<span>[use ↑/↓ ou as teclas indicadas]</span>
+</div>
+<div class="panel-content">
+<!-- Option 1: Enter (Focused) -->
+<div class="action-row primary-focus">
+<div class="action-main">
+<span class="action-marker">&gt;</span>
+<span class="action-key">[Enter]</span>
+<span class="action-label">Iniciar configuração</span>
+</div>
+<div class="action-desc">
+            Executar o assistente inicial de configuração passo a passo
+          </div>
+<div class="action-status-badge">
+            [RECOMENDADO]
+          </div>
+</div>
+<!-- Option 2: Esc -->
+<div class="action-row">
+<div class="action-main">
+<span class="action-marker" style="color: transparent;">&gt;</span>
+<span class="action-key key-secondary">[Esc]</span>
+<span class="action-label">Sair com segurança</span>
+</div>
+<div class="action-desc">
+            Fechar a interface e retornar ao terminal sem alterar o ambiente
+          </div>
+<div class="action-status-badge" style="color: #9AAAC0;">
+            [SAIR]
+          </div>
+</div>
+</div>
+</div>
+<!-- Context note -->
+<div class="info-note">Configure o GasaCLI conforme as necessidades do seu workspace.</div>
+</div>
+<!-- Bottom shortcut bar -->
+<div class="terminal-footer">
+<div class="footer-context">
+<div>PROJETO SELECIONADO: vitrine-api</div>
+<div>CONFIANÇA DO ESPAÇO: PENDENTE DE CONFIRMAÇÃO</div>
+</div>
+<div class="footer-keys">
+<div class="keys-group">
+<div class="key-item">
+<span class="badge-key badge-accent">Enter</span>
+<span class="key-text">Iniciar configuração</span>
+</div>
+<div class="key-item">
+<span class="badge-key">Esc</span>
+<span class="key-text">Sair com segurança</span>
+</div>
+<div class="key-item">
+<span class="badge-key">↑ / ↓</span>
+<span class="key-text">Alternar seleção</span>
+</div>
+</div>
+<div class="status-ready">
+        PRONTO
+      </div>
+</div>
+</div>
+</div>
+</body>
+</html>

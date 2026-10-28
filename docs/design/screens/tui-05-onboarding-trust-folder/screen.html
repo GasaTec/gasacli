@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TUI — Onboarding Confirmação de Pasta (Segurança)</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #0b1220;
+    color: #f4f7fb;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.42;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 120x36 character terminal container */
+  .terminal-frame {
+    width: 1080px;
+    background-color: #111c2e;
+    border: 1px solid #596982;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Top status bar / TTY header */
+  .tui-header {
+    background-color: #0b1220;
+    border-bottom: 1px solid #596982;
+    padding: 6px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+  }
+
+  .tui-header-title {
+    color: #c3cfdf;
+  }
+
+  .tui-header-title span.app-name {
+    color: #1ecfa5;
+    font-weight: bold;
+  }
+
+  .tui-header-right {
+    color: #9aaac0;
+    display: flex;
+    gap: 16px;
+  }
+
+  /* Subheader breadcrumbs */
+  .tui-subbar {
+    background-color: #172a46;
+    border-bottom: 1px solid #596982;
+    padding: 5px 14px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #c3cfdf;
+    text-transform: uppercase;
+  }
+
+  .tui-subbar .label {
+    color: #9aaac0;
+  }
+
+  .tui-subbar .val {
+    color: #f4f7fb;
+    font-weight: 600;
+  }
+
+  /* Main Terminal Body */
+  .tui-main {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 590px;
+  }
+
+  /* Brand / Step banner */
+  .step-header {
+    border: 1px solid #596982;
+    background-color: #0b1220;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .brand-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-logo {
+    color: #1ecfa5;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+  }
+
+  .step-info {
+    border-left: 1px solid #596982;
+    padding-left: 12px;
+  }
+
+  .step-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #f4f7fb;
+    text-transform: uppercase;
+  }
+
+  .step-subtitle {
+    font-size: 11px;
+    color: #c3cfdf;
+  }
+
+  .step-badge {
+    border: 1px solid #f2b84b;
+    background-color: rgba(242, 184, 75, 0.08);
+    color: #f2b84b;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: right;
+    letter-spacing: 0.05em;
+  }
+
+  /* Privacy bar */
+  .privacy-banner {
+    border: 1px dashed #596982;
+    background-color: #0b1220;
+    padding: 6px 14px;
+    font-size: 11px;
+    color: #c3cfdf;
+  }
+
+  .privacy-banner .key {
+    color: #1ecfa5;
+    font-weight: 600;
+  }
+
+  /* Two Column Split: Main Dialogue vs Flow Sidebar */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 310px;
+    gap: 12px;
+    flex: 1;
+  }
+
+  /* Left Side: Centered Trust Confirmation Box */
+  .trust-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .trust-dialog {
+    border: 1px solid #1ecfa5;
+    background-color: #0b1220;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .dialog-title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #596982;
+    padding-bottom: 8px;
+  }
+
+  .dialog-heading {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1ecfa5;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dialog-tag {
+    color: #9aaac0;
+    font-size: 11px;
+  }
+
+  /* Path Callout Box */
+  .path-box {
+    border: 1px solid #596982;
+    background-color: #111c2e;
+    padding: 10px 14px;
+  }
+
+  .path-label {
+    font-size: 10px;
+    color: #9aaac0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .path-canonical {
+    font-size: 13px;
+    color: #f4f7fb;
+    font-weight: 700;
+    word-break: break-all;
+  }
+
+  .path-boundary-note {
+    font-size: 11px;
+    color: #c3cfdf;
+    margin-top: 4px;
+    border-top: 1px dotted #596982;
+    padding-top: 4px;
+  }
+
+  /* Boundary & Rules Matrix */
+  .boundary-card {
+    border: 1px solid #596982;
+    background-color: #111c2e;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .boundary-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #f4f7fb;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .boundary-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .boundary-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .boundary-item .bullet {
+    color: #f2b84b;
+    font-weight: bold;
+  }
+
+  .boundary-item .bullet-deny {
+    color: #ff7272;
+    font-weight: bold;
+  }
+
+  .boundary-text {
+    color: #c3cfdf;
+    line-height: 1.35;
+  }
+
+  .boundary-text strong {
+    color: #f4f7fb;
+  }
+
+  /* Choice Selector / Buttons */
+  .trust-decision-area {
+    border: 1px solid #596982;
+    background-color: #111c2e;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .decision-prompt {
+    font-size: 12px;
+    color: #f4f7fb;
+    font-weight: 600;
+  }
+
+  .decision-options {
+    display: flex;
+    gap: 16px;
+  }
+
+  .btn-option {
+    flex: 1;
+    border: 1px solid #596982;
+    background-color: #0b1220;
+    padding: 8px 12px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: default;
+  }
+
+  .btn-option.selected {
+    border-color: #1ecfa5;
+    background-color: #172a46;
+  }
+
+  .btn-option .radio-mark {
+    color: #9aaac0;
+    font-weight: 700;
+  }
+
+  .btn-option.selected .radio-mark {
+    color: #1ecfa5;
+  }
+
+  .btn-option .btn-label {
+    font-weight: 700;
+    color: #f4f7fb;
+  }
+
+  .btn-option .btn-desc {
+    font-size: 11px;
+    color: #9aaac0;
+  }
+
+  .btn-option.selected .btn-desc {
+    color: #c3cfdf;
+  }
+
+  .btn-option .badge-def {
+    margin-left: auto;
+    font-size: 10px;
+    border: 1px solid #596982;
+    padding: 1px 6px;
+    color: #9aaac0;
+  }
+
+  .btn-option.selected .badge-def {
+    border-color: #1ecfa5;
+    color: #1ecfa5;
+  }
+
+  /* Trust Context / Actions summary */
+  .actions-box {
+    border: 1px solid #596982;
+    background-color: #0b1220;
+    padding: 10px 14px;
+    font-size: 11px;
+  }
+
+  .action-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 5px;
+  }
+
+  .action-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .action-key {
+    border: 1px solid #1ecfa5;
+    color: #1ecfa5;
+    background-color: #172a46;
+    padding: 0 6px;
+    font-weight: bold;
+    min-width: 58px;
+    text-align: center;
+  }
+
+  .action-key-sec {
+    border: 1px solid #596982;
+    color: #c3cfdf;
+    background-color: #111c2e;
+    padding: 0 6px;
+    font-weight: bold;
+    min-width: 58px;
+    text-align: center;
+  }
+
+  .action-desc {
+    color: #c3cfdf;
+  }
+
+  /* Right Column: Workflow Overview Sidebar */
+  .flow-pane {
+    border: 1px solid #596982;
+    background-color: #0b1220;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .flow-header {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #596982;
+    padding-bottom: 6px;
+    font-size: 11px;
+    color: #f4f7fb;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .flow-header span.tag {
+    color: #9aaac0;
+    font-weight: 400;
+  }
+
+  .flow-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    font-size: 11px;
+  }
+
+  .flow-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #9aaac0;
+    padding: 2px 0;
+  }
+
+  .flow-item.done {
+    color: #c3cfdf;
+  }
+
+  .flow-item.done .status {
+    color: #43d19e;
+    font-weight: 600;
+  }
+
+  /* Special Highlight for the Unnumbered Security Interstitial */
+  .flow-item.interstitial-active {
+    border: 1px dashed #f2b84b;
+    background-color: rgba(242, 184, 75, 0.08);
+    color: #f4f7fb;
+    font-weight: 700;
+    padding: 5px 8px;
+    margin: 3px 0;
+  }
+
+  .flow-item.interstitial-active .status {
+    color: #f2b84b;
+    font-weight: 700;
+  }
+
+  .flow-item.pending {
+    color: #596982;
+  }
+
+  .flow-sidebar-box {
+    margin-top: auto;
+    border-top: 1px solid #596982;
+    padding-top: 10px;
+    font-size: 11px;
+  }
+
+  .sidebar-box-title {
+    color: #1ecfa5;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .sidebar-box-text {
+    color: #9aaac0;
+    line-height: 1.35;
+  }
+
+  /* Bottom Keyboard Hint Bar */
+  .tui-footer {
+    background-color: #0b1220;
+    border-top: 1px solid #596982;
+    padding: 6px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+  }
+
+  .footer-hints {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .hint-badge {
+    background-color: #1ecfa5;
+    color: #172a46;
+    font-weight: bold;
+    padding: 1px 5px;
+  }
+
+  .hint-badge-alt {
+    border: 1px solid #596982;
+    background-color: #111c2e;
+    color: #f4f7fb;
+    padding: 1px 5px;
+    font-weight: 600;
+  }
+
+  .hint-badge-danger {
+    border: 1px solid #ff7272;
+    background-color: rgba(255, 114, 114, 0.15);
+    color: #ff7272;
+    padding: 1px 5px;
+    font-weight: bold;
+  }
+
+  .footer-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #f2b84b;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    background-color: #f2b84b;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+<div aria-label="Terminal GasaCLI" class="terminal-frame" role="region">
+<!-- Status bar / Top TTY info -->
+<div class="tui-header">
+<div class="tui-header-title">
+      Terminal 120x36 • <span class="app-name">gasacli</span> — assistente de configuração • projeto: vitrine-api
+    </div>
+<div class="tui-header-right">
+<span>UTF-8</span>
+<span>|</span>
+<span>NO_COLOR: DESATIVADO</span>
+</div>
+</div>
+<!-- Subbar metadata -->
+<div class="tui-subbar">
+<div><span class="label">PROJETO:</span> <span class="val">vitrine-api</span> | <span class="label">ETAPA DE ONBOARDING:</span> <span class="val">INTERSTÍCIO DE SEGURANÇA</span> | <span class="label">ORQUESTRADOR:</span> <span class="val">GasaCLI</span></div>
+<div><span class="label">MODO:</span> <span class="val">LOCAL</span></div>
+</div>
+<!-- Main Body Area -->
+<div class="tui-main">
+<!-- Top Step / Brand header -->
+<div class="step-header">
+<div class="brand-group">
+<div class="brand-logo">G&gt; gasacli</div>
+<div class="step-info">
+<div class="step-title">CONFIRMAÇÃO DE PASTA CONFIÁVEL</div>
+<div class="step-subtitle">Definição do limite de acesso ao diretório do projeto vitrine-api</div>
+</div>
+</div>
+<div class="step-badge">
+        [SEGURANÇA]
+        <br/>
+        INTERSTÍCIO DE PROTEÇÃO
+      </div>
+</div>
+<!-- Privacy Banner -->
+<div class="privacy-banner">
+<span class="key">garantia de privacidade:</span> O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+<!-- Content Grid: Trust Box vs Steps Sidebar -->
+<div class="content-grid">
+<!-- Left Column: Dialog -->
+<div class="trust-pane">
+<div class="trust-dialog">
+<div class="dialog-title-bar">
+<div class="dialog-heading">
+<span>[!] AVALIAÇÃO DE CONFIANÇA DO ESPAÇO DE TRABALHO</span>
+</div>
+</div>
+<!-- Canonical Path Callout -->
+<div class="path-box">
+<div class="path-label">Diretório Raiz do Projeto Identificado:</div>
+<div class="path-canonical">vitrine-api</div>
+</div>
+<!-- Boundary Explanation Rules -->
+<div class="boundary-card">
+<div class="boundary-title">Confirmação de Workspace:</div>
+<ul class="boundary-list">
+<li class="boundary-item">
+<span class="bullet">[i]</span>
+<span class="boundary-text">Confiar nesta pasta não autoriza comandos nem acesso à rede.</span>
+</li>
+<li class="boundary-item">
+<span class="bullet">[i]</span>
+<span class="boundary-text">Confiar na pasta apenas identifica o workspace para o fluxo de orquestração.</span>
+</li>
+</ul>
+</div>
+<!-- Decision Options (Left/Right or y/n) -->
+<div class="trust-decision-area">
+<div class="decision-prompt">Deseja marcar este workspace como confiável para orquestração?</div>
+<div class="decision-options"><!-- Option: Recusar / Não Confiável (Padrão) -->
+<div class="btn-option selected">
+<span class="radio-mark">[*] [n]</span>
+<div>
+<div class="btn-label">Não confiar (Modo Restrito)</div>
+<div class="btn-desc">Workspace não marcado como confiável.</div>
+</div>
+<div class="badge-def">PADRÃO</div>
+</div>
+<!-- Option: Confiar -->
+<div class="btn-option">
+<span class="radio-mark">[ ] [s/y]</span>
+<div>
+<div class="btn-label">Confiar nesta pasta</div>
+<div class="btn-desc">Identificar workspace para orquestração.</div>
+</div>
+</div></div>
+</div>
+<!-- Actions Box -->
+<div class="actions-box">
+<div class="action-row">
+<div class="action-key">[Enter]</div>
+<div class="action-desc">Confirmar decisão selecionada e prosseguir para Passo 4 (Perfil de Permissões)</div>
+</div>
+<div class="action-row">
+<div class="action-key-sec">[s / n]</div>
+<div class="action-desc">Alternar diretamente entre Sim (confiar) ou Não (modo restrito) [ou use ← / →]</div>
+</div>
+<div class="action-row">
+<div class="action-key-sec">[Esc]</div>
+<div class="action-desc">Voltar — Retornar para o Passo 3 (Instalação de Ferramentas)</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Flow Overview -->
+<div class="flow-pane">
+<div class="flow-header">
+<span>Fluxo de Configuração</span>
+<span class="tag">6 Passos Numerados</span>
+</div>
+<ul class="flow-list">
+<li class="flow-item done">
+<span>■ Passo 1/6: Idioma do Ambiente</span>
+<span class="status">[OK]</span>
+</li>
+<li class="flow-item done">
+<span>■ Passo 2/6: Agentes Detectados</span>
+<span class="status">[OK]</span>
+</li>
+<li class="flow-item done">
+<span>■ Passo 3/6: Instalação de Ferramentas</span>
+<span class="status">[OK]</span>
+</li>
+<li class="flow-item interstitial-active">
+<span>[Segurança]: Confirmação de Pasta</span>
+<span class="status">• ATIVO</span>
+</li>
+<li class="flow-item pending">
+<span>■ Passo 4/6: Perfil de Permissões</span>
+<span>pendente</span>
+</li>
+<li class="flow-item pending">
+<span>■ Passo 5/6: Modo de Inicialização</span>
+<span>pendente</span>
+</li>
+<li class="flow-item pending">
+<span>■ Passo 6/6: Resumo e Finalização</span>
+<span>pendente</span>
+</li>
+</ul>
+<div class="flow-sidebar-box"><div class="sidebar-box-title">Workspace: vitrine-api</div>
+<div class="sidebar-box-text">
+            Decisão pendente para identificação do espaço de trabalho no assistente.
+          </div></div>
+</div>
+</div>
+</div>
+<!-- Bottom keyboard hints and status footer -->
+<div class="tui-footer">
+<div class="footer-hints">
+<div><span class="hint-badge">Enter</span> Confirmar seleção</div>
+<div><span class="hint-badge-alt">← / →</span> Alternar opção</div>
+<div><span class="hint-badge-alt">s / n</span> Sim / Não</div>
+<div><span class="hint-badge-alt">Esc</span> Voltar</div>
+<div><span class="hint-badge-danger">Ctrl+C</span> Sair com segurança</div>
+</div>
+<div class="footer-status"><span class="status-dot"></span>
+<span>• DECISÃO PENDENTE (vitrine-api)</span></div>
+</div>
+</div>
+</body>
+</html>

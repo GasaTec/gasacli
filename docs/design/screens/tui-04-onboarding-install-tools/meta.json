@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-04-onboarding-install-tools.md",
+  "stitchScreenId": "3bfcad77c0de4a86b89fa150721b9db4",
+  "generatedAt": "2026-10-28 06:13:34 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed unconfirmed official integration and public registry claims",
+      "removed promise about workspace files remaining unchanged; kept the sample command and explicit confirmation"
+    ]
+  }
+}

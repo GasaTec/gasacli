@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-05-onboarding-trust-folder.md",
+  "stitchScreenId": "667317589c814daf9547323471374fd5",
+  "generatedAt": "2026-10-28 06:11:07 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed unsupported claims that trust guarantees directory isolation, file-read limits, command execution, network, or credentials behavior",
+      "stated that folder trust does not authorize commands or network access"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+    "promptFile":  "docs/design/prompts/tui-02-onboarding-language.md",
+    "stitchScreenId":  "01c245a22d984753a07b5cd0c68a2b2b",
+    "generatedAt":  "2026-10-28 06:00:53 UTC",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "defectsResolved":  [
+                                                  "removed Unix terminal device path",
+                                                  "translated privacy statement and labels to pt-BR",
+                                                  "removed configuration file paths",
+                                                  "removed prompt meta prose and simplified brand"
+                                              ],
+                          "reviewed":  true,
+                          "iterations":  2
+                      }
+}

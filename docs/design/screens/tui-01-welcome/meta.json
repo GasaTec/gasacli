@@ -1,0 +1,17 @@
+{
+    "promptFile":  "docs/design/prompts/tui-01-welcome.md",
+    "stitchScreenId":  "41f38fe726e44bcdb7a59a325441f1da",
+    "generatedAt":  "2026-10-28 06:00:53 UTC",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "defectsResolved":  [
+                                                  "simplified brand to G\u003e gasacli",
+                                                  "removed design instruction leakage and unsupported file-change claim",
+                                                  "translated privacy line to pt-BR",
+                                                  "removed agent status inventions and Linux terminal path"
+                                              ],
+                          "reviewed":  true,
+                          "iterations":  1
+                      }
+}

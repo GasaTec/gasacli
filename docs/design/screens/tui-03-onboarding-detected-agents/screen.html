@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TUI — Detecção de Agentes (Passo 2 de 6)</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: #0b1220;
+    color: #f4f7fb;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    overflow: auto;
+  }
+
+  /* Terminal Window Frame (120 cols x 36 rows ratio mockup) */
+  .terminal-window {
+    width: 1160px;
+    background-color: #0b1220;
+    border: 1px solid #596982;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65);
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    line-height: 1.35;
+    user-select: none;
+  }
+
+  /* Top Terminal Bar */
+  .terminal-topbar {
+    background-color: #111c2e;
+    border-bottom: 1px solid #596982;
+    padding: 6px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #9aaac0;
+    font-size: 12px;
+  }
+
+  .terminal-topbar .title {
+    color: #f4f7fb;
+  }
+
+  .terminal-topbar .title span {
+    color: #1ecfa5;
+  }
+
+  /* Subheader metadata */
+  .terminal-subbar {
+    background-color: #0d1626;
+    border-bottom: 1px solid #1b2a40;
+    padding: 4px 16px;
+    display: flex;
+    justify-content: space-between;
+    color: #9aaac0;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Main Terminal Body */
+  .terminal-body {
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Brand Header Lockup */
+  .brand-header {
+    border: 1px solid #1b2a40;
+    background-color: #111c2e;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-mark {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1ecfa5;
+    letter-spacing: 0.5px;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: #9aaac0;
+    border-left: 1px solid #596982;
+    padding-left: 10px;
+  }
+
+  .step-badge-box {
+    border: 1px solid #596982;
+    padding: 4px 10px;
+    text-align: right;
+    background-color: #0b1220;
+  }
+
+  .step-badge-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1ecfa5;
+  }
+
+  .step-badge-sub {
+    font-size: 10px;
+    color: #9aaac0;
+  }
+
+  /* Privacy Notice Strip */
+  .privacy-strip {
+    border: 1px dashed #596982;
+    background-color: #111c2e;
+    padding: 7px 14px;
+    font-size: 12px;
+    color: #c3cfdf;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .privacy-tag {
+    color: #1ecfa5;
+    font-weight: 700;
+  }
+
+  /* Layout 2 columns: Main Table & Side Flow */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 2.15fr 1fr;
+    gap: 14px;
+  }
+
+  /* Panel styling */
+  .panel {
+    border: 1px solid #596982;
+    background-color: #0b1220;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-header {
+    background-color: #111c2e;
+    border-bottom: 1px solid #596982;
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #c3cfdf;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .panel-header-nav {
+    font-size: 11px;
+    color: #1ecfa5;
+    font-weight: normal;
+  }
+
+  /* Table styling */
+  .table-container {
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .tui-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .tui-table th {
+    text-align: left;
+    padding: 6px 8px;
+    color: #9aaac0;
+    font-size: 11px;
+    border-bottom: 1px solid #1b2a40;
+    font-weight: 600;
+  }
+
+  .tui-table td {
+    padding: 7px 8px;
+    border-bottom: 1px solid #111c2e;
+    vertical-align: middle;
+  }
+
+  .tui-table tr.selected {
+    background-color: #172a46;
+    outline: 1px solid #1ecfa5;
+  }
+
+  .row-marker {
+    color: #1ecfa5;
+    font-weight: 700;
+    display: inline-block;
+    width: 14px;
+  }
+
+  .agent-name {
+    font-weight: 700;
+    color: #f4f7fb;
+  }
+
+  /* Status Tags */
+  .tag-status {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 0;
+  }
+
+  .status-ready {
+    background-color: #1ecfa5;
+    color: #172a46;
+  }
+
+  .status-installed {
+    background-color: #1b2a40;
+    color: #79b8ff;
+    border: 1px solid #596982;
+  }
+
+  .status-absent {
+    background-color: #111c2e;
+    color: #9aaac0;
+    border: 1px dashed #596982;
+  }
+
+  .version-tag {
+    color: #c3cfdf;
+    font-family: inherit;
+  }
+
+  .version-dim {
+    color: #596982;
+  }
+
+  .capability-text {
+    color: #c3cfdf;
+    font-size: 11px;
+  }
+
+  /* Selected detail drawer inside left panel */
+  .details-box {
+    margin-top: 6px;
+    border-top: 1px dashed #596982;
+    padding: 8px 10px;
+    background-color: #111c2e;
+    font-size: 11px;
+  }
+
+  .details-box-header {
+    color: #1ecfa5;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .details-note {
+    color: #c3cfdf;
+    line-height: 1.4;
+  }
+
+  .details-warning {
+    color: #9aaac0;
+    margin-top: 4px;
+  }
+
+  /* Action Box inside Left Panel */
+  .actions-box {
+    border: 1px solid #1b2a40;
+    background-color: #0d1626;
+    padding: 8px 12px;
+    margin: 8px 10px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .action-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #c3cfdf;
+  }
+
+  .key-badge {
+    background-color: #172a46;
+    border: 1px solid #1ecfa5;
+    color: #1ecfa5;
+    padding: 1px 6px;
+    font-weight: 700;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .key-badge-sub {
+    background-color: #111c2e;
+    border: 1px solid #596982;
+    color: #c3cfdf;
+    padding: 1px 6px;
+    font-weight: 600;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  /* Right Panel: 6-Step Overview */
+  .flow-list {
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    font-size: 11px;
+  }
+
+  .flow-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #9aaac0;
+    padding: 3px 6px;
+  }
+
+  .flow-item.active {
+    background-color: #172a46;
+    border-left: 3px solid #1ecfa5;
+    color: #f4f7fb;
+    font-weight: 700;
+  }
+
+  .flow-item.done {
+    color: #43d19e;
+  }
+
+  .flow-status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+  }
+
+  .dot-active {
+    background-color: #1ecfa5;
+  }
+
+  .dot-done {
+    background-color: #43d19e;
+  }
+
+  .dot-pending {
+    background-color: #596982;
+  }
+
+  .flow-interstitial {
+    border: 1px dashed #596982;
+    padding: 4px 8px;
+    margin: 2px 0;
+    background-color: #0d1626;
+    color: #9aaac0;
+    font-size: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Bottom status summary */
+  .footer-status {
+    border-top: 1px solid #596982;
+    background-color: #111c2e;
+    padding: 5px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #9aaac0;
+  }
+
+  .footer-status-val {
+    color: #f4f7fb;
+    font-weight: 600;
+  }
+
+  .footer-status-pill {
+    color: #1ecfa5;
+    font-weight: 700;
+  }
+
+  /* Keyboard shortcut hint bar */
+  .shortcut-bar {
+    background-color: #0b1220;
+    border-top: 1px solid #1b2a40;
+    padding: 6px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+  }
+
+  .shortcut-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .shortcut-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #c3cfdf;
+  }
+
+  .shortcut-key {
+    background-color: #1ecfa5;
+    color: #172a46;
+    padding: 1px 5px;
+    font-weight: 700;
+  }
+
+  .shortcut-key-alt {
+    background-color: #172a46;
+    color: #1ecfa5;
+    border: 1px solid #1ecfa5;
+    padding: 1px 5px;
+    font-weight: 700;
+  }
+
+  .shortcut-key-cancel {
+    background-color: #111c2e;
+    color: #ff7272;
+    border: 1px solid #ff7272;
+    padding: 1px 5px;
+    font-weight: 700;
+  }
+
+  .state-badge {
+    color: #1ecfa5;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+<div class="terminal-window">
+<!-- Top Bar -->
+<div class="terminal-topbar">
+<div class="title">Terminal 120x36 • <span>gasacli</span> — assistente de configuração • projeto: vitrine-api</div>
+<div>UTF-8 | NO_COLOR: DESATIVADO</div>
+</div>
+<!-- Subbar with Context -->
+<div class="terminal-subbar">
+<div>PROJETO: vitrine-api | ETAPA DE ONBOARDING: 2 de 6 (Agentes) | ORQUESTRADOR: GasaCLI</div>
+<div>MODO: LOCAL</div>
+</div>
+<!-- Main Terminal Body -->
+<div class="terminal-body">
+<!-- Brand Lockup & Stage -->
+<div class="brand-header">
+<div class="brand-lockup">
+<div class="brand-mark">G&gt; gasacli</div>
+<div class="brand-sub">
+          CONFIGURAÇÃO INICIAL — PASSO 2 DE 6<br/>
+<span style="color: #f4f7fb;">Detecção de ferramentas e agentes disponíveis no ambiente local</span>
+</div>
+</div>
+<div class="step-badge-box">
+<div class="step-badge-title">ETAPA [2 / 6]</div>
+<div class="step-badge-sub">AGENTES DETECTADOS</div>
+</div>
+</div>
+<!-- Privacy Statement Strip -->
+<div class="privacy-strip">
+<span class="privacy-tag">garantia de privacidade:</span>
+<span>O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.</span>
+</div>
+<!-- Grid Content (Table + Flow List) -->
+<div class="content-grid">
+<!-- Left Panel: Agents Table & Inspection -->
+<div class="panel">
+<div class="panel-header">
+<span>AGENTES E FERRAMENTAS LOCAIS</span>
+<span class="panel-header-nav">[use ↑/↓ para navegar]</span>
+</div>
+<div class="table-container">
+<table class="tui-table">
+<thead>
+<tr>
+<th style="width: 26px;"></th>
+<th style="width: 170px;">NOME</th>
+<th style="width: 110px;">STATUS</th>
+<th style="width: 90px;">VERSÃO</th>
+<th>CAPACIDADE RECONHECIDA</th>
+</tr>
+</thead>
+<tbody><tr class="selected">
+<td><span class="row-marker">&gt;</span></td>
+<td><span class="agent-name">Claude Code</span></td>
+<td><span class="tag-status status-ready">READY</span></td>
+<td><span class="version-tag">v2</span></td>
+<td><span class="capability-text">Exemplo de agente detectado</span></td>
+</tr>
+<tr>
+<td><span class="row-marker"> </span></td>
+<td><span class="agent-name">Cursor CLI</span></td>
+<td><span class="tag-status status-absent">Não verificado</span></td>
+<td><span class="version-dim">Não verificada</span></td>
+<td><span class="capability-text">-</span></td>
+</tr>
+<tr>
+<td><span class="row-marker"> </span></td>
+<td><span class="agent-name">OpenCode</span></td>
+<td><span class="tag-status status-absent">Não verificado</span></td>
+<td><span class="version-dim">Não verificada</span></td>
+<td><span class="capability-text">-</span></td>
+</tr></tbody>
+</table>
+</div>
+<!-- Capability and Probe Details for Selected Row -->
+<div class="details-box"><div class="details-box-header">
+<span>DETALHES DO AGENTE SELECIONADO: Claude Code</span>
+</div>
+<div class="details-note">Agente selecionado: Claude Code. Pressione [Enter] para prosseguir.</div></div>
+<!-- Stage Actions -->
+<div class="actions-box"><div class="action-line">
+<span class="key-badge">[Enter]</span>
+<span>Continuar — Continuar para a próxima etapa</span>
+</div>
+<div class="action-line">
+<span class="key-badge-sub">[Esc]</span>
+<span>Voltar — Retornar para Passo 1 (Seleção de Idioma)</span>
+</div></div>
+</div>
+<!-- Right Panel: Onboarding Flow 6 steps -->
+<div class="panel">
+<div class="panel-header">
+<span>FLUXO DE CONFIGURAÇÃO</span>
+<span style="color: #9aaac0; font-weight: normal;">6 PASSOS NUMERADOS</span>
+</div>
+<div class="flow-list">
+<!-- Step 1 -->
+<div class="flow-item done">
+<div><span class="flow-status-dot dot-done"></span>Passo 1/6: Idioma do Ambiente</div>
+<div>[OK]</div>
+</div>
+<!-- Step 2 (Current) -->
+<div class="flow-item active">
+<div><span class="flow-status-dot dot-active"></span>Passo 2/6 (Atual): Agentes Detectados</div>
+<div style="color: #1ecfa5;">• ATIVO</div>
+</div>
+<!-- Step 3 -->
+<div class="flow-item">
+<div><span class="flow-status-dot dot-pending"></span>Passo 3/6: Instalação de Ferramentas</div>
+<div>pendente</div>
+</div>
+<!-- Unnumbered Interstitial -->
+<div class="flow-interstitial">
+<span>[Segurança]:</span>
+<span>Confirmação de Pasta (sem numeração)</span>
+</div>
+<!-- Step 4 -->
+<div class="flow-item">
+<div><span class="flow-status-dot dot-pending"></span>Passo 4/6: Perfil de Permissões</div>
+<div>pendente</div>
+</div>
+<!-- Step 5 -->
+<div class="flow-item">
+<div><span class="flow-status-dot dot-pending"></span>Passo 5/6: Modo de Inicialização</div>
+<div>pendente</div>
+</div>
+<!-- Step 6 -->
+<div class="flow-item">
+<div><span class="flow-status-dot dot-pending"></span>Passo 6/6: Resumo e Finalização</div>
+<div>pendente</div>
+</div>
+</div>
+<!-- Honest Information Note inside panel -->
+<div style="border-top: 1px solid #1b2a40; padding: 10px 12px; margin-top: auto; font-size: 11px; background-color: #0d1626;"><div style="color: #1ecfa5; font-weight: 700; margin-bottom: 3px;">ESTADO DO PROJETO</div>
+<div style="color: #c3cfdf; line-height: 1.4;">
+  Workspace: vitrine-api
+</div></div>
+</div>
+</div>
+</div>
+<!-- Bottom Context & Trust Footer -->
+<div class="footer-status"><div>WORKSPACE: <span class="footer-status-val">vitrine-api</span></div>
+<div>CONFIANÇA DO ESPAÇO: <span class="footer-status-pill">PENDENTE DE CONFIRMAÇÃO (trust)</span></div></div>
+<!-- Keyboard Shortcuts Helper Bar -->
+<div class="shortcut-bar">
+<div class="shortcut-group">
+<div class="shortcut-item">
+<span class="shortcut-key">Enter</span> Continuar
+      </div>
+<div class="shortcut-item">
+<span class="shortcut-key-alt">↑ / ↓</span> Navegar agentes
+      </div>
+<div class="shortcut-item">
+<span class="shortcut-key-alt">Esc</span> Voltar
+      </div>
+<div class="shortcut-item">
+<span class="shortcut-key-cancel">Ctrl+C</span> Sair com segurança
+      </div>
+</div>
+<div class="state-badge">• PRONTO</div>
+</div>
+</div>
+</body>
+</html>

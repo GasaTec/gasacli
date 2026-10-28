@@ -1,0 +1,17 @@
+{
+  "promptFile": "docs/design/prompts/tui-03-onboarding-detected-agents.md",
+  "stitchScreenId": "894ca23f3e674c83ac9bbeb32d2a66ac",
+  "generatedAt": "2026-10-28 06:05:38 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 2,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed fabricated versions and capabilities except the prompt's allowed Claude example",
+      "marked Cursor CLI and OpenCode as separate and not verified",
+      "removed OS and directory paths and unsupported detection claims",
+      "removed recheck and PATH probe actions"
+    ]
+  }
+}

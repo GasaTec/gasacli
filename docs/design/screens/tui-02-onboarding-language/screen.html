@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI — Onboarding Idioma (Passo 1 de 6)</title>
+<style>
+  /* GasaCLI Strict TUI Design System & Character-Cell Terminal Tokens */
+  :root {
+    --bg-canvas: #070b12;
+    --term-bg: #0b1220;
+    --term-surface: #111c2e;
+    --term-elevated: #1b2a40;
+    --term-border: #596982;
+    --text-primary: #f4f7fb;
+    --text-secondary: #c3cfdf;
+    --text-muted: #9aaac0;
+    --brand-navy: #172a46;
+    --brand-teal: #1ecfa5;
+    --status-success: #43d19e;
+    --status-warning: #f2b84b;
+    --status-danger: #ff7272;
+    --status-info: #79b8ff;
+    --status-idle: #9aa3b2;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, Consolas, 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.35;
+    letter-spacing: 0px;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 120x36 Character-Cell Terminal Window (Strict square geometry, no rounded corners, no web blur/shadow) */
+  .terminal-frame {
+    width: 100%;
+    max-width: 1100px;
+    background-color: var(--term-bg);
+    border: 1px solid var(--term-border);
+    display: flex;
+    flex-direction: column;
+    box-shadow: none;
+  }
+
+  /* Terminal Top Status Bar */
+  .term-header-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 14px;
+    background-color: var(--term-surface);
+    border-bottom: 1px solid var(--term-border);
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .term-header-line .left, .term-header-line .right {
+    display: flex;
+    gap: 16px;
+  }
+
+  .term-header-line .highlight {
+    color: var(--brand-teal);
+    font-weight: bold;
+  }
+
+  .term-sub-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 14px;
+    background-color: var(--term-bg);
+    border-bottom: 1px solid var(--term-border);
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  /* Terminal Content Workspace */
+  .term-body {
+    padding: 16px 20px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Hero & ASCII G+chevron Brand Mark (max 7 lines) */
+  .brand-lockup-row {
+    display: grid;
+    grid-template-columns: 280px 1fr 180px;
+    gap: 18px;
+    align-items: center;
+    border: 1px solid var(--term-border);
+    padding: 10px 14px;
+    background-color: var(--term-surface);
+  }
+
+  .ascii-brand {
+    white-space: pre;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.15;
+    color: var(--brand-teal);
+  }
+
+  .ascii-brand .navy-part {
+    color: #79b8ff;
+    font-weight: bold;
+  }
+
+  .brand-title-area {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .brand-title-area .title {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+  }
+
+  .brand-title-area .subtitle {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .step-badge-box {
+    border: 1px solid var(--term-border);
+    padding: 6px 10px;
+    background-color: var(--term-bg);
+    text-align: right;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .step-badge-box .step-num {
+    color: var(--brand-teal);
+    font-weight: bold;
+  }
+
+  /* Accurate Privacy Banner */
+  .privacy-box {
+    border: 1px dashed var(--term-border);
+    padding: 7px 12px;
+    background-color: rgba(23, 42, 70, 0.45);
+    color: var(--text-secondary);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .privacy-box .label {
+    color: var(--brand-teal);
+    font-weight: bold;
+  }
+
+  /* Main Interactive Grid (2 Columns: Language Radio Options vs Onboarding Overview) */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 16px;
+  }
+
+  /* Box-drawing Containers */
+  .box-container {
+    border: 1px solid var(--term-border);
+    background-color: var(--term-surface);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .box-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background-color: var(--brand-navy);
+    border-bottom: 1px solid var(--term-border);
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--text-primary);
+  }
+
+  .box-header .hint {
+    font-weight: normal;
+    color: var(--brand-teal);
+  }
+
+  .box-content {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Language Radio Options */
+  .radio-option {
+    border: 1px solid var(--term-border);
+    padding: 10px 12px;
+    background-color: var(--term-bg);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    cursor: default;
+  }
+
+  .radio-option.selected {
+    border: 1px solid var(--brand-teal);
+    background-color: rgba(30, 207, 165, 0.08);
+  }
+
+  .radio-option-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: bold;
+  }
+
+  .radio-option.selected .radio-option-header {
+    color: var(--brand-teal);
+  }
+
+  .radio-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tag-badge {
+    font-size: 11px;
+    font-weight: bold;
+    padding: 1px 6px;
+    border: 1px solid var(--brand-teal);
+    background-color: var(--brand-teal);
+    color: var(--brand-navy);
+    text-transform: uppercase;
+  }
+
+  .locale-code {
+    font-size: 11px;
+    color: var(--text-muted);
+    border: 1px solid var(--term-border);
+    padding: 0 4px;
+  }
+
+  .radio-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding-left: 24px;
+    line-height: 1.4;
+  }
+
+  .radio-helper-quote {
+    font-size: 12px;
+    color: var(--brand-teal);
+    padding-left: 24px;
+    font-style: normal;
+  }
+
+  /* Action Buttons inside Card */
+  .step-actions-box {
+    margin-top: 4px;
+    border: 1px solid var(--term-border);
+    background-color: var(--term-bg);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .step-actions-box .title-sm {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: bold;
+    margin-bottom: 2px;
+  }
+
+  .action-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .key-chip {
+    padding: 2px 7px;
+    border: 1px solid var(--brand-teal);
+    background-color: var(--brand-navy);
+    color: var(--brand-teal);
+    font-weight: bold;
+    font-size: 11px;
+  }
+
+  .key-chip.secondary {
+    border-color: var(--term-border);
+    color: var(--text-secondary);
+  }
+
+  .action-label {
+    color: var(--text-primary);
+  }
+
+  .action-label .dim {
+    color: var(--text-muted);
+  }
+
+  /* Onboarding Flow 6-step list + Interstitial */
+  .flow-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .flow-step-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+  }
+
+  .flow-step-row.active {
+    background-color: var(--term-bg);
+    border-color: var(--brand-teal);
+    color: var(--text-primary);
+  }
+
+  .flow-step-row.active .step-marker {
+    color: var(--brand-teal);
+    font-weight: bold;
+  }
+
+  .flow-step-row.pending {
+    color: var(--text-muted);
+  }
+
+  .flow-step-row.interstitial {
+    border: 1px dashed var(--term-border);
+    background-color: rgba(23, 42, 70, 0.25);
+    color: #a5b4fc;
+    margin: 3px 0;
+  }
+
+  .flow-step-row.interstitial .step-marker {
+    color: #a5b4fc;
+  }
+
+  .policy-note {
+    border-top: 1px solid var(--term-border);
+    padding-top: 10px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+
+  .policy-note strong {
+    color: var(--text-secondary);
+  }
+
+  /* Terminal Bottom Status & Shortcuts Bar */
+  .term-footer-status {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 14px;
+    background-color: var(--term-surface);
+    border-top: 1px solid var(--term-border);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .term-key-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 14px;
+    background-color: var(--term-bg);
+    border-top: 1px solid var(--term-border);
+    font-size: 12px;
+  }
+
+  .kbd-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+  }
+
+  .kbd-badge {
+    padding: 1px 6px;
+    background-color: var(--brand-teal);
+    color: var(--brand-navy);
+    font-weight: bold;
+    font-size: 11px;
+  }
+
+  .kbd-badge.outline {
+    background-color: var(--term-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--term-border);
+  }
+
+  .kbd-badge.danger {
+    background-color: rgba(255, 114, 114, 0.15);
+    color: var(--status-danger);
+    border: 1px solid var(--status-danger);
+  }
+
+  .ready-indicator {
+    margin-left: auto;
+    color: var(--brand-teal);
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+</style>
+</head>
+<body>
+<div aria-label="Terminal GasaCLI Onboarding" class="terminal-frame" role="region">
+<!-- TUI Top Context Header -->
+<header class="term-header-line"><div class="left">
+<span>Terminal 120x36</span>
+<span>•</span>
+<span class="highlight">gasacli — assistente de configuração</span>
+<span>•</span>
+<span>projeto: <span style="color:var(--text-primary)">vitrine-api</span></span>
+</div>
+<div class="right">
+<span>UTF-8</span>
+<span>|</span>
+<span>NO_COLOR: DESATIVADO</span>
+</div></header>
+<div class="term-sub-header"><div>PROJETO: <span style="color:var(--text-primary)">vitrine-api</span>  |  ETAPA DE ONBOARDING: <span style="color:var(--brand-teal)">1 de 6 (Idioma)</span>  |  ORQUESTRADOR: <span style="color:var(--text-primary)">GasaCLI</span></div>
+<div>MODO: <span style="color:var(--brand-teal)">LOCAL</span></div></div>
+<!-- Terminal Body Area -->
+<main class="term-body">
+<!-- Compact ASCII Brand Lockup (max 7 lines) + Screen Title -->
+<section aria-label="Identificação do GasaCLI" class="brand-lockup-row">
+<div class="ascii-brand"><strong style="color:var(--brand-teal);font-size:14px;">G&gt; gasacli</strong>
+<span style="color:var(--text-muted);font-size:11px;display:block;margin-top:2px;">[orquestrador local]</span></div>
+<div class="brand-title-area">
+<h1 class="title">CONFIGURAÇÃO INICIAL — PASSO 1 DE 6</h1>
+<p class="subtitle">Selecione o idioma de interface do terminal e saídas padrão do workspace</p>
+</div>
+<div class="step-badge-box">
+<div class="step-num">ETAPA [1 / 6]</div>
+<div style="color:var(--text-muted)">IDIOMA</div>
+</div>
+</section>
+<!-- Accurate Privacy Copy (Inviolable requirement) -->
+<aside aria-label="Garantia de privacidade" class="privacy-box"><span class="label">garantia de privacidade:</span>
+<span>O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.</span></aside>
+<!-- Two-column Main Workspace -->
+<div class="main-grid">
+<!-- Left Column: Language Selection Radio Rows -->
+<section aria-label="Seleção de Idioma" class="box-container">
+<div class="box-header">
+<span>┌─ SELEÇÃO DE IDIOMA</span>
+<span class="hint">[use ↑/↓ para alternar]</span>
+</div>
+<div class="box-content">
+<!-- Option 1: Selected (pt-BR) -->
+<article aria-checked="true" class="radio-option selected" role="radio" tabindex="0"><div class="radio-option-header">
+<div class="radio-left">
+<span>► [*]</span>
+<span style="color:var(--text-primary)">Português (Brasil)</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;">
+<span class="tag-badge">RECOMENDADO</span>
+<span class="locale-code">pt-BR</span>
+</div>
+</div>
+<div class="radio-desc">
+              Interface do terminal, relatórios e prompts interativos em português brasileiro.
+            </div>
+<div class="radio-helper-quote">
+              Você pode alterar depois.
+            </div></article>
+<!-- Option 2: English (US) -->
+<article aria-checked="false" class="radio-option" role="radio" tabindex="-1"><div class="radio-option-header">
+<div class="radio-left">
+<span style="color:var(--text-muted)">[ ]</span>
+<span style="color:var(--text-secondary)">English (US)</span>
+</div>
+<span class="locale-code">en-US</span>
+</div>
+<div class="radio-desc">
+              Saída padrão do terminal e mensagens em inglês norte-americano.
+            </div>
+<div class="radio-desc" style="color:var(--text-muted);font-size:11px;padding-left:24px;">
+              Você pode mudar isso a qualquer momento.
+            </div></article>
+<!-- Action Shortcuts mapped to this step -->
+<div class="step-actions-box"><div class="title-sm">Ações da Etapa:</div>
+<div class="action-line">
+<span class="key-chip">[Enter]</span>
+<span class="action-label">Continuar <span class="dim">— Salvar seleção e ir para Passo 2 (Detecção de Agentes)</span></span>
+</div>
+<div class="action-line">
+<span class="key-chip secondary">[p]</span>
+<span class="action-label">Pular <span class="dim">— Aceitar padrão recomendado [pt-BR] e prosseguir</span></span>
+</div>
+<div class="action-line">
+<span class="key-chip secondary">[Esc]</span>
+<span class="action-label">Voltar <span class="dim">— Retornar para a tela inicial de Boas-vindas</span></span>
+</div></div>
+</div>
+</section>
+<!-- Right Column: 6-Step Onboarding Overview with Unnumbered Interstitial -->
+<section aria-label="Estrutura de Passos do Onboarding" class="box-container"><div class="box-header">
+<span>┌─ FLUXO DE CONFIGURAÇÃO</span>
+<span style="color:var(--text-secondary);font-size:11px;">6 PASSOS NUMERADOS</span>
+</div>
+<div class="box-content">
+<div class="flow-list">
+<div class="flow-step-row active">
+<span><strong>Passo 1/6 (Atual):</strong></span>
+<span class="step-marker">● Idioma do Ambiente</span>
+</div>
+<div class="flow-step-row pending">
+<span>Passo 2/6:</span>
+<span>○ Agentes Detectados</span>
+</div>
+<div class="flow-step-row pending">
+<span>Passo 3/6:</span>
+<span>○ Instalação de Ferramentas</span>
+</div>
+<div class="flow-step-row interstitial">
+<span>[Segurança]:</span>
+<span class="step-marker">Confirmação de Pasta</span>
+</div>
+<div class="flow-step-row pending">
+<span>Passo 4/6:</span>
+<span>○ Perfil de Permissões</span>
+</div>
+<div class="flow-step-row pending">
+<span>Passo 5/6:</span>
+<span>○ Modo de Inicialização</span>
+</div>
+<div class="flow-step-row pending">
+<span>Passo 6/6:</span>
+<span>○ Resumo e Finalização</span>
+</div>
+</div>
+</div></section>
+</div>
+</main>
+<!-- Bottom Workspace Status -->
+<footer class="term-footer-status"><div>DIRETÓRIO ATUAL: <span style="color:var(--text-primary)">~/projetos/vitrine-api</span></div>
+<div>CONFIANÇA DO ESPAÇO: <span style="color:var(--brand-teal)">CONFIRMADA</span></div></footer>
+<!-- TUI Keyboard Hints Bar -->
+<nav aria-label="Atalhos do terminal" class="term-key-bar"><div class="kbd-item"><span class="kbd-badge">Enter</span> Continuar</div>
+<div class="kbd-item"><span class="kbd-badge outline">↑ / ↓</span> Alternar idioma</div>
+<div class="kbd-item"><span class="kbd-badge outline">p</span> Pular com padrão</div>
+<div class="kbd-item"><span class="kbd-badge outline">Esc</span> Voltar</div>
+<div class="kbd-item"><span class="kbd-badge danger">Ctrl+C</span> Sair com segurança</div>
+<div class="ready-indicator">● PRONTO</div></nav>
+</div>
+</body>
+</html>

@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Onboarding Instalação de Ferramentas (Passo 3 de 6)</title>
+<style>
+    /* Reset & Typography strictly monospace character-cell */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background-color: #06090f;
+      color: #F4F7FB;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      user-select: none;
+    }
+
+    /* Terminal Frame 120x36 proportions */
+    .terminal-window {
+      width: 1160px;
+      height: 780px;
+      background-color: #0B1220;
+      border: 1px solid #596982;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Top Terminal Title Bar */
+    .terminal-titlebar {
+      height: 30px;
+      line-height: 30px;
+      padding: 0 14px;
+      background-color: #111C2E;
+      border-bottom: 1px solid #596982;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #9AAAC0;
+    }
+    .terminal-titlebar .left {
+      color: #C3CFDF;
+    }
+    .terminal-titlebar .app-name {
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+    .terminal-titlebar .project-name {
+      color: #F4F7FB;
+    }
+    .terminal-titlebar .flags {
+      color: #9AAAC0;
+    }
+
+    /* Sub-header row */
+    .terminal-subheader {
+      height: 28px;
+      line-height: 28px;
+      padding: 0 14px;
+      border-bottom: 1px solid #1B2A40;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #9AAAC0;
+      background-color: #0e1626;
+      letter-spacing: 0.5px;
+    }
+
+    /* Terminal Body Area */
+    .terminal-body {
+      flex: 1;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    /* Brand Header Box */
+    .brand-header-box {
+      border: 1px solid #1B2A40;
+      background-color: #111C2E;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-mark {
+      color: #1ECFA5;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+    }
+    .brand-divider {
+      color: #596982;
+    }
+    .brand-meta {
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .brand-step-title {
+      color: #F4F7FB;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .brand-step-desc {
+      color: #9AAAC0;
+      font-size: 11px;
+    }
+
+    .step-badge {
+      border: 1px solid #1ECFA5;
+      padding: 4px 10px;
+      text-align: right;
+      background-color: rgba(30, 207, 165, 0.05);
+    }
+    .step-badge-num {
+      color: #1ECFA5;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .step-badge-label {
+      color: #C3CFDF;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Privacy Banner */
+    .privacy-banner {
+      border: 1px dashed #596982;
+      padding: 6px 12px;
+      font-size: 11px;
+      color: #9AAAC0;
+      background-color: rgba(17, 28, 46, 0.4);
+    }
+    .privacy-tag {
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+
+    /* Main Grid Split: Left Checklist & Exact Command vs Right 6-step flow */
+    .main-content-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 730px 1fr;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    /* Left Panel: Checklist & Command Inspector */
+    .pane-box {
+      border: 1px solid #596982;
+      background-color: #111C2E;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .pane-header {
+      height: 26px;
+      line-height: 26px;
+      padding: 0 10px;
+      background-color: #1B2A40;
+      border-bottom: 1px solid #596982;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: #F4F7FB;
+      letter-spacing: 0.5px;
+    }
+    .pane-header-hint {
+      color: #1ECFA5;
+      font-size: 10px;
+      font-weight: normal;
+    }
+
+    .pane-content {
+      padding: 12px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Checklist Section */
+    .checklist-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tool-item-row {
+      border: 1px solid #1B2A40;
+      padding: 8px 10px;
+      background-color: #0B1220;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+    .tool-item-row.focused {
+      border-color: #1ECFA5;
+      background-color: rgba(30, 207, 165, 0.06);
+    }
+    .tool-check-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .check-box {
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+    .check-box.empty {
+      color: #9AAAC0;
+    }
+    .tool-name {
+      color: #F4F7FB;
+      font-weight: 600;
+    }
+    .tool-note {
+      color: #9AAAC0;
+      font-size: 11px;
+      margin-left: 6px;
+    }
+    .tool-status-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 0;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+    .tag-ausente {
+      border: 1px solid #F2B84B;
+      color: #F2B84B;
+      background-color: rgba(242, 184, 75, 0.08);
+    }
+    .tag-opcional {
+      border: 1px solid #596982;
+      color: #C3CFDF;
+      background-color: rgba(89, 105, 130, 0.15);
+    }
+
+    /* Command & Source Inspector Card */
+    .inspector-card {
+      border: 1px solid #1B2A40;
+      background-color: #0B1220;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .inspector-title {
+      font-size: 11px;
+      color: #1ECFA5;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+    }
+    .command-preview-box {
+      border: 1px solid #596982;
+      background-color: #06090f;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: #1ECFA5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .command-prompt-sym {
+      color: #9AAAC0;
+      margin-right: 6px;
+    }
+    .command-source-hint {
+      color: #9AAAC0;
+      font-size: 10px;
+    }
+
+    .install-notice-text {
+      font-size: 11px;
+      color: #9AAAC0;
+      line-height: 1.4;
+    }
+
+    /* Step Actions Area (Confirm / Skip / Voltar) */
+    .actions-box {
+      border-top: 1px dashed #1B2A40;
+      padding-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      color: #C3CFDF;
+    }
+    .action-btn-key {
+      border: 1px solid #1ECFA5;
+      color: #1ECFA5;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: bold;
+      background-color: rgba(30, 207, 165, 0.08);
+      min-width: 60px;
+      text-align: center;
+    }
+    .action-btn-key.secondary {
+      border-color: #596982;
+      color: #F4F7FB;
+      background-color: transparent;
+    }
+
+    /* Right Panel: Onboarding Flow 6 steps + Trust interstitial */
+    .flow-pane {
+      border: 1px solid #596982;
+      background-color: #111C2E;
+      display: flex;
+      flex-direction: column;
+    }
+    .flow-list {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      font-size: 11px;
+    }
+
+    .flow-step-item {
+      display: flex;
+      justify-content: space-between;
+      color: #9AAAC0;
+      padding: 3px 0;
+    }
+    .flow-step-item.done {
+      color: #43D19E;
+    }
+    .flow-step-item.active {
+      color: #F4F7FB;
+      background-color: #1B2A40;
+      padding: 4px 6px;
+      margin: 0 -6px;
+      font-weight: 600;
+      border-left: 2px solid #1ECFA5;
+    }
+    .flow-step-item.interstitial {
+      border: 1px dashed #596982;
+      padding: 4px 6px;
+      margin: 2px 0;
+      background-color: rgba(27, 42, 64, 0.3);
+      color: #9AAAC0;
+    }
+
+    .flow-badge {
+      font-size: 10px;
+      font-weight: bold;
+    }
+    .flow-badge.ok {
+      color: #43D19E;
+    }
+    .flow-badge.active {
+      color: #1ECFA5;
+    }
+    .flow-badge.pending {
+      color: #596982;
+    }
+
+    /* Flow Bottom Note */
+    .flow-project-state {
+      margin-top: auto;
+      border-top: 1px solid #1B2A40;
+      padding: 10px 12px;
+      font-size: 11px;
+    }
+    .project-state-title {
+      color: #1ECFA5;
+      font-weight: 600;
+      font-size: 10px;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+    .project-state-desc {
+      color: #9AAAC0;
+      line-height: 1.4;
+    }
+
+    /* Bottom Status & Key Hints Bar */
+    .terminal-footer-meta {
+      height: 24px;
+      line-height: 24px;
+      padding: 0 14px;
+      background-color: #0e1626;
+      border-top: 1px solid #1B2A40;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #9AAAC0;
+    }
+    .workspace-tag {
+      color: #F4F7FB;
+      font-weight: bold;
+    }
+    .trust-tag {
+      color: #F2B84B;
+      font-weight: bold;
+    }
+
+    .terminal-footer-keys {
+      height: 32px;
+      line-height: 32px;
+      padding: 0 14px;
+      background-color: #111C2E;
+      border-top: 1px solid #596982;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+    .key-group {
+      display: flex;
+      gap: 14px;
+    }
+    .key-hint {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: #C3CFDF;
+    }
+    .key-cap {
+      border: 1px solid #1ECFA5;
+      background-color: #1ECFA5;
+      color: #172A46;
+      font-weight: bold;
+      font-size: 10px;
+      padding: 0 5px;
+      height: 18px;
+      line-height: 18px;
+    }
+    .key-cap.sub {
+      border: 1px solid #596982;
+      background-color: transparent;
+      color: #1ECFA5;
+    }
+    .key-cap.danger {
+      border: 1px solid #FF7272;
+      background-color: transparent;
+      color: #FF7272;
+    }
+    .system-status {
+      color: #1ECFA5;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background-color: #1ECFA5;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+<!-- Terminal Container 120x36 Character-Cell Style -->
+<div class="terminal-window">
+<!-- Top Titlebar -->
+<div class="terminal-titlebar">
+<div class="left">
+        Terminal 120x36 • <span class="app-name">gasacli</span> — assistente de configuração • projeto: <span class="project-name">vitrine-api</span>
+</div>
+<div class="flags">UTF-8 | NO_COLOR: DESATIVADO</div>
+</div>
+<!-- Terminal Subheader -->
+<div class="terminal-subheader">
+<div>PROJETO: vitrine-api | ETAPA DE ONBOARDING: 3 de 6 (Instalação) | ORQUESTRADOR: GasaCLI</div>
+<div>MODO: LOCAL</div>
+</div>
+<!-- Terminal Body -->
+<div class="terminal-body">
+<!-- Header Brand Box -->
+<div class="brand-header-box">
+<div class="brand-title-wrap">
+<div class="brand-mark">G&gt; gasacli</div>
+<div class="brand-divider">|</div>
+<div class="brand-meta">
+<div class="brand-step-title">CONFIGURAÇÃO INICIAL — PASSO 3 DE 6</div>
+<div class="brand-step-desc">Instalação e verificação de ferramentas opcionais recomendadas</div>
+</div>
+</div>
+<div class="step-badge">
+<div class="step-badge-num">ETAPA [3 / 6]</div>
+<div class="step-badge-label">INSTALAÇÃO DE FERRAMENTAS</div>
+</div>
+</div>
+<!-- Privacy Banner -->
+<div class="privacy-banner">
+<span class="privacy-tag">garantia de privacidade:</span> O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+      </div>
+<!-- Main Layout Grid -->
+<div class="main-content-grid">
+<!-- Left Panel: Checklist & Command/Source Card -->
+<div class="pane-box">
+<div class="pane-header">
+<span>CHECKLIST DE FERRAMENTAS RECOMENDADAS</span>
+<span class="pane-header-hint">[use Espaço para marcar | ↑/↓ para navegar]</span>
+</div>
+<div class="pane-content">
+<!-- Checklist items -->
+<div class="checklist-container">
+<!-- Row 1: Gemini CLI (Selected/Focused) -->
+<div class="tool-item-row focused">
+<div class="tool-check-info">
+<span class="check-box">[X]</span>
+<span class="tool-name">Gemini CLI</span>
+<span class="tool-note">— Interface de linha de comando para Gemini</span>
+</div>
+<span class="tool-status-tag tag-ausente">ausente</span>
+</div>
+<!-- Row 2: Obsidian (Optional) -->
+<div class="tool-item-row">
+<div class="tool-check-info">
+<span class="check-box empty">[ ]</span>
+<span class="tool-name">Obsidian</span>
+<span class="tool-note">— Notas e documentação em markdown local</span>
+</div>
+<span class="tool-status-tag tag-opcional">opcional</span>
+</div>
+</div>
+<!-- Command & Source Box for focused item -->
+<div class="inspector-card">
+<div class="inspector-title"><span>COMANDO DE EXEMPLO: Gemini CLI</span></div>
+<div class="command-preview-box">
+<div>
+<span class="command-prompt-sym">$</span>npm install -g @google/gemini-cli
+                </div>
+</div>
+<div class="install-notice-text">Pressione [Enter] para executar o comando selecionado ou [p] para pular esta etapa.</div>
+</div>
+<!-- Actions Area -->
+<div class="actions-box">
+<div class="action-row">
+<span class="action-btn-key">[Enter]</span>
+<span>Confirmar instalação — Executar comando para os itens selecionados</span>
+</div>
+<div class="action-row">
+<span class="action-btn-key secondary">[p]</span>
+<span>Pular etapa — Não instalar agora e continuar para confirmação de pasta</span>
+</div>
+<div class="action-row">
+<span class="action-btn-key secondary">[Esc]</span>
+<span>Voltar — Retornar para o Passo 2 (Agentes Detectados)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Panel: Onboarding Flow Overview -->
+<div class="flow-pane">
+<div class="pane-header">
+<span>FLUXO DE CONFIGURAÇÃO</span>
+<span class="pane-header-hint">6 PASSOS NUMERADOS</span>
+</div>
+<div class="flow-list">
+<div class="flow-step-item done">
+<span>■ Passo 1/6: Idioma do Ambiente</span>
+<span class="flow-badge ok">[OK]</span>
+</div>
+<div class="flow-step-item done">
+<span>■ Passo 2/6: Agentes Detectados</span>
+<span class="flow-badge ok">[OK]</span>
+</div>
+<div class="flow-step-item active">
+<span>■ Passo 3/6 (Atual): Instalação de Ferramentas</span>
+<span class="flow-badge active">• ATIVO</span>
+</div>
+<div class="flow-step-item interstitial">
+<span>[Segurança]:  Confirmação de Pasta (sem numeração)</span>
+</div>
+<div class="flow-step-item">
+<span>■ Passo 4/6: Perfil de Permissões</span>
+<span class="flow-badge pending">pendente</span>
+</div>
+<div class="flow-step-item">
+<span>■ Passo 5/6: Modo de Inicialização</span>
+<span class="flow-badge pending">pendente</span>
+</div>
+<div class="flow-step-item">
+<span>■ Passo 6/6: Resumo e Finalização</span>
+<span class="flow-badge pending">pendente</span>
+</div>
+</div>
+<div class="flow-project-state">
+<div class="project-state-title">ESTADO DO PROJETO</div>
+<div class="project-state-desc">Workspace: vitrine-api</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Terminal Footer Metadata -->
+<div class="terminal-footer-meta">
+<div>WORKSPACE: <span class="workspace-tag">vitrine-api</span></div>
+<div>CONFIANÇA DO ESPAÇO: <span class="trust-tag">PENDENTE DE CONFIRMAÇÃO (trust)</span></div>
+</div>
+<!-- Terminal Footer Key Bar -->
+<div class="terminal-footer-keys">
+<div class="key-group">
+<div class="key-hint"><span class="key-cap">Enter</span> Confirmar seleção</div>
+<div class="key-hint"><span class="key-cap sub">Espaço</span> Alternar item</div>
+<div class="key-hint"><span class="key-cap sub">↑ / ↓</span> Navegar</div>
+<div class="key-hint"><span class="key-cap sub">p</span> Pular etapa</div>
+<div class="key-hint"><span class="key-cap sub">Esc</span> Voltar</div>
+<div class="key-hint"><span class="key-cap danger">Ctrl+C</span> Sair com segurança</div>
+</div>
+<div class="system-status">
+<span class="status-dot"></span> PRONTO
+      </div>
+</div>
+</div>
+</body>
+</html>
