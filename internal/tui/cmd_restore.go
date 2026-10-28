@@ -41,9 +41,6 @@ func restoreCommand(ctx context.Context, cc CommandContext, args []string) (stri
 	if preview {
 		return strings.Join(changes, "\n"), nil
 	}
-	if cc.Ask == nil {
-		return "", fmt.Errorf("restore permission approval unavailable")
-	}
 	ok, err := cc.Ask(PermissionRequest{Action: "write_vault", Target: "GasaCLI global state"})
 	if err != nil {
 		return "", err
