@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI — Analytics Drilldown (vitrine-api)</title>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "text-primary-light": "#172A46",
+            "success-dark": "#43D19E",
+            "background": "#0B1220",
+            "tertiary-fixed-dim": "#e7c08b",
+            "on-primary-fixed": "#061c37",
+            "elevated-dark": "#172A46",
+            "info-light": "#145FA8",
+            "on-background": "#e4e2e5",
+            "error-container": "#93000a",
+            "error": "#ffb4ab",
+            "background-light": "#F4F7FB",
+            "on-tertiary": "#432c04",
+            "inverse-surface": "#e4e2e5",
+            "success-light": "#137A54",
+            "background-dark": "#0B1220",
+            "surface-light": "#FFFFFF",
+            "surface-container-lowest": "#070c16",
+            "surface-container-high": "#1a283e",
+            "surface-dim": "#0B1220",
+            "surface-container": "#111C2E",
+            "on-tertiary-fixed-variant": "#5c4218",
+            "on-secondary-container": "#004b3a",
+            "on-primary-fixed-variant": "#354765",
+            "danger-dark": "#FF7272",
+            "on-secondary-fixed": "#002117",
+            "inverse-primary": "#4d5f7e",
+            "on-primary": "#1e314d",
+            "surface-dark": "#111C2E",
+            "text-primary-dark": "#F4F7FB",
+            "inverse-on-surface": "#303033",
+            "warning-light": "#8A5600",
+            "warning-dark": "#F2B84B",
+            "secondary-fixed-dim": "#3bdeb3",
+            "text-muted-dark": "#9AAAC0",
+            "on-error-container": "#ffdad6",
+            "elevated-light": "#FFFFFF",
+            "primary-container": "#172a46",
+            "danger-light": "#B4232F",
+            "border-dark": "#596982",
+            "on-surface": "#e4e2e5",
+            "secondary-fixed": "#61fbcf",
+            "surface-tint": "#b5c7eb",
+            "text-secondary-light": "#44546A",
+            "surface": "#111C2E",
+            "primary-fixed": "#d6e3ff",
+            "on-secondary-fixed-variant": "#00513f",
+            "on-secondary": "#00382a",
+            "on-surface-variant": "#9AAAC0",
+            "surface-variant": "#172A46",
+            "surface-container-highest": "#1c2b42",
+            "on-tertiary-fixed": "#291800",
+            "surface-container-low": "#0e1726",
+            "on-error": "#690005",
+            "surface-bright": "#223552",
+            "outline-variant": "#596982",
+            "tertiary-container": "#3b2500",
+            "tertiary": "#e7c08b",
+            "on-primary-container": "#7f92b3",
+            "on-tertiary-container": "#ad8b5b",
+            "text-muted-light": "#5B6B80",
+            "primary-fixed-dim": "#b5c7eb",
+            "info-dark": "#79B8FF",
+            "tertiary-fixed": "#ffddb1",
+            "outline": "#596982",
+            "secondary-container": "#1ECFA5",
+            "primary": "#b5c7eb",
+            "border-light": "#8996A8",
+            "text-secondary-dark": "#C3CFDF",
+            "secondary": "#1ECFA5"
+          },
+          borderRadius: {
+            DEFAULT: "0.125rem",
+            lg: "0.25rem",
+            xl: "0.5rem",
+            full: "0.75rem"
+          },
+          spacing: {
+            "space-xs": "4px",
+            "space-sm": "8px",
+            "space-md": "12px",
+            "space-lg": "16px",
+            "space-xl": "24px",
+            "space-2xl": "32px",
+            "space-3xl": "40px",
+            "space-4xl": "48px",
+            margin: "24px",
+            gutter: "24px"
+          },
+          fontFamily: {
+            hero: ["ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"],
+            metadata: ["ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"],
+            body: ["ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"],
+            "page-title": ["ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"],
+            code: ["ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"],
+            "body-emphasized": ["ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"],
+            "section-title": ["ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"]
+          },
+          fontSize: {
+            hero: ["28px", { lineHeight: "34px", fontWeight: "600" }],
+            metadata: ["11px", { lineHeight: "15px", fontWeight: "400" }],
+            body: ["13px", { lineHeight: "19px", fontWeight: "400" }],
+            "page-title": ["18px", { lineHeight: "24px", fontWeight: "600" }],
+            code: ["12px", { lineHeight: "16px", fontWeight: "400" }],
+            "body-emphasized": ["13px", { lineHeight: "19px", fontWeight: "600" }],
+            "section-title": ["14px", { lineHeight: "20px", fontWeight: "600" }]
+          }
+        }
+      }
+    };
+  </script>
+<body class="bg-background text-on-surface font-code text-code select-none h-screen w-screen overflow-hidden flex flex-col antialiased">
+<!-- TOP APP BAR / DOCKED TERMINAL HEADER -->
+<header class="w-full h-8 flex-none flex items-center justify-between px-space-md border-b border-outline-variant bg-surface-container-lowest z-40">
+<div class="flex items-center gap-space-md">
+<!-- Plain wordmark requested: bold plain 'G> gasacli' -->
+<span class="font-code text-body-emphasized font-bold text-secondary tracking-tight">G&gt; gasacli</span>
+<span class="text-outline">/</span>
+<span class="font-code text-code text-on-surface font-bold">ANALYTICS: vitrine-api</span>
+<span class="px-1.5 py-0.5 bg-surface-container text-secondary text-metadata border border-outline-variant font-code">PROJETO ATIVO</span>
+</div>
+<div class="flex items-center gap-space-lg text-metadata text-on-surface-variant">
+<div class="flex items-center gap-1.5">
+<span class="text-outline">JANELA:</span>
+<span class="text-on-surface font-bold px-1 bg-surface-container border border-outline-variant">7d</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-outline">EXECUÇÕES:</span>
+<span class="text-on-surface font-bold">4 Runs</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-outline">ESTADO:</span>
+<span class="text-on-surface-variant font-bold">● STATUS: N/D</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm text-metadata">
+<span class="text-outline px-1.5 py-0.5 border border-outline-variant bg-surface-container">[1] FILTROS</span>
+<span class="text-outline px-1.5 py-0.5 border border-outline-variant bg-surface-container">[2] INSPETOR</span>
+<span class="text-outline px-1.5 py-0.5 border border-outline-variant bg-surface-container">[r] RECARREGAR</span>
+</div>
+</header>
+<!-- 3-PANE DESKTOP WORKSPACE -->
+<main class="flex-1 w-full min-h-0 flex overflow-hidden">
+<!-- PANE 1 (LEFT): FILTROS DE ESCOPO DO PROJETO (W-64) -->
+<aside class="w-64 flex-none border-r border-outline-variant bg-surface-container-low flex flex-col justify-between overflow-y-auto">
+<div class="p-space-sm space-y-space-md">
+<!-- Header Filtros -->
+<div class="border-b border-outline-variant pb-space-sm flex items-center justify-between">
+<span class="font-code text-section-title font-bold text-secondary">FILTROS DE ESCOPO</span>
+<span class="text-metadata text-outline">[Tab] NAVEGAR</span>
+</div>
+<!-- Seletor de Projeto -->
+<div class="space-y-1">
+<label class="block text-metadata text-on-surface-variant uppercase font-bold">Projeto Alvo</label>
+<div class="w-full bg-surface-container border border-secondary text-secondary px-space-sm py-1.5 flex items-center justify-between">
+<span class="font-code text-body-emphasized font-bold">vitrine-api</span>
+<span class="text-metadata">▼</span>
+</div>
+<span class="text-metadata text-outline block">Identificador registrado</span>
+</div>
+<!-- Intervalo de Tempo -->
+<div class="space-y-1">
+<label class="block text-metadata text-on-surface-variant uppercase font-bold">Janela Temporal</label>
+<div class="grid grid-cols-3 gap-1">
+<button class="bg-surface-container border border-outline-variant text-outline py-1 text-metadata hover:text-on-surface">24h</button>
+<button class="bg-surface-container-high border border-secondary text-secondary py-1 text-metadata font-bold">7d</button>
+<button class="bg-surface-container border border-outline-variant text-outline py-1 text-metadata hover:text-on-surface">30d</button>
+</div>
+</div>
+<!-- Critérios de Visualização -->
+<div class="space-y-1.5 pt-space-xs">
+<label class="block text-metadata text-on-surface-variant uppercase font-bold">Restrições de Exibição</label>
+<div class="bg-surface-container p-space-sm border border-outline-variant space-y-1.5 text-metadata">
+<div class="flex items-center justify-between">
+<span class="text-on-surface">Somente com métricas</span>
+<span class="text-outline">DESATIVADO</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-on-surface">Ocultar execuções sem dados</span>
+<span class="text-outline">NÃO</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-on-surface">Agrupamento temporal</span>
+<span class="text-secondary font-bold">Nenhum</span>
+</div>
+</div>
+</div>
+<!-- Parâmetros de Provedor & Modelo -->
+<div class="space-y-1 pt-space-xs">
+<label class="block text-metadata text-on-surface-variant uppercase font-bold">Provedores / Modelos</label>
+<div class="bg-surface-container border border-outline-variant p-space-sm text-metadata text-outline space-y-1">
+<div class="flex justify-between">
+<span>Provedor:</span>
+<span class="text-on-surface font-bold">indisponível</span>
+</div>
+<div class="flex justify-between">
+<span>Modelo de IA:</span>
+<span class="text-on-surface font-bold">indisponível</span>
+</div>
+<div class="flex justify-between">
+<span>Agentes / Workers:</span>
+<span class="text-on-surface font-bold">indisponível</span>
+</div>
+</div>
+</div>
+<!-- Notas Metodológicas -->
+</div>
+<!-- Rodapé do Pane Esquerdo -->
+<div class="p-space-sm border-t border-outline-variant bg-surface-container-lowest"><div class="text-metadata text-outline flex justify-between items-center"><span>SESSÃO</span><span class="text-outline font-bold">N/D</span></div></div>
+</aside>
+<!-- PANE 2 (CENTER): MÉTRICAS DO PROJETO, COBERTURA & TABELA DE RUNS (FLEX-1) -->
+<section class="flex-1 min-w-0 bg-background flex flex-col overflow-y-auto">
+<!-- Sub-barra com contexto e ações rápidas -->
+<div class="w-full flex-none p-space-md border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+<div>
+<div class="flex items-center gap-space-sm">
+<h1 class="font-code text-page-title font-bold text-on-surface">vitrine-api</h1>
+<span class="px-2 py-0.5 text-metadata border border-outline-variant bg-surface-container text-on-surface-variant">Escopo: N/D</span>
+</div>
+<p class="text-metadata text-outline mt-0.5">Janela consolidada: 7 dias.</p>
+</div>
+<div class="flex items-center gap-2">
+<div class="px-2 py-1 bg-surface-container border border-outline-variant text-metadata text-outline">ATUALIZAÇÃO: <span class="text-on-surface">N/D</span></div>
+</div>
+</div>
+<!-- GRID DE CARDS / MÉTRICAS AUTORIZADAS -->
+<div class="p-space-md grid grid-cols-4 gap-space-sm flex-none">
+<!-- Card 1: Contagem de Execuções -->
+<div class="bg-surface-container border border-outline-variant p-space-sm flex flex-col justify-between">
+<div class="flex justify-between items-center text-metadata text-outline">
+<span class="uppercase font-bold">Total de Execuções</span>
+<span>[RUNS]</span>
+</div>
+<div class="my-2">
+<div class="font-code text-hero text-on-surface font-bold leading-none">4</div>
+<div class="text-metadata text-secondary mt-1 font-bold">4 Runs registradas</div>
+</div>
+<div class="text-metadata text-outline border-t border-outline-variant pt-1">
+            Janela: 7 dias corridos
+          </div>
+</div>
+<!-- Card 2: Revisões de Qualidade -->
+<div class="bg-surface-container border border-outline-variant p-space-sm flex flex-col justify-between">
+<div class="flex justify-between items-center text-metadata text-outline">
+<span class="uppercase font-bold">Qualidade &amp; Revisões</span>
+<span>[REV]</span>
+</div>
+<div class="my-2">
+<div class="font-code text-hero text-secondary font-bold leading-none">3</div>
+<div class="text-metadata text-on-surface mt-1 font-bold">3 revisões aprovadas</div>
+</div>
+<div class="text-metadata text-outline border-t border-outline-variant pt-1 leading-snug">
+            Nota: 3 revisões aprovadas não equivalem ao resultado final das Runs.
+          </div>
+</div>
+<!-- Card 3: Cobertura de Tokens -->
+<div class="bg-surface-container border border-outline-variant p-space-sm flex flex-col justify-between">
+<div class="flex justify-between items-center text-metadata text-outline">
+<span class="uppercase font-bold">Relato de Uso / Tokens</span>
+<span>[TOK]</span>
+</div>
+<div class="my-2">
+<div class="font-code text-hero text-on-surface font-bold leading-none">2 / 4</div>
+<div class="text-metadata text-on-surface-variant mt-1">2 / 4 Runs informados</div>
+</div>
+<div class="text-metadata text-outline border-t border-outline-variant pt-1">
+            2/4 Runs sem dados (N/D)
+          </div>
+</div>
+<!-- Card 4: Retentativas & Custos -->
+<div class="bg-surface-container border border-outline-variant p-space-sm flex flex-col justify-between">
+<div class="flex justify-between items-center text-metadata text-outline">
+<span class="uppercase font-bold">Retries &amp; Custos</span>
+<span>[CST]</span>
+</div>
+<div class="my-2">
+<div class="font-code text-hero text-outline font-bold leading-none">N/D</div>
+<div class="text-metadata text-outline mt-1">Custos: N/D | Retries: N/D</div>
+</div>
+<div class="text-metadata text-outline border-t border-outline-variant pt-1">
+            Sem instrumentação de gasto
+          </div>
+</div>
+</div>
+<!-- SEÇÃO DE COBERTURA DE USO DETALHADA -->
+<div class="px-space-md pb-space-sm flex-none">
+<div class="bg-surface-container border border-outline-variant p-space-sm"><div class="flex justify-between items-center border-b border-outline-variant pb-1 mb-2"><span class="font-code text-section-title font-bold text-on-surface">COBERTURA DE USO DE TOKENS</span><span class="text-metadata text-outline">AMOSTRA TOTAL: 4 RUNS</span></div><div class="grid grid-cols-2 gap-space-md"><div><div class="flex justify-between text-metadata mb-1"><span class="text-on-surface">Registros informados:</span><span class="text-secondary font-bold">2 / 4 informados</span></div><div class="w-full h-3 bg-surface-container-high border border-outline-variant flex overflow-hidden"><div class="h-full bg-secondary w-1/2"></div><div class="h-full bg-surface-container-lowest w-1/2"></div></div><div class="flex justify-between text-metadata text-outline mt-1"><span>■ 2 com dados informados</span><span>□ 2 sem dados / N/D</span></div></div><div class="border-l border-outline-variant pl-space-md text-metadata space-y-1"><div class="flex justify-between"><span class="text-outline">Total agregado de tokens:</span><span class="text-on-surface font-bold">N/D</span></div><div class="flex justify-between"><span class="text-outline">Taxa de consumo (tokens/s):</span><span class="text-on-surface font-bold">N/D</span></div><div class="flex justify-between"><span class="text-outline">Estimativa orçamentária:</span><span class="text-on-surface font-bold">N/D</span></div></div></div></div>
+</div>
+<!-- TABELA DE RUNS & TAREFAS -->
+<div class="px-space-md pb-space-md flex-1 min-h-0 flex flex-col">
+<div class="border border-outline-variant bg-surface-container flex flex-col h-full overflow-hidden">
+<!-- Cabeçalho da Tabela -->
+<div class="p-space-sm border-b border-outline-variant bg-surface-container-high flex justify-between items-center flex-none">
+<div class="flex items-center gap-2">
+<span class="font-code text-section-title font-bold text-on-surface">TABELA DE RUNS REGISTRADAS</span>
+<span class="text-metadata text-outline">(4 itens listados)</span>
+</div>
+<div class="text-metadata text-outline">
+              DISPONIBILIDADE DE DADOS: PARCIAL
+            </div>
+</div>
+<!-- Conteúdo Tabular Rolável -->
+<div class="overflow-x-auto overflow-y-auto flex-1">
+<table class="w-full text-left border-collapse text-code">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container-lowest text-metadata text-outline">
+<th class="py-2 px-space-sm font-bold uppercase">Identificador (Run)</th>
+<th class="py-2 px-space-sm font-bold uppercase">Janela / Registro</th>
+<th class="py-2 px-space-sm font-bold uppercase">Qualidade (Revisão)</th>
+<th class="py-2 px-space-sm font-bold uppercase">Uso de Tokens</th>
+<th class="py-2 px-space-sm font-bold uppercase">Duração</th>
+<th class="py-2 px-space-sm font-bold uppercase">Retentativas</th>
+<th class="py-2 px-space-sm font-bold uppercase">Status de Execução</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant text-on-surface"><tr class="hover:bg-surface-container-high bg-surface-container"><td class="py-2 px-space-sm font-bold text-outline">Run N/D (1)</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td></tr><tr class="hover:bg-surface-container-high bg-surface-container"><td class="py-2 px-space-sm font-bold text-outline">Run N/D (2)</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td></tr><tr class="hover:bg-surface-container-high bg-surface-container"><td class="py-2 px-space-sm font-bold text-outline">Run N/D (3)</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td></tr><tr class="hover:bg-surface-container-high bg-surface-container"><td class="py-2 px-space-sm font-bold text-outline">Run N/D (4)</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td><td class="py-2 px-space-sm text-outline">N/D</td></tr></tbody>
+</table>
+</div>
+<!-- Nota de rodapé da tabela -->
+<div class="p-space-sm bg-surface-container-lowest border-t border-outline-variant text-metadata text-outline flex justify-between items-center"><span>Janela consolidada: 7 dias.</span><span class="text-on-surface-variant">Total: 4 registros</span></div>
+</div>
+</div>
+</section>
+<!-- PANE 3 (RIGHT): INSPETOR DE QUALIDADE & PROVENIÊNCIA COM ABAS (W-80) -->
+<aside class="w-80 flex-none border-l border-outline-variant bg-surface-container-low flex flex-col justify-between overflow-y-auto">
+<div>
+<!-- Abas do Inspetor -->
+<div class="flex border-b border-outline-variant bg-surface-container-lowest">
+<button class="flex-1 py-2 text-metadata font-bold border-b-2 border-secondary bg-surface-container text-secondary text-center">
+            [1] REVISÕES (3)
+          </button>
+<button class="flex-1 py-2 text-metadata text-outline border-b-2 border-transparent hover:text-on-surface text-center">
+            [2] PROVENIÊNCIA
+          </button>
+<button class="flex-1 py-2 text-metadata text-outline border-b-2 border-transparent hover:text-on-surface text-center">
+            [3] GATES
+          </button>
+</div>
+<div class="p-space-sm space-y-space-md"><div class="border border-outline-variant bg-surface-container p-space-sm space-y-2"><div class="flex justify-between items-center"><span class="text-metadata uppercase font-bold text-on-surface">Achados de Revisão</span><span class="px-1.5 py-0.5 text-metadata bg-surface-container-high text-secondary border border-outline-variant">CONFORME</span></div><div class="text-body-emphasized font-bold text-secondary">3 revisões aprovadas</div><div class="p-space-xs bg-surface-container-lowest border border-outline-variant text-metadata text-outline">Apenas contagem agregada registrada. O resultado final das Runs permanece não inferido.</div></div><div class="border border-outline-variant bg-surface-container p-space-sm space-y-1.5 text-metadata"><span class="font-bold text-on-surface uppercase block">Parâmetros de Proveniência</span><div class="flex justify-between border-b border-outline-variant pb-1"><span class="text-outline">Armazenamento:</span><span class="text-on-surface font-bold">N/D</span></div><div class="flex justify-between border-b border-outline-variant pb-1"><span class="text-outline">Contagem de tarefas:</span><span class="text-on-surface font-bold">N/D</span></div><div class="flex justify-between border-b border-outline-variant pb-1"><span class="text-outline">Duração agregada:</span><span class="text-on-surface font-bold">N/D</span></div><div class="flex justify-between border-b border-outline-variant pb-1"><span class="text-outline">Custo atribuído:</span><span class="text-on-surface font-bold">N/D</span></div><div class="flex justify-between"><span class="text-outline">Provedor upstream:</span><span class="text-on-surface font-bold">N/D</span></div></div></div>
+</div>
+<!-- Ações do Inspetor -->
+<div class="p-space-sm border-t border-outline-variant bg-surface-container-lowest text-metadata space-y-1"><div class="flex justify-between items-center text-outline"><span>SESSÃO</span><span class="text-outline font-bold">N/D</span></div></div>
+</aside>
+</main>
+<!-- TERMINAL FOOTER / ATALHOS & AVISO REGULATÓRIO -->
+<footer class="w-full h-8 flex-none flex items-center justify-between px-space-md border-t border-outline-variant bg-surface-container-lowest z-40 text-metadata">
+<!-- Frase exata de privacidade em pt-BR exigida -->
+<div class="text-outline truncate max-w-xl">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+<!-- Faixa de Atalhos de Teclado -->
+<div class="flex items-center gap-space-md text-outline">
+<span class="hover:text-secondary cursor-default"><strong class="text-on-surface font-bold">[1]</strong> FILTROS</span>
+<span class="hover:text-secondary cursor-default"><strong class="text-on-surface font-bold">[2]</strong> INSPETOR</span>
+<span class="hover:text-secondary cursor-default"><strong class="text-on-surface font-bold">[Tab]</strong> ALTERNAR PAINEL</span>
+<span class="hover:text-secondary cursor-default"><strong class="text-on-surface font-bold">[r]</strong> RECARREGAR DADOS</span>
+<span class="hover:text-secondary cursor-default"><strong class="text-on-surface font-bold">[Esc]</strong> VOLTAR</span>
+</div>
+</footer>
+<!-- Script simples para suporte de atalhos de teclado de navegação local -->
+<script>
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'r' || e.key === 'R') {
+        console.log('Recarregando dados do projeto vitrine-api...');
+      }
+    });
+  </script>
+</body></html>

@@ -1,0 +1,22 @@
+{
+    "promptFile":  "docs/design/prompts/web-06-agents-roles.md",
+    "stitchScreenId":  "0035bec5e8a44553bac6aab24bd6025b",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "preserved only the two specified agent role/model/state combinations",
+                                                  "marked PID/worktree/task/age/activity unknowns N/D",
+                                                  "kept capability as not verified",
+                                                  "removed explanatory meta copy and status banner",
+                                                  "preserved exact privacy sentence",
+                                                  "PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

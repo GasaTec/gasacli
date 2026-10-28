@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-08-global-analytics.md",
+    "stitchScreenId":  "c2a03085177442fab7bfe489da058938",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "preserved 7d, 4 projects, 12 Runs, 32k tokens across 6/9 Dispatches and cost N/D",
+                                                  "kept unknown values and breakdowns N/D",
+                                                  "reduced density to meet PNG size limit",
+                                                  "removed external Tailwind CDN from HTML",
+                                                  "preserved exact Portuguese privacy sentence"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

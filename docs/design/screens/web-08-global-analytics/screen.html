@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI — Global Analytics</title>
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: '#172A46',
+              teal: '#1ECFA5',
+              dark: '#0B1220',
+              surface: '#111C2E',
+              elevated: '#1B2A40',
+              border: '#596982',
+            },
+            status: {
+              working: '#F2B84B',
+              done: '#43D19E',
+              idle: '#9AA3B2',
+              error: '#FF7272',
+              ready: '#1ECFA5',
+              info: '#79B8FF'
+            }
+          },
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Estilos estritos locais sem dependências externas de fontes ou ícones remotos */
+    body {
+      background-color: #0B1220;
+      color: #F4F7FB;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Scrollbar sutil do terminal / dark web */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0B1220;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1B2A40;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #596982;
+    }
+
+    /* Foco acessível no teclado WCAG 2.2 AA */
+    *:focus-visible {
+      outline: 2px solid #1ECFA5 !important;
+      outline-offset: 1px !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#0B1220] text-[#F4F7FB]">
+<!-- TOPO: Barra de Navegação do Workspace / Shell -->
+<header class="h-12 border-b border-[#596982]/60 bg-[#0B1220] px-4 flex items-center justify-between select-none z-30 shrink-0">
+<!-- Esquerda: Wordmark G> gasacli e Breadcrumb -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1.5 text-sm font-bold tracking-tight">
+<span class="text-[#172A46] bg-[#1ECFA5] px-1 py-0.5 rounded text-xs font-mono font-black select-none">G&gt;</span>
+<span class="text-[#F4F7FB] font-mono tracking-normal text-sm font-semibold">gasacli</span>
+</div>
+<span class="text-[#596982] text-xs">/</span>
+<span class="text-xs text-[#C3CFDF] font-mono font-medium">global analytics</span>
+<span class="hidden md:inline-flex text-[10px] uppercase tracking-wider bg-[#1B2A40] text-[#9AAAC0] px-2 py-0.5 border border-[#596982]/40 rounded">
+        Escopo: Global
+      </span>
+</div>
+<!-- Centro: Abas de navegação principais do produto -->
+<nav class="hidden md:flex items-center gap-1 text-xs">
+<a class="px-2.5 py-1 text-[#9AAAC0] hover:text-[#F4F7FB] transition-colors rounded hover:bg-[#1B2A40]/50" href="#">Visão Geral</a>
+<a class="px-2.5 py-1 text-[#9AAAC0] hover:text-[#F4F7FB] transition-colors rounded hover:bg-[#1B2A40]/50" href="#">Goal Run &amp; DAG</a>
+<a class="px-2.5 py-1 text-[#9AAAC0] hover:text-[#F4F7FB] transition-colors rounded hover:bg-[#1B2A40]/50" href="#">Chat da Sessão</a>
+<a class="px-2.5 py-1 text-[#9AAAC0] hover:text-[#F4F7FB] transition-colors rounded hover:bg-[#1B2A40]/50" href="#">Agentes e Papéis</a>
+<a class="px-2.5 py-1 text-[#9AAAC0] hover:text-[#F4F7FB] transition-colors rounded hover:bg-[#1B2A40]/50" href="#">Barramento</a>
+<a class="px-2.5 py-1 text-[#1ECFA5] font-semibold border-b-2 border-[#1ECFA5] bg-[#111C2E]/60" href="#">Analytics Global</a>
+</nav>
+<!-- Direita: Ações de controle -->
+<div class="flex items-center gap-2 text-xs font-mono">
+<button class="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 bg-[#111C2E] border border-[#596982]/70 text-[#C3CFDF] rounded hover:border-[#1ECFA5] hover:text-[#F4F7FB] transition-colors">
+<span class="text-[#9AAAC0]">[r]</span> Atualizar
+      </button>
+<button class="px-2.5 py-1 bg-[#111C2E] border border-[#596982]/70 text-[#C3CFDF] rounded hover:border-[#1ECFA5] hover:text-[#F4F7FB] transition-colors">
+<span class="text-[#9AAAC0]">[Esc]</span> Voltar
+      </button>
+</div>
+</header>
+<!-- CORPO PRINCIPAL: Layout Responsivo de 3 Painéis (com Drawer esquerdo e direito retráteis) -->
+<div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+<!-- PAINEL 1 (ESQUERDA): Drawer / Filtros Globais -->
+<aside class="w-full lg:w-72 xl:w-80 border-b lg:border-b-0 lg:border-r border-[#596982]/50 bg-[#111C2E] flex flex-col shrink-0 overflow-y-auto" id="filter-drawer">
+<!-- Cabeçalho do Painel de Filtros -->
+<div class="p-3.5 border-b border-[#596982]/40 flex items-center justify-between bg-[#0B1220]/60">
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#C3CFDF]">Filtros Globais</span>
+<span class="text-[10px] bg-[#1B2A40] text-[#1ECFA5] px-1.5 py-0.5 rounded border border-[#1ECFA5]/30">7d Ativo</span>
+</div>
+<span class="text-[11px] text-[#9AAAC0]">[1] Painel</span>
+</div>
+<!-- Formulário / Controles de Filtros -->
+<div class="p-3.5 space-y-4 text-xs font-mono">
+<!-- Filtro 1: Intervalo de Tempo (Time Range) -->
+<div>
+<label class="block text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1.5 font-semibold">
+            Intervalo de Tempo (Range)
+          </label>
+<div class="grid grid-cols-4 gap-1">
+<button class="py-1 px-2 text-center text-xs font-medium rounded bg-[#1B2A40]/40 text-[#9AAAC0] border border-[#596982]/40 hover:text-[#F4F7FB]">24h</button>
+<button class="py-1 px-2 text-center text-xs font-bold rounded bg-[#1ECFA5]/15 text-[#1ECFA5] border border-[#1ECFA5] shadow-sm">7d</button>
+<button class="py-1 px-2 text-center text-xs font-medium rounded bg-[#1B2A40]/40 text-[#9AAAC0] border border-[#596982]/40 hover:text-[#F4F7FB]">30d</button>
+<button class="py-1 px-2 text-center text-xs font-medium rounded bg-[#1B2A40]/40 text-[#9AAAC0] border border-[#596982]/40 hover:text-[#F4F7FB]">Tudo</button>
+</div>
+<p class="text-[10px] text-[#9AAAC0] mt-1">Filtro amostral selecionado: 7d</p>
+</div>
+<!-- Filtro 2: Projeto -->
+<div>
+<label class="block text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1.5 font-semibold">
+            Projeto (4 Projetos)
+          </label>
+<div class="relative">
+<select class="w-full bg-[#0B1220] border border-[#596982]/70 text-[#F4F7FB] px-2.5 py-1.5 rounded text-xs appearance-none cursor-pointer focus:border-[#1ECFA5]">
+<option>Todos os Projetos (4 projetos)</option>
+<option>Projeto N/D 1</option>
+<option>Projeto N/D 2</option>
+<option>Projeto N/D 3</option>
+<option>Projeto N/D 4</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#9AAAC0]">
+              ▼
+            </div>
+</div>
+</div>
+<!-- Filtro 3: Provedor (Provider) -->
+<div>
+<label class="block text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1.5 font-semibold">
+            Provedor (Provider)
+          </label>
+<div class="relative">
+<select class="w-full bg-[#0B1220] border border-[#596982]/70 text-[#C3CFDF] px-2.5 py-1.5 rounded text-xs appearance-none cursor-pointer focus:border-[#1ECFA5]">
+<option>Todos os Provedores (N/D)</option>
+<option disabled="">Desagregação N/D</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#9AAAC0]">
+              ▼
+            </div>
+</div>
+<span class="text-[10px] text-[#9AAAC0]">Provedor: N/D</span>
+</div>
+<!-- Filtro 4: Modelo (Model) -->
+<div>
+<label class="block text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1.5 font-semibold">
+            Modelo Declarado
+          </label>
+<div class="relative">
+<select class="w-full bg-[#0B1220] border border-[#596982]/70 text-[#C3CFDF] px-2.5 py-1.5 rounded text-xs appearance-none cursor-pointer focus:border-[#1ECFA5]">
+<option>Todos os Modelos (N/D)</option>
+<option disabled="">Desagregação N/D</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#9AAAC0]">
+              ▼
+            </div>
+</div>
+<span class="text-[10px] text-[#9AAAC0]">Modelo: N/D</span>
+</div>
+<!-- Filtro 5: Agente (Agent) -->
+<div>
+<label class="block text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1.5 font-semibold">
+            Agente / Worker
+          </label>
+<div class="relative">
+<select class="w-full bg-[#0B1220] border border-[#596982]/70 text-[#C3CFDF] px-2.5 py-1.5 rounded text-xs appearance-none cursor-pointer focus:border-[#1ECFA5]">
+<option>Todos os Agentes (N/D)</option>
+<option disabled="">Desagregação N/D</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#9AAAC0]">
+              ▼
+            </div>
+</div>
+<span class="text-[10px] text-[#9AAAC0]">Agente: N/D</span>
+</div>
+<!-- Filtro 6: Status de Execução -->
+<div>
+<label class="block text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1.5 font-semibold">
+            Status do Run
+          </label>
+<div class="relative">
+<select class="w-full bg-[#0B1220] border border-[#596982]/70 text-[#C3CFDF] px-2.5 py-1.5 rounded text-xs appearance-none cursor-pointer focus:border-[#1ECFA5]">
+<option>Todos os Status (N/D)</option>
+<option disabled="">Desagregação N/D</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#9AAAC0]">
+              ▼
+            </div>
+</div>
+<span class="text-[10px] text-[#9AAAC0]">Status do Run: N/D</span>
+</div>
+<!-- Sumário Factual de Seleção -->
+<div class="pt-3 border-t border-[#596982]/30 text-[11px] text-[#9AAAC0] space-y-1">
+<div class="flex justify-between">
+<span>Intervalo Ativo:</span>
+<span class="text-[#F4F7FB] font-medium">7d</span>
+</div>
+<div class="flex justify-between">
+<span>Projetos Abrangidos:</span>
+<span class="text-[#F4F7FB] font-medium">4</span>
+</div>
+<div class="flex justify-between">
+<span>Runs no Intervalo:</span>
+<span class="text-[#F4F7FB] font-medium">12</span>
+</div>
+<div class="flex justify-between">
+<span>Dispatches Registrados:</span>
+<span class="text-[#F4F7FB] font-medium">9 (6 com uso)</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- PAINEL 2 (CENTRAL): Visualização Principal de Métricas, Cards Factuais e Tabela Comparativa -->
+<main class="flex-1 bg-[#0B1220] p-4 lg:p-6 overflow-y-auto space-y-6"><!-- Header do Painel Central Decluttered -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#596982]/40">
+<div>
+<h1 class="text-base sm:text-lg font-bold text-[#F4F7FB] flex items-center gap-2">
+            Métricas Globais do Workspace
+          </h1>
+<p class="text-xs text-[#9AAAC0] mt-0.5">
+            Dados estritamente restritos à amostra informada. Custos, duração e desagregações ausentes permanecem N/D.
+          </p>
+</div>
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="text-[11px] px-2 py-0.5 rounded bg-[#1B2A40] text-[#1ECFA5] border border-[#1ECFA5]/30 font-mono">7d</span>
+<span class="text-[11px] px-2 py-0.5 rounded bg-[#1B2A40]/60 text-[#C3CFDF] border border-[#596982]/40 font-mono">4 Projetos</span>
+<span class="text-[11px] px-2 py-0.5 rounded bg-[#1B2A40]/60 text-[#C3CFDF] border border-[#596982]/40 font-mono">12 Runs</span>
+<span class="text-[11px] px-2 py-0.5 rounded bg-[#111C2E] text-[#9AAAC0] border border-[#596982]/50 font-mono">Dispatches: 6/9</span>
+</div>
+</div>
+<!-- GRID DE CARDS PRINCIPAIS: Simplificado, limpo e sem poluição visual -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+<!-- CARD 1: Tokens Reportados -->
+<div class="bg-[#111C2E] border border-[#596982]/40 rounded p-3.5 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1">
+<span>Tokens Reportados</span>
+<span class="text-[10px] text-[#1ECFA5] font-semibold bg-[#1ECFA5]/10 px-1.5 py-0.5 rounded">CONHECIDO</span>
+</div>
+<div class="text-2xl font-bold font-mono text-[#F4F7FB] mt-1">
+              32k <span class="text-xs font-normal text-[#9AAAC0]">tokens</span>
+</div>
+</div>
+<div class="mt-3 pt-2.5 border-t border-[#596982]/30 text-[11px] text-[#9AAAC0]">
+            6 de 9 dispatches informados; restante N/D
+          </div>
+</div>
+<!-- CARD 2: Cobertura de Dispatches -->
+<div class="bg-[#111C2E] border border-[#596982]/40 rounded p-3.5 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1">
+<span>Cobertura Dispatches</span>
+<span class="text-[10px] text-[#79B8FF] font-semibold bg-[#79B8FF]/10 px-1.5 py-0.5 rounded">6 / 9</span>
+</div>
+<div class="text-2xl font-bold font-mono text-[#F4F7FB] mt-1">
+              6 / 9 <span class="text-xs font-normal text-[#9AAAC0]">dispatches</span>
+</div>
+</div>
+<div class="mt-3 pt-2.5 border-t border-[#596982]/30 text-[11px] text-[#9AAAC0]">
+            12 runs distribuídos em 4 projetos
+          </div>
+</div>
+<!-- CARD 3: Custo Financeiro -->
+<div class="bg-[#111C2E] border border-[#596982]/40 rounded p-3.5 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1">
+<span>Custo Financeiro</span>
+<span class="text-[10px] text-[#9AAAC0] font-semibold bg-[#1B2A40] px-1.5 py-0.5 rounded">N/D</span>
+</div>
+<div class="text-2xl font-bold font-mono text-[#F4F7FB] mt-1">
+              N/D
+            </div>
+</div>
+<div class="mt-3 pt-2.5 border-t border-[#596982]/30 text-[11px] text-[#9AAAC0]">
+            Tarifação indisponível do provedor
+          </div>
+</div>
+<!-- CARD 4: Duração Média & Gates -->
+<div class="bg-[#111C2E] border border-[#596982]/40 rounded p-3.5 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between text-[11px] text-[#9AAAC0] uppercase tracking-wider mb-1">
+<span>Duração &amp; Gates</span>
+<span class="text-[10px] text-[#9AAAC0] font-semibold bg-[#1B2A40] px-1.5 py-0.5 rounded">N/D</span>
+</div>
+<div class="text-2xl font-bold font-mono text-[#F4F7FB] mt-1">
+              N/D
+            </div>
+</div>
+<div class="mt-3 pt-2.5 border-t border-[#596982]/30 text-[11px] text-[#9AAAC0]">
+            Resultados de portões N/D
+          </div>
+</div>
+</div>
+<!-- TABELA COMPARATIVA DE PROJETOS DECLUTTERED -->
+<div class="bg-[#111C2E] border border-[#596982]/50 rounded overflow-hidden">
+<div class="p-3 border-b border-[#596982]/40 bg-[#0B1220]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold uppercase tracking-wider text-[#F4F7FB]">
+              Tabela Comparativa de Projetos (4 Projetos)
+            </span>
+<span class="text-[10px] bg-[#1B2A40] text-[#9AAAC0] px-1.5 py-0.5 rounded border border-[#596982]/40 font-mono">
+              Amostra 7d
+            </span>
+</div>
+<span class="text-[11px] text-[#9AAAC0] font-mono">
+            Linhas identificadas estritamente como "Projeto N/D"
+          </span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs font-mono border-collapse">
+<thead>
+<tr class="border-b border-[#596982]/40 bg-[#1B2A40]/40 text-[#9AAAC0] uppercase text-[10px] tracking-wider">
+<th class="py-2 px-3 font-semibold">Projeto</th>
+<th class="py-2 px-3 font-semibold">Runs</th>
+<th class="py-2 px-3 font-semibold">Dispatches</th>
+<th class="py-2 px-3 font-semibold">Tokens</th>
+<th class="py-2 px-3 font-semibold">Custo Estimado</th>
+<th class="py-2 px-3 font-semibold">Duração</th>
+<th class="py-2 px-3 font-semibold">Portões</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#596982]/30 text-[#C3CFDF]">
+<!-- Linhas 1 a 4 -->
+<tr class="hover:bg-[#1B2A40]/30 transition-colors">
+<td class="py-2 px-3 font-medium text-[#F4F7FB] flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1ECFA5]"></span>
+                  Projeto N/D (1)
+                </td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+</tr>
+<tr class="hover:bg-[#1B2A40]/30 transition-colors">
+<td class="py-2 px-3 font-medium text-[#F4F7FB] flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1ECFA5]"></span>
+                  Projeto N/D (2)
+                </td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+</tr>
+<tr class="hover:bg-[#1B2A40]/30 transition-colors">
+<td class="py-2 px-3 font-medium text-[#F4F7FB] flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1ECFA5]"></span>
+                  Projeto N/D (3)
+                </td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+</tr>
+<tr class="hover:bg-[#1B2A40]/30 transition-colors">
+<td class="py-2 px-3 font-medium text-[#F4F7FB] flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1ECFA5]"></span>
+                  Projeto N/D (4)
+                </td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2 px-3 text-[#9AAAC0]">N/D</td>
+</tr>
+<!-- Linha de Total Consolidado -->
+<tr class="bg-[#1B2A40]/50 font-bold border-t border-[#596982]/60 text-[#F4F7FB]">
+<td class="py-2.5 px-3">TOTAL (4 Projetos)</td>
+<td class="py-2.5 px-3">12 Runs</td>
+<td class="py-2.5 px-3">9 Dispatches (6 informados)</td>
+<td class="py-2.5 px-3 text-[#1ECFA5]">32k tokens</td>
+<td class="py-2.5 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2.5 px-3 text-[#9AAAC0]">N/D</td>
+<td class="py-2.5 px-3 text-[#9AAAC0]">N/D</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-2.5 bg-[#0B1220]/70 border-t border-[#596982]/40 text-[10px] text-[#9AAAC0] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5">
+<span>* Desagregações individuais por projeto são desconhecidas na amostra; os 4 projetos somam 12 Runs e 32k tokens em 6/9 Dispatches.</span>
+<span class="text-[#C3CFDF] font-medium shrink-0">Dados completos: N/D</span>
+</div>
+</div></main>
+<!-- PAINEL 3 (DIREITA): Drawer / Inspetor de Desagregações e Proveniência de Métricas -->
+<aside class="w-full lg:w-72 xl:w-80 border-t lg:border-t-0 lg:border-l border-[#596982]/50 bg-[#111C2E] flex flex-col shrink-0 overflow-y-auto" id="inspector-drawer"><!-- Cabeçalho do Inspetor -->
+<div class="p-3.5 border-b border-[#596982]/40 flex items-center justify-between bg-[#0B1220]/60">
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#C3CFDF]">Desagregação &amp; Proveniência</span>
+</div>
+<span class="text-[11px] text-[#9AAAC0]">[2] Inspetor</span>
+</div>
+<div class="p-3.5 space-y-3 text-xs font-mono">
+<!-- Bloco 1: Proveniência de Tokens -->
+<div class="border border-[#596982]/30 bg-[#0B1220]/40 rounded p-3">
+<div class="text-[10px] text-[#9AAAC0] uppercase tracking-wider font-semibold mb-2">
+            Proveniência de Uso (Tokens)
+          </div>
+<div class="space-y-1 text-xs">
+<div class="flex justify-between items-center">
+<span class="text-[#C3CFDF]">Tokens Reportados:</span>
+<span class="text-[#1ECFA5] font-bold">32k</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-[#C3CFDF]">Dispatches Reportados:</span>
+<span class="text-[#F4F7FB]">6 de 9</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-[#C3CFDF]">Sem Dados:</span>
+<span class="text-[#9AAAC0]">3 de 9 (N/D)</span>
+</div>
+<div class="flex justify-between items-center pt-1 border-t border-[#596982]/20">
+<span class="text-[#C3CFDF]">Status da Amostra:</span>
+<span class="text-[#F2B84B]">Parcial</span>
+</div>
+</div>
+</div>
+<!-- Bloco 2: Desagregação por Provedor -->
+<div class="border border-[#596982]/30 bg-[#0B1220]/40 rounded p-3">
+<div class="text-[10px] text-[#9AAAC0] uppercase tracking-wider font-semibold mb-1">
+            Por Provedor (N/D)
+          </div>
+<div class="text-[11px] text-[#9AAAC0] italic py-1">
+            Desagregação por provedor não fornecida.
+          </div>
+<div class="flex justify-between text-[11px] text-[#9AAAC0] pt-1.5 border-t border-[#596982]/20">
+<span>Total reportado:</span>
+<span class="text-[#C3CFDF]">N/D</span>
+</div>
+</div>
+<!-- Bloco 3: Desagregação por Modelo -->
+<div class="border border-[#596982]/30 bg-[#0B1220]/40 rounded p-3">
+<div class="text-[10px] text-[#9AAAC0] uppercase tracking-wider font-semibold mb-1">
+            Por Modelo (N/D)
+          </div>
+<div class="text-[11px] text-[#9AAAC0] italic py-1">
+            Desagregação por modelo não fornecida.
+          </div>
+<div class="flex justify-between text-[11px] text-[#9AAAC0] pt-1.5 border-t border-[#596982]/20">
+<span>Total reportado:</span>
+<span class="text-[#C3CFDF]">N/D</span>
+</div>
+</div>
+<!-- Bloco 4: Desagregação por Agente -->
+<div class="border border-[#596982]/30 bg-[#0B1220]/40 rounded p-3">
+<div class="text-[10px] text-[#9AAAC0] uppercase tracking-wider font-semibold mb-1">
+            Por Agente (N/D)
+          </div>
+<div class="text-[11px] text-[#9AAAC0] italic py-1">
+            Desagregação por agente não fornecida.
+          </div>
+<div class="flex justify-between text-[11px] text-[#9AAAC0] pt-1.5 border-t border-[#596982]/20">
+<span>Total reportado:</span>
+<span class="text-[#C3CFDF]">N/D</span>
+</div>
+</div>
+<!-- Bloco 5: Desfecho dos Runs -->
+<div class="border border-[#596982]/30 bg-[#0B1220]/40 rounded p-3">
+<div class="text-[10px] text-[#9AAAC0] uppercase tracking-wider font-semibold mb-1">
+            Desfecho dos Runs (12 Runs)
+          </div>
+<div class="text-[11px] text-[#9AAAC0] italic py-1">
+            Desfechos não inferidos (N/D). Nenhum resultado presumido.
+          </div>
+<div class="flex justify-between text-[11px] text-[#9AAAC0] pt-1.5 border-t border-[#596982]/20">
+<span>Concluídos / Falhas:</span>
+<span class="text-[#C3CFDF]">N/D</span>
+</div>
+</div>
+</div></aside>
+</div>
+<!-- RODAPÉ FIXO: Sentença de Privacidade Literal, Atalhos e Indicador de Status -->
+<footer class="h-8 border-t border-[#596982]/60 bg-[#0B1220] px-4 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono select-none z-30 shrink-0">
+<!-- Esquerda: Atalhos de Teclado -->
+<div class="flex items-center gap-3 text-[#9AAAC0]">
+<span><span class="text-[#1ECFA5] font-semibold">[1]</span> Filtros</span>
+<span><span class="text-[#1ECFA5] font-semibold">[2]</span> Inspetor</span>
+<span><span class="text-[#1ECFA5] font-semibold">[Tab]</span> Alternar Foco</span>
+<span><span class="text-[#1ECFA5] font-semibold">[r]</span> Atualizar</span>
+<span><span class="text-[#1ECFA5] font-semibold">[Esc]</span> Voltar</span>
+</div>
+<!-- Centro / Direita: Sentença Literal de Privacidade e Indicador de Estado Neutro -->
+<div class="flex items-center gap-4">
+<span class="text-[#9AAAC0] text-[10px] sm:text-[11px]">
+        O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+      </span>
+<div class="flex items-center gap-1.5 text-[#C3CFDF]">
+<span class="w-2 h-2 rounded-full bg-[#1ECFA5]"></span>
+<span class="text-[10px] uppercase tracking-wider font-semibold">STATUS: N/D</span>
+</div>
+</div>
+</footer>
+</body>
+</html>

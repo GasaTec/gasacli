@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-07-messages-bus.md",
+    "stitchScreenId":  "7d0b95346b1f4796bdeddcfa5c5da4c7",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "replaced all unsupported zero counts and bytes with N/D",
+                                                  "removed claim about messages in transit/buffer",
+                                                  "kept channel review and empty/N/D envelope details",
+                                                  "preserved exact Portuguese privacy sentence",
+                                                  "PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-09-project-analytics.md",
+    "stitchScreenId":  "ed63caea555d4abbaa2bda088ab07962",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "removed invented Run IDs and individual review records",
+                                                  "kept only 4 Runs, 3 approved reviews and token reporting 2/4",
+                                                  "removed local storage/session and telemetry-manifest claims",
+                                                  "removed external font and Tailwind CDN links from HTML",
+                                                  "PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+                                                   "screen still labels project active and registered and includes explanatory note that reviews do not imply Run outcomes"
+                                               ]
+                      }
+}

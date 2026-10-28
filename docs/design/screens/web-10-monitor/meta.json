@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-10-monitor.md",
+    "stitchScreenId":  "703fb56e5a064578a7d28f66e599bdb3",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept only parent RSS 38 MB, child Codex CLI RSS 420 MB, CPU 2 with no unit",
+                                                  "kept historical samples, interval, IDs, status and thresholds N/D",
+                                                  "removed unsupported security/network/telemetry guarantees",
+                                                  "PNG within 600 KB limit",
+                                                  "no external resources in HTML"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

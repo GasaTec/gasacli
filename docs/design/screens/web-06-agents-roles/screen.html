@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Web — Agentes e Papéis (GasaCLI)</title>
+<style>
+    /* Reset & Base System Styles */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0B1220;
+      --surface: #111C2E;
+      --elevated: #1B2A40;
+      --border: #596982;
+      --text-primary: #F4F7FB;
+      --text-secondary: #C3CFDF;
+      --text-muted: #9AAAC0;
+      --brand-navy: #172A46;
+      --brand-teal: #1ECFA5;
+
+      --status-working: #F2B84B;
+      --status-working-bg: rgba(242, 184, 75, 0.12);
+      --status-working-border: #8A5600;
+
+      --status-idle: #9AA3B2;
+      --status-idle-bg: rgba(154, 163, 178, 0.12);
+      --status-idle-border: #596982;
+
+      --status-ready: #1ECFA5;
+      --status-ready-bg: rgba(30, 207, 165, 0.12);
+
+      --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.45;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Bar */
+    header.app-header {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: -0.2px;
+      color: var(--brand-teal);
+      background: var(--brand-navy);
+      border: 1px solid var(--brand-teal);
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .logo-badge span.bracket {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .header-context {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      border-left: 1px solid var(--border);
+      padding-left: 12px;
+    }
+
+    .header-context strong {
+      color: var(--text-primary);
+    }
+
+    nav.header-nav {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      height: 100%;
+    }
+
+    .nav-tab {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 0 14px;
+      height: 100%;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      border-bottom: 2px solid transparent;
+      transition: background 0.15s, color 0.15s;
+      text-decoration: none;
+    }
+
+    .nav-tab:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-primary);
+    }
+
+    .nav-tab:focus-visible {
+      outline: 2px solid var(--brand-teal);
+      outline-offset: -2px;
+    }
+
+    .nav-tab.active {
+      color: var(--brand-teal);
+      border-bottom: 2px solid var(--brand-teal);
+      background: rgba(30, 207, 165, 0.05);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-action {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-action:hover {
+      background: var(--elevated);
+      border-color: var(--text-secondary);
+    }
+
+    .btn-action:focus-visible {
+      outline: 2px solid var(--brand-teal);
+    }
+
+    /* Three-Pane Workspace Container */
+    .workspace-container {
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      flex: 1;
+      min-height: 0;
+      background-color: var(--bg);
+    }
+
+    /* Left Pane - Sidebar / Roster Navigation */
+    aside.left-pane {
+      background-color: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .pane-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+    }
+
+    .pane-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .pane-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: var(--brand-navy);
+      border: 1px solid var(--border);
+      color: var(--brand-teal);
+    }
+
+    .agent-list {
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 6px;
+      list-style: none;
+    }
+
+    .agent-nav-item {
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .agent-nav-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(89, 105, 130, 0.4);
+    }
+
+    .agent-nav-item:focus-visible {
+      outline: 2px solid var(--brand-teal);
+      border-color: transparent;
+    }
+
+    .agent-nav-item.active {
+      background: var(--elevated);
+      border-color: var(--brand-teal);
+    }
+
+    .agent-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .agent-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .agent-role-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.25);
+      padding: 1px 5px;
+      border-radius: 3px;
+      border: 1px solid rgba(89, 105, 130, 0.4);
+    }
+
+    .agent-item-sub {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .status-pill {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      width: fit-content;
+    }
+
+    .status-pill::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-pill.idle {
+      color: var(--text-secondary);
+      background: var(--status-idle-bg);
+      border: 1px solid var(--status-idle-border);
+    }
+    .status-pill.idle::before {
+      background: var(--status-idle);
+    }
+
+    .status-pill.working {
+      color: var(--status-working);
+      background: var(--status-working-bg);
+      border: 1px solid var(--status-working-border);
+    }
+    .status-pill.working::before {
+      background: var(--status-working);
+    }
+
+    /* Left Pane Reference Box */
+    .reference-box {
+      margin: auto 8px 8px 8px;
+      padding: 10px 12px;
+      background: rgba(11, 18, 32, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 11px;
+    }
+
+    .reference-box-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .reference-box-text {
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    /* Center Pane - Primary Roster Table & Focused View */
+    main.center-pane {
+      background-color: var(--bg);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .center-section-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
+    }
+
+    .center-section-header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .center-section-header p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Table Container */
+    .card-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-panel-header {
+      padding: 12px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-panel-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    table.roster-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    table.roster-table th {
+      background: rgba(11, 18, 32, 0.7);
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    table.roster-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.25);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    table.roster-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.roster-table tr.row-selected {
+      background: rgba(30, 207, 165, 0.06);
+    }
+
+    table.roster-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .table-agent-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .table-agent-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .table-agent-model {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--brand-teal);
+    }
+
+    .tag-role {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--brand-navy);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 3px 7px;
+      border-radius: 4px;
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .tag-neutral {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .badge-readiness {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      background: rgba(154, 170, 192, 0.1);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    /* Comparison / Detailed Card Deck */
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .agent-card.focused {
+      border-color: var(--brand-teal);
+      box-shadow: 0 0 0 1px rgba(30, 207, 165, 0.25);
+    }
+
+    .agent-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.3);
+      padding-bottom: 10px;
+    }
+
+    .card-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-subtitle {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--brand-teal);
+    }
+
+    .card-meta-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      font-size: 11px;
+    }
+
+    .meta-pair {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .meta-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .meta-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .meta-val.neutral {
+      color: var(--text-muted);
+    }
+
+    /* Right Pane - Inspector Pane */
+    aside.right-pane {
+      background-color: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .inspector-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .inspector-section-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .inspector-header-box {
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .inspector-agent-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .inspector-model-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--brand-teal);
+    }
+
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .info-table td {
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.2);
+    }
+
+    .info-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .info-key {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      width: 45%;
+    }
+
+    .info-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-primary);
+      text-align: right;
+    }
+
+    .info-val.highlight {
+      color: var(--brand-teal);
+      font-weight: 500;
+    }
+
+    .info-val.muted {
+      color: var(--text-muted);
+    }
+
+    .callout-box {
+      background: rgba(11, 18, 32, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--text-secondary);
+    }
+
+    .callout-box strong {
+      color: var(--text-primary);
+      display: block;
+      margin-bottom: 4px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Bottom Status Strip */
+    footer.app-footer {
+      background-color: var(--brand-navy);
+      border-top: 1px solid var(--border);
+      height: 32px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .footer-shortcuts {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .shortcut-item {
+      color: var(--text-secondary);
+    }
+
+    .shortcut-key {
+      color: var(--brand-teal);
+      font-weight: 600;
+    }
+
+    .footer-privacy {
+      color: var(--text-secondary);
+      font-style: normal;
+      text-align: center;
+    }
+
+    .footer-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-primary);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--brand-teal);
+      display: inline-block;
+    }
+
+    /* Responsive Reflow */
+    @media (max-width: 1200px) {
+      .workspace-container {
+        grid-template-columns: 240px 1fr 300px;
+      }
+      .details-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .workspace-container {
+        grid-template-columns: 1fr;
+      }
+      aside.left-pane, aside.right-pane {
+        display: none;
+      }
+      main.center-pane {
+        border-right: none;
+      }
+    }
+  </style>
+</head>
+<body>
+<!-- Top Navigation Header -->
+<header class="app-header">
+<div class="brand-group">
+<div class="logo-badge" title="GasaCLI Orquestrador">
+<strong>G&gt; gasacli</strong>
+</div>
+<div class="header-context">
+<span>PROJETO: <strong>vitrine-api</strong></span>
+<span>•</span>
+<span>WORKTREE: <strong>feature/catalogo</strong></span>
+</div>
+</div>
+<nav aria-label="Navegação Principal" class="header-nav">
+<a class="nav-tab" href="#visao-geral">Visão Geral</a>
+<a class="nav-tab" href="#goal-run">Goal Run &amp; DAG</a>
+<a class="nav-tab" href="#chat-sessao">Chat da Sessão</a>
+<a aria-current="page" class="nav-tab active" href="#agentes">Agentes &amp; Papéis</a>
+<a class="nav-tab" href="#terminal">Terminal TUI</a>
+</nav>
+<div class="header-actions">
+<button class="btn-action" title="Atualizar informações dos agentes" type="button">
+<span>[r]</span> Atualizar
+      </button>
+<button class="btn-action" title="Retornar à visão anterior" type="button">
+<span>[Esc]</span> Voltar
+      </button>
+</div>
+</header>
+<!-- Three-Pane Responsive Workspace -->
+<div class="workspace-container">
+<!-- Left Pane: Agent Roster List -->
+<aside aria-label="Lista de Agentes" class="left-pane">
+<div class="pane-header">
+<span class="pane-title">Roster de Agentes</span>
+<span class="pane-badge">2 Configurados</span>
+</div>
+<ul class="agent-list" role="tablist">
+<!-- Claude Code (Orchestrator) -->
+<li>
+<button aria-selected="false" class="agent-nav-item" role="tab" tabindex="0">
+<div class="agent-item-top">
+<span class="agent-name">Claude Code</span>
+<span class="status-pill idle">idle</span>
+</div>
+<div class="agent-item-sub">
+<span class="agent-role-tag">Orquestrador</span>
+<span>claude-sonnet-5-5</span>
+</div>
+</button>
+</li>
+<!-- Codex CLI (Developer) - Selected in View -->
+<li>
+<button aria-selected="true" class="agent-nav-item active" role="tab" tabindex="0">
+<div class="agent-item-top">
+<span class="agent-name">Codex CLI</span>
+<span class="status-pill working">working</span>
+</div>
+<div class="agent-item-sub">
+<span class="agent-role-tag">Developer</span>
+<span>gpt-6-luna</span>
+</div>
+</button>
+</li>
+</ul>
+</aside>
+<!-- Center Pane: Primary Roster Table & Card Deck -->
+<main class="center-pane" id="main-content">
+<div class="center-section-header">
+<div>
+<h1>Agentes e Papéis</h1>
+<p>Visão tabular do roster de agentes configurados no workspace vitrine-api com papéis, modelos declarados e estados operacionais.</p>
+</div>
+</div>
+<!-- Agent Roster Table -->
+<section aria-labelledby="roster-table-heading" class="card-panel">
+<div class="card-panel-header">
+<span class="card-panel-title" id="roster-table-heading">Roster Consolidado</span>
+<span class="tag-neutral">2 registros</span>
+</div>
+<div style="overflow-x: auto;">
+<table class="roster-table">
+<thead>
+<tr>
+<th scope="col">Agente &amp; Provedor/Modelo</th>
+<th scope="col">Papel (Role)</th>
+<th scope="col">Estado</th>
+<th scope="col">Prontidão</th>
+<th scope="col">PID</th>
+<th scope="col">Worktree</th>
+<th scope="col">Tarefa Atual</th>
+<th scope="col">Idade</th>
+<th scope="col">Última Atividade</th>
+</tr>
+</thead>
+<tbody>
+<!-- Row 1: Orchestrator Claude Code -->
+<tr>
+<td>
+<div class="table-agent-cell">
+<span class="table-agent-name">Claude Code</span>
+<span class="table-agent-model">claude-sonnet-5-5</span>
+</div>
+</td>
+<td><span class="tag-role">Orquestrador</span></td>
+<td><span class="status-pill idle">idle</span></td>
+<td><span class="badge-readiness">Capacidade não verificada</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+</tr>
+<!-- Row 2: Developer Codex CLI (Active Row) -->
+<tr class="row-selected">
+<td>
+<div class="table-agent-cell">
+<span class="table-agent-name">Codex CLI</span>
+<span class="table-agent-model">gpt-6-luna</span>
+</div>
+</td>
+<td><span class="tag-role">Developer</span></td>
+<td><span class="status-pill working">working</span></td>
+<td><span class="badge-readiness">Capacidade não verificada</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+<td><span class="tag-neutral">N/D</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Detailed Inspection Deck of the Two Active Agents -->
+<section aria-label="Detalhes Individuais dos Agentes" class="details-grid">
+<!-- Card 1: Claude Code -->
+<article class="agent-card">
+<div class="agent-card-header">
+<div class="card-title-group">
+<span class="card-title">Claude Code</span>
+<span class="card-subtitle">claude-sonnet-5-5</span>
+</div>
+<span class="status-pill idle">idle</span>
+</div>
+<div class="card-meta-list">
+<div class="meta-pair">
+<span class="meta-label">Papel (Role)</span>
+<span class="meta-val">Orquestrador</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">Prontidão</span>
+<span class="meta-val">Capacidade não verificada</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">PID</span>
+<span class="meta-val neutral">N/D</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">Worktree</span>
+<span class="meta-val neutral">N/D</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">Tarefa</span>
+<span class="meta-val neutral">N/D</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">Última Atividade</span>
+<span class="meta-val neutral">N/D</span>
+</div>
+</div>
+</article>
+<!-- Card 2: Codex CLI (Focused in UI) -->
+<article class="agent-card focused">
+<div class="agent-card-header">
+<div class="card-title-group">
+<span class="card-title">Codex CLI</span>
+<span class="card-subtitle">gpt-6-luna</span>
+</div>
+<span class="status-pill working">working</span>
+</div>
+<div class="card-meta-list">
+<div class="meta-pair">
+<span class="meta-label">Papel (Role)</span>
+<span class="meta-val">Developer</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">Prontidão</span>
+<span class="meta-val">Capacidade não verificada</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">PID</span>
+<span class="meta-val neutral">N/D</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">Worktree</span>
+<span class="meta-val neutral">N/D</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">Tarefa</span>
+<span class="meta-val neutral">N/D</span>
+</div>
+<div class="meta-pair">
+<span class="meta-label">Última Atividade</span>
+<span class="meta-val neutral">N/D</span>
+</div>
+</div>
+</article>
+</section>
+</main>
+<!-- Right Pane: Detailed Inspector -->
+<aside aria-label="Inspetor do Agente Selecionado" class="right-pane">
+<div class="pane-header">
+<span class="pane-title">Inspetor de Agente</span>
+<span class="pane-badge">Foco: Codex CLI</span>
+</div>
+<!-- Section: Agent Core -->
+<div class="inspector-section">
+<div class="inspector-header-box">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<span class="inspector-agent-name">Codex CLI</span>
+<span class="status-pill working">working</span>
+</div>
+<span class="inspector-model-badge">Modelo declarado: gpt-6-luna</span>
+</div>
+<table class="info-table">
+<tbody>
+<tr>
+<td class="info-key">Papel Designado</td>
+<td class="info-val highlight">Developer</td>
+</tr>
+<tr>
+<td class="info-key">Estado Operacional</td>
+<td class="info-val">working</td>
+</tr>
+<tr>
+<td class="info-key">Prontidão</td>
+<td class="info-val">Capacidade não verificada</td>
+</tr>
+<tr>
+<td class="info-key">Process ID (PID)</td>
+<td class="info-val muted">N/D</td>
+</tr>
+<tr>
+<td class="info-key">Worktree Ativa</td>
+<td class="info-val muted">N/D</td>
+</tr>
+<tr>
+<td class="info-key">Tarefa Ativa</td>
+<td class="info-val muted">N/D</td>
+</tr>
+<tr>
+<td class="info-key">Idade da Instância</td>
+<td class="info-val muted">N/D</td>
+</tr>
+<tr>
+<td class="info-key">Última Atividade</td>
+<td class="info-val muted">N/D</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Section: Resource Usage & Provenance -->
+<div class="inspector-section">
+<div class="inspector-section-title">
+<span>Métricas de Uso</span>
+<span class="tag-neutral">Origem: Provedor</span>
+</div>
+<table class="info-table">
+<tbody>
+<tr>
+<td class="info-key">Consumo de Tokens</td>
+<td class="info-val muted">indisponível</td>
+</tr>
+<tr>
+<td class="info-key">Custo Estimado</td>
+<td class="info-val muted">indisponível</td>
+</tr>
+<tr>
+<td class="info-key">Uso de Memória</td>
+<td class="info-val muted">N/D</td>
+</tr>
+</tbody>
+</table>
+</div>
+</aside>
+</div>
+<!-- Bottom Shortcut & Privacy Footer -->
+<footer class="app-footer">
+<div class="footer-shortcuts">
+<span class="shortcut-item"><span class="shortcut-key">[1]</span> Barra Lateral</span>
+<span class="shortcut-item"><span class="shortcut-key">[2]</span> Inspetor</span>
+<span class="shortcut-item"><span class="shortcut-key">[Tab]</span> Alternar Foco</span>
+<span class="shortcut-item"><span class="shortcut-key">[r]</span> Atualizar</span>
+<span class="shortcut-item"><span class="shortcut-key">[Esc]</span> Voltar</span>
+</div>
+<div class="footer-privacy">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+<div class="footer-status"><span class="status-dot"></span><span>STATUS: N/D</span></div>
+</footer>
+</body>
+</html>

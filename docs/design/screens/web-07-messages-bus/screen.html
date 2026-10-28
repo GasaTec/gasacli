@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Web — Messages Bus Viewer (Barramento de Eventos)</title>
+<style>
+    /* CSS Tokens based on GasaCLI DESIGN.md */
+    :root {
+      --bg: #0B1220;
+      --surface: #111C2E;
+      --surface-elevated: #1B2A40;
+      --border: #596982;
+      --border-subtle: #24354D;
+      --text-primary: #F4F7FB;
+      --text-secondary: #C3CFDF;
+      --text-muted: #9AAAC0;
+      --brand-navy: #172A46;
+      --brand-teal: #1ECFA5;
+      --accent: #1ECFA5;
+      --warning: #F2B84B;
+      --danger: #FF7272;
+      --info: #79B8FF;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Top Navigation Header */
+    header.app-header {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-wordmark {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--brand-teal);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .brand-wordmark span.prefix {
+      color: var(--text-primary);
+    }
+
+    .context-crumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-left: 12px;
+      border-left: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .context-crumb strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 100%;
+    }
+
+    .nav-tab {
+      padding: 0 12px;
+      height: 48px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      border-bottom: 2px solid transparent;
+      transition: none;
+    }
+
+    .nav-tab:hover, .nav-tab:focus-visible {
+      color: var(--text-primary);
+      background: var(--surface-elevated);
+      outline: none;
+    }
+
+    .nav-tab.active {
+      color: var(--brand-teal);
+      border-bottom-color: var(--brand-teal);
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-header {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-header:hover, .btn-header:focus-visible {
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+      border-color: var(--brand-teal);
+      outline: 2px solid var(--brand-teal);
+      outline-offset: 1px;
+    }
+
+    /* Mobile drawers toggle bar (shown only on mobile) */
+    .mobile-controls {
+      display: none;
+      background: var(--surface-elevated);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      gap: 8px;
+    }
+
+    .mobile-controls button {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .mobile-controls button.active {
+      border-color: var(--brand-teal);
+      color: var(--brand-teal);
+      font-weight: 600;
+    }
+
+    /* Main Workspace 3-Pane Shell */
+    .workspace-shell {
+      display: grid;
+      grid-template-columns: 260px 1fr 340px;
+      flex: 1;
+      min-height: 0;
+      height: calc(100vh - 48px - 32px);
+    }
+
+    /* Left Pane - Filters & Channels */
+    .pane-left {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .pane-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface);
+    }
+
+    .pane-header h2 {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .badge-count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--surface-elevated);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .pane-section {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .pane-section-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .filter-input-wrap {
+      margin-bottom: 12px;
+    }
+
+    .filter-input-wrap label {
+      display: block;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .filter-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 8px;
+    }
+
+    .filter-input:focus {
+      outline: 2px solid var(--brand-teal);
+      border-color: var(--brand-teal);
+    }
+
+    .filter-pill-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .filter-pill {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .filter-pill:hover, .filter-pill:focus-visible {
+      border-color: var(--brand-teal);
+      color: var(--text-primary);
+      outline: none;
+    }
+
+    .filter-pill.active {
+      border-color: var(--brand-teal);
+      color: var(--brand-teal);
+      background: rgba(30, 207, 165, 0.08);
+      font-weight: 600;
+    }
+
+    .status-summary-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px;
+      margin-top: 4px;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+
+    .status-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .status-row .key {
+      color: var(--text-muted);
+    }
+
+    .status-row .val {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Center Pane - Event Envelope Table */
+    .pane-center {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .table-toolbar {
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .table-title-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .table-title-area h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.2px;
+    }
+
+    .badge-scope {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .table-container {
+      flex: 1;
+      overflow: auto;
+      min-height: 0;
+    }
+
+    table.envelope-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    table.envelope-table th {
+      background: var(--surface);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      white-space: nowrap;
+    }
+
+    table.envelope-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* Empty state styling */
+    .empty-state-row td {
+      padding: 64px 20px !important;
+      text-align: center;
+      background: transparent;
+      border-bottom: none;
+    }
+
+    .empty-state-card {
+      max-width: 440px;
+      margin: 0 auto;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    .empty-state-icon {
+      font-family: var(--font-mono);
+      font-size: 28px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .empty-state-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      font-family: var(--font-sans);
+    }
+
+    .empty-state-card p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 16px;
+      font-family: var(--font-sans);
+    }
+
+    .empty-state-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--bg);
+      border: 1px solid var(--border-subtle);
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: var(--text-secondary);
+    }
+
+    /* Right Pane - Sanitized Payload & Correlation Detail */
+    .pane-right {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .payload-header-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .payload-tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-family: var(--font-mono);
+    }
+
+    .payload-tab.active {
+      color: var(--brand-teal);
+      border-bottom-color: var(--brand-teal);
+      font-weight: 600;
+    }
+
+    .payload-tab:focus-visible {
+      outline: 2px solid var(--brand-teal);
+    }
+
+    .detail-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .card-block-header {
+      background: var(--surface-elevated);
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-block-body {
+      padding: 10px;
+    }
+
+    .prop-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .prop-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+      border-bottom: 1px dashed var(--border-subtle);
+    }
+
+    .prop-item:last-child {
+      border-bottom: none;
+    }
+
+    .prop-label {
+      color: var(--text-muted);
+    }
+
+    .prop-val {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .badge-nd {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    .payload-viewer {
+      background: #070C15;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 6px;
+    }
+
+    .sanitization-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--brand-teal);
+      border: 1px solid rgba(30, 207, 165, 0.4);
+      background: rgba(30, 207, 165, 0.05);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    /* Footer Privacy and Shortcut Bar */
+    footer.app-footer {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .footer-shortcuts {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .shortcut-tag {
+      color: var(--brand-teal);
+      font-weight: 600;
+    }
+
+    .privacy-notice {
+      color: var(--text-secondary);
+      text-align: center;
+      flex: 1;
+      padding: 0 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .footer-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: var(--text-muted);
+      display: inline-block;
+    }
+
+    /* Responsive Adjustments (Desktop to Mobile) */
+    @media (max-width: 1024px) {
+      .workspace-shell {
+        grid-template-columns: 220px 1fr 280px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header-nav {
+        display: none;
+      }
+      .mobile-controls {
+        display: flex;
+      }
+      .workspace-shell {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .pane-left, .pane-right {
+        display: none; /* Accessible via drawer toggles */
+      }
+      .pane-left.mobile-open, .pane-right.mobile-open {
+        display: flex;
+        position: fixed;
+        top: 88px;
+        left: 0;
+        right: 0;
+        bottom: 32px;
+        z-index: 100;
+      }
+      .privacy-notice {
+        font-size: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+<!-- Top Navigation Header -->
+<header class="app-header">
+<div class="header-left">
+<div aria-label="GasaCLI" class="brand-wordmark">
+<span class="prefix">G&gt;</span> gasacli
+      </div>
+<div class="context-crumb">
+<span>PROJETO: <strong>vitrine-api</strong></span>
+<span>•</span>
+<span>WORKTREE: <strong>feature/catalogo</strong></span>
+</div>
+</div>
+<nav aria-label="Navegação Principal" class="header-nav">
+<a class="nav-tab" href="#geral">Visão Geral</a>
+<a class="nav-tab" href="#runs">Goal Run &amp; DAG</a>
+<a class="nav-tab" href="#chat">Chat da Sessão</a>
+<a class="nav-tab" href="#agentes">Agentes e Papéis</a>
+<a aria-current="page" class="nav-tab active" href="#bus">Barramento de Mensagens</a>
+</nav>
+<div class="header-actions">
+<button class="btn-header" title="Alternar para visualização de terminal" type="button">
+<span>Terminal TUI</span>
+</button>
+<button class="btn-header" title="Atualizar dados do barramento [r]" type="button">
+<span>[r] Atualizar</span>
+</button>
+<button class="btn-header" title="Voltar para a tela anterior [Esc]" type="button">
+<span>[Esc] Voltar</span>
+</button>
+</div>
+</header>
+<!-- Mobile Drawer Toggle Strip (Visualizador Mobile de 1 Painel) -->
+<div aria-label="Alternar Painéis Mobile" class="mobile-controls">
+<button id="btn-toggle-filtros" title="Alternar Gaveta de Filtros" type="button">
+      [1] Filtros (N/D)
+    </button>
+<button class="active" id="btn-toggle-tabela" title="Exibir Tabela de Envelopes" type="button">
+      Tabela de Envelopes
+    </button>
+<button id="btn-toggle-detalhes" title="Alternar Gaveta de Detalhes" type="button">
+      [2] Inspetor (N/D)
+    </button>
+</div>
+<!-- Workspace 3-Pane Responsive Shell -->
+<main class="workspace-shell">
+<!-- Painel 1 (Esquerda): Filtros, Canais e Correlação -->
+<aside aria-label="Filtros e Canais do Barramento" class="pane-left" id="drawer-filtros">
+<div class="pane-header">
+<h2>Filtros do Barramento</h2>
+<span class="badge-count">Filtros: N/D</span>
+</div>
+<!-- Filtro de Busca de Eventos -->
+<div class="pane-section">
+<div class="filter-input-wrap">
+<label for="filter-envelope">Filtrar Envelopes</label>
+<input class="filter-input" disabled="" id="filter-envelope" placeholder="Buscar tipo, origem, destino..." type="search" value=""/>
+</div>
+<div class="pane-section-title">
+<span>Canal de Eventos</span>
+</div>
+<div class="filter-pill-group">
+<button aria-pressed="false" class="filter-pill" disabled="" type="button">Todos (N/D)</button>
+<button aria-pressed="true" class="filter-pill active" type="button">review (N/D)</button>
+<button aria-pressed="false" class="filter-pill" disabled="" type="button">dispatch (N/D)</button>
+<button aria-pressed="false" class="filter-pill" disabled="" type="button">task (N/D)</button>
+</div>
+</div>
+<!-- Filtro por Confirmação / Acknowledgment -->
+<div class="pane-section">
+<div class="pane-section-title">
+<span>Confirmação (ACK)</span>
+</div>
+<div class="filter-pill-group">
+<button aria-pressed="true" class="filter-pill active" type="button">Todas</button>
+<button aria-pressed="false" class="filter-pill" disabled="" type="button">ACK</button>
+<button aria-pressed="false" class="filter-pill" disabled="" type="button">NACK</button>
+<button aria-pressed="false" class="filter-pill" disabled="" type="button">Pendente</button>
+</div>
+</div>
+<!-- Sumário Factual do Barramento -->
+<div class="pane-section" style="border-bottom: none;">
+<div class="pane-section-title">
+<span>Metadados do Barramento</span>
+</div>
+<div class="status-summary-card">
+<div class="status-row">
+<span class="key">Canal de Amostra:</span>
+<span class="val">review</span>
+</div>
+<div class="status-row">
+<span class="key">Envelopes no Buffer:</span>
+<span class="val">N/D</span>
+</div>
+<div class="status-row">
+<span class="key">Filtro Ativo:</span>
+<span class="val">N/D</span>
+</div>
+<div class="status-row">
+<span class="key">Retenção de Mensagens:</span>
+<span class="val">N/D</span>
+</div>
+<div class="status-row">
+<span class="key">Taxa de Transferência:</span>
+<span class="val">N/D</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Painel 2 (Centro): Tabela de Envelopes de Eventos -->
+<section aria-label="Tabela de Envelopes de Mensagens" class="pane-center">
+<div class="table-toolbar">
+<div class="table-title-area">
+<h1>Envelopes de Mensagens</h1>
+<span class="badge-scope">Canal: review</span>
+</div>
+</div>
+<div class="table-container">
+<table aria-label="Lista de envelopes de eventos do barramento" class="envelope-table">
+<thead>
+<tr>
+<th scope="col" style="width: 140px;">Horário</th>
+<th scope="col" style="width: 150px;">Tipo</th>
+<th scope="col" style="width: 140px;">Origem (Source)</th>
+<th scope="col" style="width: 150px;">Destino (Dest)</th>
+<th scope="col" style="width: 120px;">Confirmação</th>
+<th scope="col">Correlação (Run/Task/Dispatch)</th>
+</tr>
+</thead>
+<tbody>
+<!-- Empty State Factual (Nenhum envelope disponível para exibição) -->
+<tr class="empty-state-row">
+<td colspan="6">
+<div class="empty-state-card">
+<div aria-hidden="true" class="empty-state-icon">[ Ø ]</div>
+<h3>Nenhum envelope disponível para exibição</h3>
+<p>
+                    Canal: review • Eventos e dados em N/D.
+                  </p>
+<div class="empty-state-meta">
+<span>Buffer de Envelopes: N/D</span>
+<span>•</span>
+<span>Status: N/D</span>
+</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Painel 3 (Direita): Detalhe da Carga Útil Higienizada e Correlação -->
+<aside aria-label="Inspetor de Carga Útil Higienizada e Correlação" class="pane-right" id="drawer-detalhes">
+<div class="pane-header">
+<h2>Inspetor de Envelope</h2>
+<span class="badge-count">Foco: Nenhum</span>
+</div>
+<div class="payload-header-tabs" role="tablist">
+<button aria-selected="true" class="payload-tab active" role="tab">Carga Higienizada</button>
+<button aria-selected="false" class="payload-tab" role="tab">Correlação</button>
+</div>
+<div class="detail-body">
+<!-- Bloco 1: Metadados do Envelope Selecionado -->
+<div class="card-block">
+<div class="card-block-header">
+<span>METADADOS DO ENVELOPE</span>
+<span class="sanitization-badge">HIGIENIZADO</span>
+</div>
+<div class="card-block-body">
+<div class="prop-list">
+<div class="prop-item">
+<span class="prop-label">ID do Envelope:</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Horário de Emissão:</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Tipo Declarado:</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Origem (Source):</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Destino (Destination):</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Confirmação (ACK):</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bloco 2: Correlação com Unidades de Execução -->
+<div class="card-block">
+<div class="card-block-header">
+<span>CORRELAÇÃO DE EXECUÇÃO</span>
+<span class="badge-nd">N/D</span>
+</div>
+<div class="card-block-body">
+<div class="prop-list">
+<div class="prop-item">
+<span class="prop-label">Run Correlacionado:</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Task Correlacionada:</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Dispatch de Origem:</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Worker Associado:</span>
+<span class="prop-val"><span class="badge-nd">N/D</span></span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bloco 3: Carga Útil Higienizada (Sanitized Payload) -->
+<div class="card-block">
+<div class="card-block-header">
+<span>CONTEÚDO DA CARGA ÚTIL</span>
+<span class="badge-nd">N/D</span>
+</div>
+<div class="card-block-body">
+<div aria-live="polite" class="payload-viewer">
+<span style="font-size: 16px; color: var(--text-muted);">∅</span>
+<span style="color: var(--text-secondary); font-weight: 500;">Nenhum envelope selecionado</span>
+<span style="font-size: 10px; color: var(--text-muted);">
+                Conteúdo da carga útil: N/D
+              </span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</main>
+<!-- Rodapé Funcional com Atalhos e Declaração de Privacidade Estrita -->
+<footer class="app-footer">
+<div class="footer-shortcuts">
+<span><span class="shortcut-tag">[1]</span> Filtros</span>
+<span><span class="shortcut-tag">[2]</span> Inspetor</span>
+<span><span class="shortcut-tag">[Tab]</span> Alternar Foco</span>
+<span><span class="shortcut-tag">[r]</span> Atualizar</span>
+<span><span class="shortcut-tag">[Esc]</span> Voltar</span>
+</div>
+<div class="privacy-notice">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+<div class="footer-status">
+<span class="status-dot"></span>
+<span>STATUS: N/D</span>
+</div>
+</footer>
+</body></html>
