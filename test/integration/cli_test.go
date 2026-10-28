@@ -203,7 +203,10 @@ func TestCLI(t *testing.T) {
 			t.Fatalf("doctor lines=%d\n%s", len(lines), out)
 		}
 		for i, name := range names {
-			contains(t, lines[i], name, "não encontrado", "autenticação não verificada")
+			contains(t, lines[i], name, "CLI não encontrado no PATH")
+			if !strings.Contains(lines[i], "ausente") {
+				t.Errorf("doctor row for %s has no readiness status: %s", name, lines[i])
+			}
 		}
 		t.Logf("real doctor output:\n%s", out)
 	})
