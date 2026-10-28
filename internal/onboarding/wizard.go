@@ -12,6 +12,7 @@ import (
 
 	"github.com/GasaTec/gasacli/internal/config"
 	"github.com/GasaTec/gasacli/internal/discovery"
+	"github.com/GasaTec/gasacli/internal/i18n"
 	"github.com/GasaTec/gasacli/internal/trust"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -75,6 +76,7 @@ func RunWizard(ctx context.Context, options WizardOptions) error {
 	if err != nil {
 		return fmt.Errorf("load onboarding state: %w", err)
 	}
+	i18n.Configure(saved.Onboarding.Language)
 	results := options.Discover(ctx)
 	missing := missingItems(results)
 	selected := map[string]bool{}

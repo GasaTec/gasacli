@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GasaTec/gasacli/internal/i18n"
 	"github.com/GasaTec/gasacli/internal/trust"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -37,6 +38,7 @@ func TestInteractiveTrustAndKeys(t *testing.T) {
 }
 
 func TestInteractiveChatGoldenAndCommandPalette(t *testing.T) {
+	i18n.SetLanguage("pt-BR")
 	t.Setenv("NO_COLOR", "1")
 	model := newInteractiveModel(&Session{ProjectPath: t.TempDir(), ReadyAgents: 2}, t.TempDir(), true)
 	model.width, model.height = 100, 28
@@ -53,8 +55,82 @@ func TestInteractiveChatGoldenAndCommandPalette(t *testing.T) {
 		t.Fatalf("matches=%v", matches)
 	}
 	model.submit("/goal refactor")
-	if !strings.Contains(strings.Join(model.lines, "\n"), "planned (issue #11)") {
+	if !strings.Contains(strings.Join(model.lines, "\n"), "solicitação #11") {
 		t.Fatal("planned command did not show its issue")
+	}
+}
+
+func TestRegistryDrivesPaletteAndHelp(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.chat.SetValue("/")
+	matches := model.matches()
+	if len(matches) != len(RegisteredCommands()) {
+		t.Fatalf("palette has %d commands, registry has %d", len(matches), len(RegisteredCommands()))
+	}
+	if !strings.Contains(helpText(), "/permissions") || !strings.Contains(helpText(), "#31") {
+		t.Fatalf("help omitted registered planned command: %s", helpText())
+	}
+	for _, language := range []string{"pt-BR", "en"} {
+		keys, err := i18n.CatalogKeys(language)
+		if err != nil {
+			t.Fatal(err)
+		}
+		available := make(map[string]bool, len(keys))
+		for _, key := range keys {
+			available[key] = true
+		}
+		for _, command := range RegisteredCommands() {
+			if !available[command.Summary] {
+				t.Errorf("%s catalog missing %s", language, command.Summary)
+			}
+		}
+	}
+}
+
+func TestUnknownCommandSuggestsRegisteredCommand(t *testing.T) {
+	i18n.SetLanguage("en")
+	if got := unknownCommandMessage("/hlep"); !strings.Contains(got, "/help") {
+		t.Fatalf("suggestion=%q", got)
+	}
+	i18n.SetLanguage("pt-BR")
+}
+
+func TestRegisterRejectsDuplicateNameAndAlias(t *testing.T) {
+	for name, command := range map[string]Command{
+		"name":  {Name: "/help"},
+		"alias": {Name: "/new-test-command", Aliases: []string{"/help"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("Register accepted duplicate name or alias")
+				}
+			}()
+			Register(command)
+		})
+	}
+}
+
+func TestHelpCatalogGoldens(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLanguage("pt-BR") })
+	for _, language := range []string{"pt-BR", "en"} {
+		t.Run(language, func(t *testing.T) {
+			i18n.SetLanguage(language)
+			got := helpText() + "\n"
+			path := filepath.Join("testdata", "help-"+language+"-80x24.golden")
+			if os.Getenv("UPDATE_GOLDEN") == "1" {
+				if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			want, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != string(want) {
+				t.Fatalf("/help differs from %s\n--- got ---\n%s\n--- want ---\n%s", path, got, want)
+			}
+		})
 	}
 }
 
@@ -83,6 +159,7 @@ func TestInteractiveCtrlCAndCtrlDKeepDraftAndExit(t *testing.T) {
 }
 
 func TestInteractiveWelcomeAndEnterSends(t *testing.T) {
+	i18n.SetLanguage("pt-BR")
 	t.Setenv("NO_COLOR", "1")
 	model := newInteractiveModel(&Session{ProjectPath: "C:/workspace", ReadyAgents: 1}, "C:/workspace", true)
 	model.width, model.height = 80, 24
@@ -95,7 +172,7 @@ func TestInteractiveWelcomeAndEnterSends(t *testing.T) {
 	model.chat.SetValue("hello")
 	updated, command := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	model = updated.(interactiveModel)
-	if command != nil || model.chat.Value() != "" || !strings.Contains(strings.Join(model.lines, "\n"), "Model chat is not connected yet") {
+	if command != nil || model.chat.Value() != "" || !strings.Contains(strings.Join(model.lines, "\n"), "chat com modelo ainda não está conectado") {
 		t.Fatalf("Enter did not send the message: model=%+v", model)
 	}
 }

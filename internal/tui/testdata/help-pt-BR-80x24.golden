@@ -1,0 +1,19 @@
+GasaCLI commands:
+  /agents          Descobre agentes de programação instalados
+  /backup          Cria um backup local (planejado; consulte a solicitação #11)
+  /brain           Pesquisa a base de conhecimento local (planejado; consulte a solicitação #11)
+  /config          Gerencia a configuração efetiva (planejado; consulte a solicitação #11)
+  /doctor          Executa diagnósticos locais
+  /exit            Encerra o GasaCLI
+  /github          Conecta ferramentas do GitHub (planejado; consulte a solicitação #11)
+  /goal            Inicia uma tarefa orquestrada (planejado; consulte a solicitação #11)
+  /help            Exibe comandos e atalhos
+  /permissions     Configura permissões de execução (planejado; consulte a solicitação #31)
+  /prompts         Gerencia prompts (planejado; consulte a solicitação #11)
+  /quit            Encerra o GasaCLI
+  /restore         Restaura dados locais (planejado; consulte a solicitação #11)
+  /resume          Retoma uma execução salva (planejado; consulte a solicitação #11)
+  /setup           Revisa configuração e instalação
+  /skills          Gerencia skills locais (planejado; consulte a solicitação #11)
+  /status          Exibe a sessão atual
+  /web             Abre ou consulta o painel local

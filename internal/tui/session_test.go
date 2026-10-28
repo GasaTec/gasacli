@@ -8,10 +8,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GasaTec/gasacli/internal/i18n"
 	"github.com/GasaTec/gasacli/internal/trust"
 )
 
 func TestScriptedSession(t *testing.T) {
+	i18n.SetLanguage("pt-BR")
 	var out bytes.Buffer
 	store := trust.NewStore(t.TempDir())
 	project := t.TempDir()
@@ -23,7 +25,7 @@ func TestScriptedSession(t *testing.T) {
 	if err := s.Run(); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"[y/N]", "gasa> ", "/help", "/exit", "/quit", "/agents", "/doctor", "/status", "/goal", "/permissions", "/backup", "/restore", "/web", "planejado", "not connected", "Unknown command"} {
+	for _, want := range []string{"[y/N]", "gasa> ", "/help", "/exit", "/quit", "/agents", "/doctor", "/status", "/goal", "/permissions", "/backup", "/restore", "/web", "planejado", i18n.T("command.model_unavailable"), i18n.T("command.unknown")} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("missing %q in %q", want, out.String())
 		}

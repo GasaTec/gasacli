@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/GasaTec/gasacli/internal/i18n"
 	"github.com/GasaTec/gasacli/internal/trust"
 )
 
@@ -28,9 +29,11 @@ type Session struct {
 	DashboardState string
 	ReadyAgents    int
 	DiscoverReady  func() int
+	Language       string
 }
 
 func (s *Session) Run() error {
+	i18n.Configure(s.Language)
 	if s.In == nil || s.Out == nil || s.TrustStore == nil {
 		return fmt.Errorf("session requires input, output and trust store")
 	}
@@ -89,7 +92,7 @@ func (s *Session) Run() error {
 		case "/exit", "/quit":
 			return nil
 		case "/help":
-			response = help
+			response = helpText()
 		case "/agents":
 			if s.Agents != nil {
 				s.Agents(s.Out)
@@ -112,6 +115,12 @@ func (s *Session) Run() error {
 			}
 		case "/status":
 			response = "sem run ativo; orquestração não implementada"
+		case "/goal", "/config", "/skills", "/prompts", "/brain", "/resume", "/github", "/permissions", "/backup", "/restore":
+			if command, ok := lookupCommand(fields[0]); ok && command.Planned {
+				if command.Handler != nil {
+					response, _ = command.Handler(context.Background(), nil, fields[1:])
+				}
+			}
 		case "/web":
 			if s.Web != nil {
 				if err := s.Web(s.Out, fields[1:]); err != nil {
@@ -120,13 +129,11 @@ func (s *Session) Run() error {
 			} else {
 				response = "Dashboard callback is not configured."
 			}
-		case "/goal":
-			response = "/goal: planejado; not implemented yet."
 		default:
 			if strings.HasPrefix(input, "/") {
-				response = "Unknown command. Use /help."
+				response = unknownCommandMessage(fields[0])
 			} else {
-				response = "Interactive model chat is not connected yet. Use /help."
+				response = i18n.T("command.model_unavailable")
 			}
 		}
 		if response != "" {
@@ -143,18 +150,3 @@ func (s *Session) Run() error {
 	}
 	return nil
 }
-
-const help = `GasaCLI commands:
-  /help       Show this help
-  /exit       Exit the session
-  /quit       Exit the session
-  /agents     Discover installed agents
-  /doctor     Run diagnostics
-  /setup      Reopen agent and app onboarding
-  /status     Show session status
-  /goal       planejado (not implemented)
-  /permissions planejado (not implemented)
-  /backup     planejado (not implemented)
-  /restore    planejado (not implemented)
-  /web [open|status] Show dashboard URL or open browser
-  /web stop|restart planejado (not implemented)`

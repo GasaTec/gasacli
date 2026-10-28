@@ -1,0 +1,3 @@
+# Adding a TUI command
+
+Create one `cmd_<name>.go` file in this package and call `Register` from its `init` function. Set the slash `Name`, aliases, localized `Summary` catalog key, usage, category, and optional `Planned`/`IssueRef` fields. The command palette, autocomplete candidates, and `/help` are generated from registered metadata. Keep the registration file self-contained so another command does not need edits to the shared registry or interactive model. Existing command execution adapters are being migrated to `Command.Handler`; until then, interactive execution remains wired in `interactive.go`.

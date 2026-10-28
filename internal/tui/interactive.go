@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GasaTec/gasacli/internal/i18n"
 	"github.com/GasaTec/gasacli/internal/trust"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
@@ -17,27 +18,6 @@ import (
 )
 
 type commandInfo struct{ name, description string }
-
-var commands = []commandInfo{
-	{"/help", "Show commands and keyboard shortcuts"},
-	{"/agents", "Discover installed coding agents"},
-	{"/doctor", "Run local diagnostics"},
-	{"/setup", "Review setup and install guidance"},
-	{"/status", "Show the current session"},
-	{"/goal", "Start an orchestrated task (planned, issue #11)"},
-	{"/config", "Edit effective configuration (planned, issue #11)"},
-	{"/skills", "Manage local skills (planned, issue #11)"},
-	{"/prompts", "Manage prompts (planned, issue #11)"},
-	{"/brain", "Search the local knowledge base (planned, issue #11)"},
-	{"/resume", "Resume a saved run (planned, issue #11)"},
-	{"/github", "Connect GitHub tools (planned, issue #11)"},
-	{"/web", "Open or inspect the local dashboard"},
-	{"/permissions", "Configure execution permissions (planned, issue #31)"},
-	{"/backup", "Create a local backup (planned, issue #11)"},
-	{"/restore", "Restore local data (planned, issue #11)"},
-	{"/exit", "Close GasaCLI"},
-	{"/quit", "Close GasaCLI"},
-}
 
 type interactiveModel struct {
 	session        *Session
@@ -68,7 +48,7 @@ type readyAgentsResult struct{ count int }
 
 func newInteractiveModel(s *Session, project string, trusted bool) interactiveModel {
 	input := textarea.New()
-	input.Placeholder = "Ask GasaCLI or type / for commands"
+	input.Placeholder = i18n.T("tui.placeholder")
 	input.Prompt = "  > "
 	input.ShowLineNumbers = false
 	input.SetHeight(2)
@@ -330,7 +310,7 @@ func (m *interactiveModel) submit(input string) {
 		var output strings.Builder
 		switch fields[0] {
 		case "/help":
-			output.WriteString(help)
+			output.WriteString(helpText())
 		case "/agents":
 			if m.session.Agents != nil {
 				m.session.Agents(&output)
@@ -355,21 +335,26 @@ func (m *interactiveModel) submit(input string) {
 			} else {
 				output.WriteString("Dashboard is not configured.")
 			}
-		case "/goal":
-			output.WriteString("/goal is planned (issue #11). No task was started.")
-		case "/permissions":
-			output.WriteString("Permission profiles are planned; see issue #31.")
-		case "/config", "/skills", "/prompts", "/brain", "/resume", "/github", "/backup", "/restore":
-			fmt.Fprintf(&output, "%s is planned (issue #11).", fields[0])
 		default:
-			output.WriteString("Unknown command. Type /help or / for suggestions.")
+			if command, ok := lookupCommand(fields[0]); ok && command.Planned {
+				if command.Handler != nil {
+					result, err := command.Handler(context.Background(), nil, fields[1:])
+					if err != nil {
+						output.WriteString(err.Error())
+					} else {
+						output.WriteString(result)
+					}
+				}
+			} else {
+				output.WriteString(unknownCommandMessage(fields[0]))
+			}
 		}
 		if output.Len() > 0 {
 			m.append("GasaCLI\n" + output.String())
 		}
 		return
 	}
-	m.append("Model chat is not connected yet. Type /help to see available local actions.")
+	m.append(i18n.T("command.model_unavailable"))
 }
 
 func valueOr(value, fallback string) string {
@@ -381,14 +366,12 @@ func valueOr(value, fallback string) string {
 
 func (m interactiveModel) matches() []commandInfo {
 	value := strings.TrimSpace(m.chat.Value())
-	if value == "/" {
-		return commands
-	}
 	needle := strings.ToLower(value)
 	var found []commandInfo
-	for _, command := range commands {
-		if strings.Contains(strings.ToLower(command.name), needle) || strings.Contains(strings.ToLower(command.description), strings.TrimPrefix(needle, "/")) {
-			found = append(found, command)
+	for _, command := range RegisteredCommands() {
+		info := commandInfo{name: command.Name, description: commandSummary(command)}
+		if strings.Contains(strings.ToLower(info.name), needle) || strings.Contains(strings.ToLower(info.description), strings.TrimPrefix(needle, "/")) {
+			found = append(found, info)
 		}
 	}
 	return found
