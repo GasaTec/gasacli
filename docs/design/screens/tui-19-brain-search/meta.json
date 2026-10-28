@@ -1,0 +1,14 @@
+{
+  "promptFile": "docs/design/prompts/tui-19-brain-search.md",
+  "stitchScreenId": "f189cb2b83c947f3804e36281454a7a9",
+  "generatedAt": "2026-10-28 07:55:29 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed fabricated vault state, results, file content, local-only claims and status flags; retained only 18 files, query and cited target"
+    ]
+  }
+}

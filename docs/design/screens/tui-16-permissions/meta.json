@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-16-permissions.md",
+  "stitchScreenId": "00caec12b5554ef6aba2ea382d1d8cc0",
+  "generatedAt": "2026-10-28 07:26:03 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 2,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed unsupported counts, policy/session claims, permission behavior guarantees, and fabricated audit events",
+      "removed unsupported terminal metadata and status banner"
+    ]
+  }
+}

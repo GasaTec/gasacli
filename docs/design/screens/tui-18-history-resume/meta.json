@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-18-history-resume.md",
+  "stitchScreenId": "aee0b5a1f5f54ab2883753ffe306ed9f",
+  "generatedAt": "2026-10-28 07:46:55 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 2,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed local/session claims, task details, last event and blocker reason",
+      "changed unknown blocker to N/D and removed terminal metadata"
+    ]
+  }
+}

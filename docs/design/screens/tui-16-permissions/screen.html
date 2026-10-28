@@ -1,0 +1,362 @@
+﻿<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Política Efetiva de Permissões (120x36)</title>
+<style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #0b1220;
+      color: #f4f7fb;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.25;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .terminal-container {
+      width: 1080px;
+      height: 684px;
+      background-color: #0b1220;
+      border: 1px solid #596982;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      position: relative;
+    }
+    /* Header Row 1 */
+    .term-row-header {
+      height: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10px;
+      border-bottom: 1px solid #1b2a40;
+      color: #9aaac0;
+      font-size: 11px;
+    }
+    .term-row-header span.title {
+      color: #f4f7fb;
+    }
+    .term-flags {
+      display: flex;
+      gap: 12px;
+      color: #9aaac0;
+    }
+    /* Brand & Context */
+    .brand-bar {
+      padding: 6px 10px 4px 10px;
+      border-bottom: 1px solid #1b2a40;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .brand-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: #1ecfa5;
+    }
+    .brand-title span.slash-cmd {
+      color: #f4f7fb;
+      font-weight: normal;
+    }
+    .privacy-text {
+      padding: 3px 10px 4px 10px;
+      font-size: 11px;
+      color: #79b8ff;
+      border-bottom: 1px solid #1b2a40;
+      background: #111c2e;
+    }
+    /* Meta context strip */
+    .context-strip {
+      padding: 4px 10px;
+      display: flex;
+      gap: 20px;
+      font-size: 11px;
+      background-color: #0b1220;
+      border-bottom: 1px solid #596982;
+      color: #c3cfdf;
+    }
+    .context-item strong {
+      color: #f4f7fb;
+    }
+    .context-item span.highlight {
+      color: #1ecfa5;
+    }
+    .context-item span.warn {
+      color: #f2b84b;
+    }
+
+    /* Main Area layout */
+    .terminal-body {
+      flex: 1;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    /* Boxes */
+    .tui-box {
+      border: 1px solid #596982;
+      background-color: #111c2e;
+      display: flex;
+      flex-direction: column;
+    }
+    .tui-box-header {
+      background-color: #1b2a40;
+      color: #c3cfdf;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #596982;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .tui-box-header span.tag {
+      color: #9aaac0;
+      font-weight: normal;
+    }
+
+    /* Table */
+    .table-container {
+      width: 100%;
+    }
+    table.tui-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+    table.tui-table th {
+      padding: 4px 8px;
+      color: #9aaac0;
+      border-bottom: 1px solid #1b2a40;
+      font-weight: normal;
+      background: #111c2e;
+    }
+    table.tui-table td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #1b2a40;
+      vertical-align: middle;
+    }
+    tr.selected-row {
+      background-color: #1b2a40;
+      color: #f4f7fb;
+    }
+    tr.selected-row td:first-child {
+      color: #1ecfa5;
+      font-weight: bold;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-weight: bold;
+      border-radius: 0px;
+    }
+    .badge-allow {
+      background: #137a54;
+      color: #f4f7fb;
+      border: 1px solid #43d19e;
+    }
+    .badge-ask {
+      background: #8a5600;
+      color: #f4f7fb;
+      border: 1px solid #f2b84b;
+    }
+    .badge-deny {
+      background: #b4232f;
+      color: #f4f7fb;
+      border: 1px solid #ff7272;
+    }
+    .badge-source {
+      color: #c3cfdf;
+      background: #0b1220;
+      border: 1px solid #596982;
+      padding: 1px 5px;
+    }
+    .badge-hard {
+      color: #ff7272;
+      border: 1px solid #ff7272;
+      background: #0b1220;
+      padding: 1px 5px;
+    }
+
+    /* Split row */
+    .split-row {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+    }
+    .split-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Detail Card */
+    .detail-content {
+      padding: 8px;
+      font-size: 12px;
+      color: #c3cfdf;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+    }
+    .detail-prop {
+      display: flex;
+      gap: 8px;
+    }
+    .detail-label {
+      color: #9aaac0;
+      width: 170px;
+    }
+    .detail-val {
+      color: #f4f7fb;
+    }
+    .rule-note {
+      margin-top: 6px;
+      padding: 6px;
+      background: #0b1220;
+      border-left: 2px solid #1ecfa5;
+      font-size: 11px;
+      color: #c3cfdf;
+    }
+
+    /* Audit Event Log */
+    .audit-body {
+      padding: 8px;
+      font-size: 11px;
+      color: #9aaac0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .audit-entry {
+      display: flex;
+      gap: 10px;
+      border-bottom: 1px dashed #1b2a40;
+      padding-bottom: 4px;
+    }
+    .audit-time {
+      color: #79b8ff;
+      width: 70px;
+    }
+    .audit-source {
+      color: #f4f7fb;
+      width: 90px;
+    }
+    .audit-desc {
+      color: #c3cfdf;
+      flex: 1;
+    }
+    .audit-empty {
+      color: #9aaac0;
+      font-style: normal;
+      padding: 6px 0;
+    }
+
+    /* Bottom shortcuts */
+    .term-footer {
+      height: 24px;
+      background-color: #0b1220;
+      border-top: 1px solid #596982;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10px;
+      font-size: 11px;
+      color: #c3cfdf;
+    }
+    .keys-group {
+      display: flex;
+      gap: 14px;
+    }
+    .key-btn {
+      color: #1ecfa5;
+      font-weight: bold;
+    }
+    .key-label {
+      color: #c3cfdf;
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #1ecfa5;
+      font-weight: bold;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: #1ecfa5;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+<div class="terminal-container">
+<!-- Row 1: Terminal 120x36 header -->
+<div class="term-row-header">
+<span class="title">Terminal 120x36 • gasacli</span>
+</div>
+<!-- Row 2: Brand and Screen Title -->
+<div class="brand-bar"><div class="brand-title">G&gt; gasacli <span class="slash-cmd">| POLÍTICA EFETIVA DE PERMISSÕES (/permissions)</span></div></div>
+<!-- Row 3: Literal Privacy Sentence verbatim -->
+<div class="privacy-text">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+<!-- Row 4: Project and profile header strip -->
+<div class="context-strip"><div class="context-item">PROJETO: <strong>vitrine-api</strong></div><span>|</span><div class="context-item">PERFIL ATIVO: <span class="highlight">balanced</span></div></div>
+<!-- Terminal Main Body -->
+<div class="terminal-body">
+<!-- Canonical Keys Table Box -->
+<div class="tui-box" style="flex: 1.1;">
+<div class="tui-box-header">
+<span>TABELA DE PERMISSÕES CANÔNICAS — RESOLUÇÃO EFETIVA</span>
+<span class="tag">[? / ? navegar itens]</span>
+</div>
+<div class="table-container"><table class="tui-table"><thead><tr><th style="width: 28px;">SEL</th><th style="width: 260px;">CHAVE CANÔNICA (CANONICAL KEY)</th><th style="width: 160px;">VALOR EFETIVO</th><th style="width: 180px;">ORIGEM (SOURCE)</th><th>SOBREPOSIÇÃO (OVERRIDE)</th></tr></thead><tbody><tr class="selected-row"><td>&gt;</td><td><strong>execute_commands</strong></td><td><span class="badge badge-ask">ask</span></td><td><span class="badge-source">profile</span></td><td><span style="color: #9aaac0;">N/D</span></td></tr><tr><td> </td><td><strong>write_project</strong></td><td><span class="badge badge-allow">allow</span></td><td><span class="badge-source">user</span></td><td><span style="color: #9aaac0;">N/D</span></td></tr><tr><td> </td><td><strong>secret_access</strong></td><td><span class="badge badge-deny">deny</span></td><td><span class="badge-hard">hard</span></td><td><span style="color: #9aaac0;">N/D</span></td></tr></tbody></table></div>
+</div>
+<!-- Split section: Detail on selected key & Audit events -->
+<div class="split-row">
+<!-- Left col: Detail on selected key -->
+<div class="split-col">
+<div class="tui-box" style="height: 100%;">
+<div class="tui-box-header"><span>DETALHE DA REGRA SELECIONADA: execute_commands</span><span class="tag">[ESTADO: ASK]</span></div>
+<div class="detail-content"><div class="detail-prop"><span class="detail-label">Chave canônica:</span><span class="detail-val">execute_commands</span></div><div class="detail-prop"><span class="detail-label">Valor efetivo:</span><span class="detail-val"><span class="badge badge-ask">ask</span></span></div><div class="detail-prop"><span class="detail-label">Origem:</span><span class="detail-val">profile</span></div><div class="detail-prop"><span class="detail-label">Sobreposição:</span><span class="detail-val" style="color: #9aaac0;">N/D</span></div></div>
+</div>
+</div>
+<!-- Right col: Audit Events -->
+<div class="split-col">
+<div class="tui-box" style="height: 100%;">
+<div class="tui-box-header">
+<span>EVENTOS DE AUDITORIA DE PERMISSÃO (AUDIT EVENTS)</span>
+</div>
+<div class="audit-body"><div class="audit-empty" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9aaac0;">[ NENHUM EVENTO REGISTRADO ]</div></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Row Footer: Keyboard Shortcuts & System Status -->
+<div class="term-footer"><div class="keys-group"><div><span class="key-btn">[? / ?]</span> <span class="key-label">Navegar chaves</span></div><div><span class="key-btn">[Enter]</span> <span class="key-label">Inspecionar</span></div><div><span class="key-btn">[Esc]</span> <span class="key-label">Voltar</span></div><div><span class="key-btn">[Ctrl+C]</span> <span class="key-label">Sair</span></div></div></div>
+</div>
+</body>
+</html>

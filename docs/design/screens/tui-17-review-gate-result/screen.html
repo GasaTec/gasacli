@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Revisão e Portão de Qualidade (Achados Neutros 120x36)</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background-color: #070b12;
+    color: #F4F7FB;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.25;
+    letter-spacing: 0px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+  }
+
+  /* 120 cols x 36 rows terminal layout container */
+  .terminal-window {
+    width: 1040px;
+    background-color: #0B1220;
+    border: 1px solid #596982;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    user-select: none;
+  }
+
+  /* Text & Token Colors */
+  .c-brand { color: #1ECFA5; }
+  .c-navy { color: #172A46; }
+  .c-primary { color: #F4F7FB; }
+  .c-secondary { color: #C3CFDF; }
+  .c-muted { color: #9AAAC0; }
+  .c-border { color: #596982; }
+  .c-pass { color: #43D19E; }
+  .c-warn { color: #F2B84B; }
+  .c-danger { color: #FF7272; }
+  .c-info { color: #79B8FF; }
+
+  /* Badges & Pills */
+  .badge-pass {
+    background-color: #137A54;
+    color: #F4F7FB;
+    padding: 0 4px;
+    font-weight: bold;
+  }
+  .badge-warn {
+    background-color: #8A5600;
+    color: #F4F7FB;
+    padding: 0 4px;
+    font-weight: bold;
+  }
+  .badge-neutral {
+    background-color: #172A46;
+    color: #1ECFA5;
+    border: 1px solid #1ECFA5;
+    padding: 0 4px;
+  }
+  .badge-tag {
+    background-color: #1B2A40;
+    color: #C3CFDF;
+    padding: 0 4px;
+    border: 1px solid #596982;
+  }
+
+  /* Borders & Boxes */
+  .tui-box {
+    border: 1px solid #596982;
+    background-color: #111C2E;
+  }
+
+  .tui-box-header {
+    border-bottom: 1px solid #596982;
+    padding: 3px 8px;
+    background-color: #172A46;
+    color: #F4F7FB;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+
+  .tui-box-body {
+    padding: 6px 8px;
+  }
+
+  /* Two Column & Grid Layouts */
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* Terminal Focus and Selected States */
+  .selected-row {
+    background-color: #172A46;
+    color: #1ECFA5;
+    border-left: 2px solid #1ECFA5;
+    padding-left: 4px;
+  }
+
+  .btn-action {
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: #1B2A40;
+    border: 1px solid #596982;
+    color: #F4F7FB;
+    cursor: default;
+  }
+  .btn-action.active {
+    background-color: #1ECFA5;
+    color: #172A46;
+    border: 1px solid #1ECFA5;
+    font-weight: bold;
+  }
+  .btn-action.secondary {
+    background-color: #111C2E;
+    border: 1px solid #596982;
+    color: #C3CFDF;
+  }
+
+  /* Table styling */
+  table.tui-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.tui-table th {
+    text-align: left;
+    color: #9AAAC0;
+    padding: 2px 4px;
+    border-bottom: 1px dashed #596982;
+    font-weight: normal;
+  }
+  table.tui-table td {
+    padding: 3px 4px;
+    vertical-align: top;
+  }
+
+  /* ASCII Logo */
+  .ascii-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ascii-art {
+    color: #1ECFA5;
+    line-height: 1.1;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+<div class="terminal-window">
+<!-- Line 1: Terminal header (clean, factual) -->
+<div class="row" style="color: #9AAAC0; border-bottom: 1px solid #596982; padding-bottom: 4px;"><span>Terminal 120x36 • gasacli</span></div>
+<!-- Line 2: Brand wordmark & Screen Title -->
+<div class="row" style="padding-top: 2px;">
+<div style="font-size: 14px; font-weight: bold;">
+<span class="c-brand">G&gt; gasacli</span>
+<span class="c-border"> | </span>
+<span class="c-primary">PORTÃO DE QUALIDADE E RESULTADO DA REVISÃO (/review)</span>
+</div>
+<div class="badge-neutral">[PORTÃO 3/3]</div>
+</div>
+<!-- Line 3: Exact literal pt-BR privacy requirement without prefixes -->
+<div style="background-color: #111C2E; border: 1px solid #172A46; padding: 3px 8px; color: #79B8FF; font-size: 12px;">
+    O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+  </div>
+<!-- Commit & Target Header -->
+<div class="tui-box"><div class="tui-box-header"><span>CONTEXTO DO PROJETO</span></div><div class="tui-box-body" style="display: flex; gap: 24px; font-size: 12px;"><div><span class="c-muted">COMMIT:</span> <span class="c-brand" style="font-weight: bold;">a84e1c2</span></div><div><span class="c-muted">PROJETO:</span> <span class="c-primary">vitrine-api</span></div><div><span class="c-muted">WORKTREE:</span> <span class="c-secondary">feature/catalogo</span></div></div></div>
+<!-- Main Split: Automated Checks vs Independent Reviewer -->
+<div class="grid-2">
+<!-- Left: Automated Checks -->
+<div class="tui-box"><div class="tui-box-header"><span>VERIFICAÇÕES AUTOMATIZADAS</span></div><div class="tui-box-body"><table class="tui-table"><thead><tr><th style="width: 28px;">SEL</th><th>VERIFICAÇÃO</th><th>TIPO</th><th>RESULTADO</th><th>TEMPO</th></tr></thead><tbody><tr class="selected-row"><td>&gt;</td><td class="c-primary" style="font-weight: bold;">tests</td><td class="c-muted">automatizado</td><td><span class="badge-pass">PASS</span></td><td class="c-muted">N/D</td></tr><tr><td class="c-muted"> </td><td class="c-primary" style="font-weight: bold;">build</td><td class="c-muted">automatizado</td><td><span class="badge-pass">PASS</span></td><td class="c-muted">N/D</td></tr></tbody></table></div></div>
+<!-- Right: Independent Reviewer -->
+<div class="tui-box"><div class="tui-box-header"><span>REVISOR INDEPENDENTE</span></div><div class="tui-box-body"><table class="tui-table"><thead><tr><th>REVISOR</th><th>PARECER</th><th>TEMPO</th></tr></thead><tbody><tr><td class="c-brand" style="font-weight: bold;">claude-sonnet-5-5</td><td><span class="badge-pass">APPROVED</span></td><td class="c-muted">N/D</td></tr></tbody></table></div></div>
+</div>
+<!-- Findings (Achados da Revisão) & Evidence Times -->
+<div class="grid-2">
+<!-- Findings -->
+<div class="tui-box"><div class="tui-box-header"><span>ACHADOS &amp; APONTAMENTOS</span></div><div class="tui-box-body" style="min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;"><div class="c-muted" style="margin-bottom: 4px;">[ ACHADOS: N/D ]</div><div style="font-size: 11px; color: #596982;">Sem dados disponíveis.</div></div></div>
+<!-- Evidence Times & Telemetry Isolation -->
+<div class="tui-box"><div class="tui-box-header"><span>TEMPOS DE EVIDÊNCIA &amp; METADADOS</span></div><div class="tui-box-body" style="font-size: 12px;"><div class="row" style="margin-bottom: 3px;"><span class="c-muted">Tempo de execução dos testes:</span><span class="c-secondary">N/D</span></div><div class="row" style="margin-bottom: 3px;"><span class="c-muted">Tempo de compilação:</span><span class="c-secondary">N/D</span></div><div class="row" style="margin-bottom: 3px;"><span class="c-muted">Tempo de revisão independente:</span><span class="c-secondary">N/D</span></div><div class="row" style="margin-bottom: 3px;"><span class="c-muted">Consumo de tokens:</span><span class="c-secondary">N/D</span></div><div class="row" style="border-top: 1px dashed #596982; padding-top: 3px;"><span class="c-muted">Custo:</span><span class="c-secondary">N/D</span></div></div></div>
+</div>
+<!-- Core Decision / Decisão Principal -->
+<div class="tui-box" style="border-color: #1ECFA5;"><div class="tui-box-header" style="background-color: #172A46; color: #1ECFA5;"><span>DECISÃO DO OPERADOR</span><span class="c-primary">[SELEÇÃO ATIVA]</span></div><div class="tui-box-body" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px;"><div><div style="font-size: 13px; font-weight: bold; margin-bottom: 2px;"><span class="c-brand">&gt;</span> Decisão do operador pendente.</div><div style="font-size: 11px; color: #9AAAC0;">Selecione uma ação para prosseguir no workspace <span class="c-primary">vitrine-api</span>.</div></div><div style="display: flex; gap: 8px;"><span class="btn-action active">[Enter] Avançar</span><span class="btn-action secondary">[d] Ver Detalhes</span><span class="btn-action secondary">[Esc] Voltar</span></div></div></div>
+<!-- Keyboard Shortcuts & Footer -->
+<div style="border-top: 1px solid #596982; padding-top: 6px; display: flex; justify-content: space-between; font-size: 11px; color: #9AAAC0;"><div><span class="c-primary">[? / ?]</span> Navegar <span class="c-border" style="margin: 0 4px;">|</span> <span class="c-primary">[Enter]</span> Avançar <span class="c-border" style="margin: 0 4px;">|</span> <span class="c-primary">[d]</span> Ver detalhes <span class="c-border" style="margin: 0 4px;">|</span> <span class="c-primary">[Esc]</span> Voltar <span class="c-border" style="margin: 0 4px;">|</span> <span class="c-primary">[Ctrl+C]</span> Sair</div></div>
+</div>
+</body>
+</html>

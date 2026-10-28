@@ -1,0 +1,14 @@
+{
+  "promptFile": "docs/design/prompts/tui-20-skills-registry.md",
+  "stitchScreenId": "7d75a52929d942fe83c50734333eb045",
+  "generatedAt": "2026-10-28 08:05:39 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "replaced invented skill names, versions, licenses, permissions, consent outcomes and guarantees with prompt-supported generic states"
+    ]
+  }
+}

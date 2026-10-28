@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Second-Brain Search (120x36)</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background-color: #070b12;
+    color: #F4F7FB;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.35;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 120x36 terminal window container */
+  .terminal-frame {
+    width: 1060px;
+    background-color: #0B1220;
+    border: 1px solid #596982;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header bar */
+  .term-topbar {
+    padding: 5px 12px;
+    border-bottom: 1px solid #596982;
+    color: #9AAAC0;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    background-color: #0B1220;
+  }
+
+  .term-header-block {
+    padding: 8px 12px;
+    border-bottom: 1px solid #1B2A40;
+    background-color: #111C2E;
+  }
+
+  .brand-line {
+    font-size: 14px;
+    font-weight: bold;
+    color: #1ECFA5;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand-title {
+    color: #F4F7FB;
+  }
+
+  .privacy-banner {
+    color: #9AAAC0;
+    font-size: 12px;
+    padding-top: 2px;
+  }
+
+  .context-strip {
+    display: flex;
+    gap: 16px;
+    padding: 6px 12px;
+    background-color: #1B2A40;
+    font-size: 12px;
+    border-bottom: 1px solid #596982;
+    color: #C3CFDF;
+  }
+  .context-item span.val {
+    color: #1ECFA5;
+    font-weight: 600;
+  }
+
+  /* Search input bar */
+  .search-bar-row {
+    padding: 8px 12px;
+    border-bottom: 1px solid #596982;
+    background-color: #0B1220;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .search-label {
+    color: #1ECFA5;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+  .search-input-box {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    background-color: #111C2E;
+    border: 1px solid #1ECFA5;
+    padding: 4px 8px;
+    color: #F4F7FB;
+  }
+  .cursor-block {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    background-color: #1ECFA5;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+  .search-meta-pill {
+    color: #9AAAC0;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* Main 2-column layout */
+  .main-split {
+    display: flex;
+    min-height: 420px;
+    border-bottom: 1px solid #596982;
+  }
+
+  /* Left pane: Results list */
+  .results-pane {
+    width: 48%;
+    border-right: 1px solid #596982;
+    display: flex;
+    flex-direction: column;
+    background-color: #0B1220;
+  }
+  .pane-title {
+    padding: 6px 10px;
+    background-color: #111C2E;
+    border-bottom: 1px solid #596982;
+    font-size: 12px;
+    font-weight: bold;
+    color: #C3CFDF;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .results-table th {
+    text-align: left;
+    padding: 4px 8px;
+    color: #9AAAC0;
+    border-bottom: 1px solid #1B2A40;
+    font-weight: normal;
+  }
+  .results-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #111C2E;
+    vertical-align: top;
+  }
+
+  .row-selected {
+    background-color: #172A46;
+    color: #F4F7FB;
+  }
+  .row-selected td {
+    border-bottom: 1px solid #1ECFA5;
+  }
+
+  .sel-marker {
+    color: #1ECFA5;
+    font-weight: bold;
+  }
+  .file-path {
+    font-weight: 600;
+    color: #F4F7FB;
+  }
+  .row-selected .file-path {
+    color: #1ECFA5;
+  }
+  .match-excerpt {
+    color: #C3CFDF;
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  .match-hl {
+    color: #1ECFA5;
+    font-weight: bold;
+    text-decoration: underline;
+  }
+
+  /* Right pane: Bounded preview */
+  .preview-pane {
+    width: 52%;
+    display: flex;
+    flex-direction: column;
+    background-color: #0B1220;
+  }
+  .preview-content {
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #C3CFDF;
+    flex: 1;
+    overflow: hidden;
+  }
+  .preview-header-box {
+    padding: 6px 10px;
+    border-bottom: 1px dashed #596982;
+    margin-bottom: 8px;
+    background-color: #111C2E;
+  }
+  .preview-meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #9AAAC0;
+    margin-bottom: 2px;
+  }
+  .preview-code-block {
+    background-color: #070b12;
+    border: 1px solid #1B2A40;
+    padding: 8px;
+    margin-top: 6px;
+    color: #F4F7FB;
+    font-size: 11px;
+    white-space: pre-wrap;
+  }
+
+  /* States strip */
+  .states-row {
+    padding: 6px 12px;
+    background-color: #111C2E;
+    border-bottom: 1px solid #596982;
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    color: #9AAAC0;
+  }
+  .state-badge {
+    padding: 1px 4px;
+    border: 1px solid #596982;
+    color: #C3CFDF;
+  }
+
+  /* Bottom shortcut footer */
+  .term-footer {
+    padding: 7px 12px;
+    background-color: #0B1220;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #9AAAC0;
+  }
+  .footer-actions {
+    display: flex;
+    gap: 12px;
+  }
+  .key-bind {
+    color: #1ECFA5;
+    font-weight: bold;
+  }
+  .key-desc {
+    color: #F4F7FB;
+  }
+</style>
+</head>
+<body>
+<div class="terminal-frame">
+<!-- Line 1: Header Terminal 120x36 -->
+<div class="term-topbar"><span>Terminal 120x36 • gasacli</span></div>
+<!-- Line 2 & 3: Wordmark, Title, Privacy Sentence -->
+<div class="term-header-block">
+<div class="brand-line">
+<span>G&gt; gasacli</span>
+<span style="color:#596982">|</span>
+<span class="brand-title">BUSCA NO SEGUNDO CÉREBRO (SECOND-BRAIN SEARCH)</span>
+</div>
+<div class="privacy-banner">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+</div>
+<!-- Context & Vault Status Strip -->
+<div class="context-strip"><div class="context-item">PROJETO: <span class="val">vitrine-api</span></div><div class="context-item">WORKTREE: <span class="val">feature/catalogo</span></div><div class="context-item">ARQUIVOS INDEXADOS: <span class="val">18</span></div><div class="context-item">ESTADO DO VAULT: <span class="val">N/D</span></div></div>
+<!-- Search input bar with active prompt -->
+<div class="search-bar-row"><span class="search-label">&gt; CONSULTA (QUERY):</span><div class="search-input-box"><span>autenticação sessão</span><span class="cursor-block"></span></div><div class="search-meta-pill">[Enter] Executar   [Esc] Limpar</div></div>
+<!-- Main 2-column region: Cited Results + Bounded Read-only Preview -->
+<div class="main-split">
+<!-- Left column: Cited Results -->
+<div class="results-pane">
+<div class="pane-title"><span>RESULTADOS CITADOS</span><span>[ ? / ? para navegar ]</span></div>
+<table class="results-table"><thead><tr><th style="width: 20px;">SEL</th><th>CAMINHO / ARQUIVO</th><th>CORRESPONDÊNCIA</th></tr></thead><tbody><tr class="row-selected"><td class="sel-marker">&gt;</td><td><div class="file-path">decisoes/auth...</div></td><td><span style="color: #9AAAC0;">N/D</span></td></tr></tbody></table>
+<!-- Status indicator states within list -->
+<div style="margin-top: auto; padding: 8px 10px; border-top: 1px solid #1B2A40; background-color: #111C2E; font-size: 11px; color: #9AAAC0;">1 resultado citado</div>
+</div>
+<!-- Right column: Bounded Read-Only Preview -->
+<div class="preview-pane">
+<div class="pane-title"><span>PRÉ-VISUALIZAÇÃO DELIMITADA (READ-ONLY PREVIEW)</span><span style="color: #1ECFA5;">ALVO: decisoes/auth...</span></div>
+<div class="preview-content"><div class="preview-header-box"><div class="preview-meta-row"><span>ARQUIVO: decisoes/auth...</span><span>MODIFICAÇÃO: N/D</span></div></div><div style="padding: 16px 0; color: #9AAAC0;"><div style="font-weight: bold; margin-bottom: 6px; color: #C3CFDF;">[ PRÉVIA: N/D ]</div><div>Sem conteúdo disponível na amostra.</div></div></div>
+<!-- State bar for preview -->
+</div>
+</div>
+<!-- Multi-state indication reference strip -->
+<!-- Line 36 / Terminal Shortcut Strip -->
+<div class="term-footer"><div class="footer-actions"><span><span class="key-bind">[? / ?]</span> <span class="key-desc">Navegar resultados</span></span><span><span class="key-bind">[Enter]</span> <span class="key-desc">Abrir prévia</span></span><span><span class="key-bind">[/]</span> <span class="key-desc">Nova consulta</span></span><span><span class="key-bind">[Esc]</span> <span class="key-desc">Voltar ao chat</span></span><span><span class="key-bind">[Ctrl+C]</span> <span class="key-desc">Sair</span></span></div></div>
+</div>
+</body>
+</html>

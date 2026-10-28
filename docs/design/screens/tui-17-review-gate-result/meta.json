@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-17-review-gate-result.md",
+  "stitchScreenId": "047ae13b585147c7baf8c2cd84f43d93",
+  "generatedAt": "2026-10-28 07:35:37 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 2,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed invented environment, reviewer criterion/count, blocker claims, decision recommendation and details",
+      "replaced false zero-findings state with N/D"
+    ]
+  }
+}
