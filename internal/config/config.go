@@ -2,12 +2,14 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/GasaTec/gasacli/internal/lifecycle"
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,14 +45,21 @@ func Ensure() error {
 	if err != nil {
 		return err
 	}
-	for _, dir := range []string{"", "agents", "prompts", "skills", "plugins", "segundo-cerebro", "backups", "logs"} {
+	home, err = lifecycle.ValidateEnsureHome(home)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(home, 0700); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
+	}
+	for _, dir := range []string{"agents", "prompts", "skills", "plugins", "segundo-cerebro", "backups", "logs"} {
 		if err := os.MkdirAll(filepath.Join(home, dir), 0700); err != nil {
 			return fmt.Errorf("create config directory %q: %w", dir, err)
 		}
 	}
 	path := filepath.Join(home, "config.yaml")
 	if _, err := os.Lstat(path); err == nil {
-		return nil
+		return writeIdentityMarker(home)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("inspect config file: %w", err)
 	}
@@ -79,7 +88,36 @@ func Ensure() error {
 	if err := os.Link(f.Name(), path); err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("publish default config: %w", err)
 	}
+	if err := writeIdentityMarker(home); err != nil {
+		return err
+	}
 	return nil
+}
+
+type identityMarker struct {
+	App    string `json:"app"`
+	Schema int    `json:"schema"`
+}
+
+func writeIdentityMarker(home string) error {
+	path := filepath.Join(home, ".gasacli")
+	data, _ := json.Marshal(identityMarker{App: "gasacli", Schema: 1})
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if errors.Is(err, os.ErrExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("create GasaCLI identity marker: %w", err)
+	}
+	if _, err = file.Write(append(data, '\n')); err != nil {
+		file.Close()
+		return err
+	}
+	if err = file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	return file.Close()
 }
 
 func Load() (Config, error) {

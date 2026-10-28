@@ -76,6 +76,7 @@ jobs:
         shell: bash
         run: |
           sh npm/test/install-dir.test.sh
+          sh npm/test/install-flow.test.sh
           sh -n scripts/install.sh
       - name: Run shellcheck
         if: runner.os == 'Linux'

@@ -7,6 +7,7 @@ New-Item -ItemType Directory -Path $tempRoot | Out-Null
 $cases = @(
     @{ Name='default'; Path=(Join-Path $env:LOCALAPPDATA 'Programs\gasacli\bin'); Accept=$true },
     @{ Name='temp gasacli'; Path=(Join-Path $env:TEMP 'gasacli'); Accept=$true },
+    @{ Name='space in path'; Path=(Join-Path $env:TEMP 'gasa space'); Accept=$true },
     @{ Name='temp gasa bin'; Path=(Join-Path $env:TEMP 'gasa-test\bin'); Accept=$true },
     @{ Name='home tools gasa'; Path=(Join-Path $HOME 'tools\gasa'); Accept=$true },
     @{ Name='drive root'; Path=[IO.Path]::GetPathRoot($env:SystemRoot); Accept=$false },
@@ -29,10 +30,28 @@ $cases = @(
     @{ Name='alternate drive relative path'; Path='D:foo\bin'; Accept=$false },
     @{ Name='ADS'; Path=(Join-Path $env:TEMP 'gasa:stream'); Accept=$false },
     @{ Name='ADS after drive'; Path='C:\Users\x\gasa:stream'; Accept=$false },
+    @{ Name='semicolon rejected'; Path=(Join-Path $env:TEMP 'gasa;evil\bin'); Accept=$false },
+    @{ Name='percent rejected'; Path=(Join-Path $env:TEMP 'gasa%TEMP%\bin'); Accept=$false },
+    @{ Name='asterisk rejected'; Path=(Join-Path $env:TEMP 'gasa*'); Accept=$false },
+    @{ Name='question rejected'; Path=(Join-Path $env:TEMP 'gasa?'); Accept=$false },
+    @{ Name='quote rejected'; Path=(Join-Path $env:TEMP 'gasa"x'); Accept=$false },
+    @{ Name='less-than rejected'; Path=(Join-Path $env:TEMP 'gasa<x'); Accept=$false },
+    @{ Name='greater-than rejected'; Path=(Join-Path $env:TEMP 'gasa>x'); Accept=$false },
+    @{ Name='pipe rejected'; Path=(Join-Path $env:TEMP 'gasa|x'); Accept=$false },
+    @{ Name='control rejected'; Path=(Join-Path $env:TEMP "gasa`tx"); Accept=$false },
+    @{ Name='DEL rejected'; Path=(Join-Path $env:TEMP ("gasa" + [char]0x7f + 'x')); Accept=$false },
+    @{ Name='C1 U+0080 rejected'; Path=(Join-Path $env:TEMP ("gasa" + [char]0x80 + 'x')); Accept=$false },
+    @{ Name='C1 U+009F rejected'; Path=(Join-Path $env:TEMP ("gasa" + [char]0x9f + 'x')); Accept=$false },
+    @{ Name='direction mark U+200E rejected'; Path=(Join-Path $env:TEMP ("gasa" + [char]0x200e + 'x')); Accept=$false },
+    @{ Name='line separator U+2028 rejected'; Path=(Join-Path $env:TEMP ("gasa" + [char]0x2028 + 'x')); Accept=$false },
+    @{ Name='bidi override U+202E rejected'; Path=(Join-Path $env:TEMP ("gasa" + [char]0x202e + 'x')); Accept=$false },
+    @{ Name='bidi isolate U+2066 rejected'; Path=(Join-Path $env:TEMP ("gasa" + [char]0x2066 + 'x')); Accept=$false },
     @{ Name='dot'; Path='.'; Accept=$false },
     @{ Name='dot dot'; Path='..'; Accept=$false }
 )
 $failed = $false
+foreach ($version in @('v1.2.3','v1.2.3-alpha.1')) { if (Test-ReleaseVersion $version) { Write-Output "PASS: release version $version" } else { Write-Output "FAIL: release version $version was rejected"; $failed = $true } }
+foreach ($version in @('v1.2.3-.','v1.2.3-..','v1.2.3-alpha.')) { if (-not (Test-ReleaseVersion $version)) { Write-Output "PASS: malformed release version $version rejected" } else { Write-Output "FAIL: malformed release version $version accepted"; $failed = $true } }
 foreach ($case in $cases) {
     $reason = ''; $actual = Test-SafeInstallDirectory $case.Path @('bin','gasa*') 'reason'
     if ($actual -eq $case.Accept) { Write-Output "PASS: $($case.Name)" }

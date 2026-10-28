@@ -1,10 +1,10 @@
 # Instalação
 
-GasaCLI está em **pre-alpha**. Os instaladores binários baixam somente assets das GitHub Releases deste repositório; não há telemetria. O GitHub recebe o endereço IP e o user-agent das requisições.
+GasaCLI esta em pre-alpha. Os instaladores baixam assets da GitHub Releases; sem GASA_VERSION tambem consultam api.github.com/repos/GasaTec/gasacli/releases para obter a versao. Nao ha telemetria; o GitHub recebe IP e user-agent.
 
 ## O que é baixado e como
 
-Os instaladores diretos e o wrapper npm baixam um archive (`.zip` no Windows, `.tar.gz` no Linux/macOS), com cerca de 3 MB (medido: 2,9 a 3,3 MB no snapshot do GoReleaser), e `checksums.txt`. Os arquivos vêm de `https://github.com/GasaTec/gasacli/releases/download/<tag>/`. O instalador compara o SHA-256 do archive com a linha correspondente em `checksums.txt` e aborta antes de instalar se não corresponder. O checksum e o archive vêm da mesma release; os instaladores não verificam attestations.
+Os instaladores diretos e o wrapper npm baixam um archive e checksums.txt. Antes de extrair, exigem exatamente um binario regular com nome exato na raiz e permitem apenas LICENSE e README.md como extras regulares. O SHA-256 e comparado com a linha correspondente em checksums.txt. Os dois assets vem da mesma release; attestations nao sao verificadas.
 
 | Método | O que instala | Requisitos |
 |---|---|---|
@@ -34,13 +34,15 @@ $env:GASA_INSTALL_DIR = "$env:LOCALAPPDATA\Programs\gasacli\bin"
 irm https://raw.githubusercontent.com/GasaTec/gasacli/main/scripts/install.ps1 | iex
 ```
 
-O script usa `curl.exe` em `%SystemRoot%\System32\curl.exe`, limita redirects, tamanho e tempo de download, valida o host e a porta da URL final, e verifica o SHA-256. Não usa `Invoke-WebRequest` nem `HttpClient`.
+O script usa `curl.exe` em `%SystemRoot%\System32\curl.exe`, limita redirects, tamanho e tempo de download, valida HTTPS, host e porta antes de cada salto de redirect, e verifica o SHA-256. Não usa `Invoke-WebRequest` nem `HttpClient`.
 
 ## Política de `GASA_INSTALL_DIR`
 
 O diretório precisa ser absoluto, local, não pode conter um componente que seja symlink/reparse point, e o último componente deve ser `bin` ou começar com `gasa` (sem diferenciar maiúsculas). Caminhos relativos como `C:tools\gasa`, caminhos UNC, prefixos estendidos como `\\?\`/`\??\`, Alternate Data Streams (`:` fora da letra da unidade) e barras invertidas inválidas são recusados. O destino também não pode estar dentro de `C:\Program Files*`, `C:\ProgramData`, `C:\Users\Public` ou `C:\Windows`.
 
-Exemplos aceitos: `%LOCALAPPDATA%\Programs\gasacli\bin`, `%TEMP%\gasacli`, `%TEMP%\gasa-dev\bin` e `%USERPROFILE%\tools\gasa`. Exemplos recusados: `C:\`, `C:\Windows\System32`, `C:\Users\Public\gasa`, `C:tools\gasa`, `\\server\share\gasa`, ou qualquer desses destinos atravessando um junction/symlink. A mensagem começa com `Refusing install directory` e informa o motivo. A validação e as operações usam o mesmo caminho absoluto canônico.
+Exemplos aceitos incluem %LOCALAPPDATA%\Programs\gasacli\bin e %TEMP%\gasa-dev\bin. Ambos recusam ; % * ? aspas < > |, C0/C1, DEL, marcas direcionais e separadores Unicode; o shell tambem recusa $, crase, barra invertida e dois-pontos.
+
+Se uma atualização for interrompida, a próxima execução remove temporários do instalador e restaura o backup `.old` quando o executável estiver ausente. Atualizações usam nomes de backup únicos; backups bloqueados pelo sistema são mantidos e reportados.
 
 ## Linux e macOS: shell POSIX
 
@@ -48,7 +50,7 @@ Exemplos aceitos: `%LOCALAPPDATA%\Programs\gasacli\bin`, `%TEMP%\gasacli`, `%TEM
 curl -fsSL https://raw.githubusercontent.com/GasaTec/gasacli/main/scripts/install.sh | sh
 ```
 
-O script recusa ambientes MINGW, MSYS e CYGWIN com `Use scripts/install.ps1 no Windows`. Ele valida o host, esquema HTTPS e porta da URL final após o download; não valida cada salto intermediário do redirect. O SHA-256 do `checksums.txt` detecta corrupção ou download incompleto.
+O script recusa ambientes MINGW, MSYS e CYGWIN com `Use scripts/install.ps1 no Windows`. Ele valida HTTPS, host e porta antes de requisitar cada salto de redirect. O SHA-256 do `checksums.txt` detecta corrupção ou download incompleto.
 
 Para definir uma tag ou diretório, use, por exemplo, `GASA_VERSION=v0.1.0-alpha.1 GASA_INSTALL_DIR="$HOME/.local/bin"`. O diretório precisa ser absoluto, terminar em `bin` ou `gasa*`, não conter `\\`, não atravessar symlink/reparse point e ficar fora de diretórios de sistema como `/usr`, `/bin`, `/etc`, `/var`, `/opt`, `/Library`, `/System`, `/Applications` e `/Users/Shared`. Pastas como `~/.cargo/bin` são aceitas. O diretório padrão `~/.local/bin` também passa pela checagem de symlink/reparse point.
 
@@ -60,7 +62,9 @@ npx gasacli --version
 go install github.com/GasaTec/gasacli/cmd/gasa@latest
 ```
 
-O pacote npm usa a versão declarada em `npm/package.json` (ou a versão publicada do pacote) e não consulta a API de Releases nem lê variáveis `GASA_*`. Se o download de rede falhar no `postinstall`, a instalação do pacote continua e o binário pode ser tentado novamente na primeira execução. Se a verificação de integridade falhar, o postinstall sai com erro e informa que o binário não foi instalado. `go install` baixa código-fonte e módulos Go; não usa o archive ou `checksums.txt` das Releases.
+O pacote npm usa sua versao declarada e nao consulta a API de Releases nem le GASA_*. Falhas de rede, inclusive timeout total ou idle, geram aviso no postinstall e sao tentadas novamente na primeira execucao. HTTP 403, falha de integridade ou extracao fazem npm install falhar.
+
+No Windows, o instalador avisa quando a entrada resultante do PATH ultrapassa 2048 caracteres. Ele só bloqueia a gravação quando se aproxima do limite da variável de ambiente, em 32000 caracteres.
 
 ## Desinstalação e PATH no Windows
 
@@ -88,3 +92,10 @@ sh -n scripts/install.sh
 ## Download manual e solução de problemas
 
 Baixe o archive e `checksums.txt` da mesma tag em [GitHub Releases](https://github.com/GasaTec/gasacli/releases), compare o SHA-256 e extraia `gasa`/`gasa.exe` para um diretório seguro no PATH. Em caso de erro de rede ou proxy, baixe os dois arquivos manualmente e valide o checksum antes de extrair. O `curl` respeita `HTTPS_PROXY`; o pacote npm não usa configuração de proxy customizada. Não substitua o checksum nem baixe de outro host.
+
+## Recuperacao, interrupcao e concorrencia
+
+Shell e PowerShell usam .gasa-install.lock por diretorio; o uninstall tambem adquire o lock. Um lock com mais de 30 minutos e considerado preso mesmo se o processo estiver vivo; PID ausente tambem permite reassumir. Lock shell sem owner so e orfao apos 60 segundos. Apenas quem adquiriu o lock o remove.
+Os instaladores recusam controles C0/C1, DEL, marcas direcionais e separadores de linha Unicode. Os tres parsers removem BOM inicial, aceitam espaco ASCII, tab, * antes do nome e hashes repetidos identicos; hash em maiusculas e normalizado. NBSP e U+3000 nao sao separadores aceitos; .sig e .sbom nao correspondem ao archive.
+O shell limpa arquivos temporarios em SIGINT, SIGTERM ou SIGHUP. Esses handlers nao rodam em SIGKILL, encerramento forcado ou queda de energia; uma nova execucao remove staging orfao e tenta restaurar backup se o binario estiver ausente. No PowerShell, falha ao limpar staging ou restaurar backup interrompe a recuperacao; no shell, uma falha pode deixar arquivos para a proxima tentativa.
+A recuperacao e best effort e nao restaura gravacoes perdidas por falha de energia.

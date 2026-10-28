@@ -23,10 +23,10 @@ func TestDefaultCatalog(t *testing.T) {
 	for _, a := range catalog {
 		ids = append(ids, a.ID)
 	}
-	if want := []string{"claude", "codex", "gemini", "cursor-agent", "opencode", "orca", "gh"}; !reflect.DeepEqual(ids, want) {
+	if want := []string{"claude", "codex", "gemini", "cursor-agent", "opencode", "orca", "kimi", "gh"}; !reflect.DeepEqual(ids, want) {
 		t.Fatalf("catalog IDs = %v, want %v", ids, want)
 	}
-	if !reflect.DeepEqual(catalog[3].Binaries, []string{"cursor-agent", "cursor"}) {
+	if !reflect.DeepEqual(catalog[3].Binaries, []string{"cursor-agent", "agent"}) {
 		t.Fatal("missing cursor fallback")
 	}
 	catalog[0].Binaries[0] = "changed"
@@ -72,8 +72,35 @@ func TestAvailableAndCursorFallback(t *testing.T) {
 		},
 	})
 	r := results[0]
-	if r.Status != Available || r.Version != "Cursor 1.2.3" || r.Note != authNote || !reflect.DeepEqual(looked, []string{"cursor-agent", "cursor"}) {
+	if r.Status != Available || r.Version != "Cursor 1.2.3" || r.Note != authNote || !reflect.DeepEqual(looked, []string{"cursor-agent", "agent"}) {
 		t.Fatalf("unexpected result: %+v; lookups %v", r, looked)
+	}
+}
+
+func TestGenericAgentBinaryMustIdentifyAsCursor(t *testing.T) {
+	for _, tc := range []struct {
+		output string
+		want   Status
+	}{{"generic helper", NotFound}, {"Cursor CLI 2.0", Available}} {
+		calls := 0
+		r := Discover(context.Background(), []Agent{DefaultCatalog()[3]}, Deps{
+			LookPath: func(name string) (string, error) {
+				if name == "agent" {
+					return "agent", nil
+				}
+				return "", exec.ErrNotFound
+			},
+			Run: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				calls++
+				return []byte(tc.output), nil
+			},
+		})[0]
+		if r.Status != tc.want {
+			t.Errorf("%q => %s want %s", tc.output, r.Status, tc.want)
+		}
+		if tc.want == NotFound && calls != 2 {
+			t.Errorf("expected --version and --help identity checks, got %d", calls)
+		}
 	}
 }
 

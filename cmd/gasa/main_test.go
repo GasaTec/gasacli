@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -70,6 +71,23 @@ func TestBrowserPreference(t *testing.T) {
 		if got := shouldOpen(tc.mode, tc.disabled); got != tc.want {
 			t.Errorf("mode=%s no-browser=%v: got %v, want %v", tc.mode, tc.disabled, got, tc.want)
 		}
+	}
+}
+
+func TestUnreadableOnboardingStateIsIncompleteWithoutOverwrite(t *testing.T) {
+	home := t.TempDir()
+	statePath := filepath.Join(home, "state.json")
+	if err := os.Mkdir(statePath, 0700); err != nil {
+		t.Fatal(err)
+	}
+	var warning strings.Builder
+	state, writable := loadStartupState(home, &warning)
+	if writable || state.Onboarding.Completed || !strings.Contains(warning.String(), "treating onboarding as incomplete") {
+		t.Fatalf("state=%+v writable=%v warning=%q", state, writable, warning.String())
+	}
+	info, err := os.Stat(statePath)
+	if err != nil || !info.IsDir() {
+		t.Fatalf("state directory changed: %v", err)
 	}
 }
 

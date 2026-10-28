@@ -128,6 +128,7 @@ func (s *Store) lock() (func(), error) {
 	path := filepath.Join(s.home, "trust.json.lock")
 	deadline := time.Now().Add(2 * time.Second)
 	backoff := 5 * time.Millisecond
+	var lastContention error
 	for {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 		if err == nil {
@@ -147,7 +148,14 @@ func (s *Store) lock() (func(), error) {
 				}
 			}, nil
 		}
-		if !errors.Is(err, os.ErrExist) {
+		busy := errors.Is(err, os.ErrExist)
+		if !busy && isLockContention(err) {
+			// Another process is deleting or creating the lock at this instant (Windows reports a
+			// file pending deletion as access denied / sharing violation). Retry until the deadline.
+			busy = true
+			lastContention = err
+		}
+		if !busy {
 			return nil, fmt.Errorf("acquire project trust lock: %w", err)
 		}
 		info, err := os.Stat(path)
@@ -155,6 +163,14 @@ func (s *Store) lock() (func(), error) {
 			continue
 		}
 		if err != nil {
+			if isLockContention(err) {
+				lastContention = err
+				if time.Now().After(deadline) {
+					return nil, fmt.Errorf("timed out waiting for project trust lock after 2s: %w", lastContention)
+				}
+				time.Sleep(backoff)
+				continue
+			}
 			return nil, fmt.Errorf("inspect project trust lock: %w", err)
 		}
 		if time.Since(info.ModTime()) > 30*time.Second {
@@ -166,6 +182,9 @@ func (s *Store) lock() (func(), error) {
 			}
 		}
 		if time.Now().After(deadline) {
+			if lastContention != nil {
+				return nil, fmt.Errorf("timed out waiting for project trust lock after 2s: %w", lastContention)
+			}
 			return nil, fmt.Errorf("timed out waiting for project trust lock after 2s")
 		}
 		time.Sleep(backoff)

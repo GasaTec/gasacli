@@ -118,6 +118,10 @@ func probe(ctx context.Context, agent Agent, deps Deps) Result {
 		}
 		output, runErr := deps.Run(probeCtx, path, flag)
 		ctxErr := probeCtx.Err()
+		if ctxErr == nil && runErr == nil && agent.RequireText != "" && !strings.Contains(strings.ToLower(sanitize(string(output), versionLimit)), strings.ToLower(agent.RequireText)) {
+			output, runErr = deps.Run(probeCtx, path, "--help")
+			ctxErr = probeCtx.Err()
+		}
 		cancel()
 		if ctxErr != nil || runErr != nil {
 			r.Status, r.Err = VersionUnknown, "version probe failed"
@@ -132,6 +136,10 @@ func probe(ctx context.Context, agent Agent, deps Deps) Result {
 			output = output[:outputLimit]
 		}
 		r.Version = sanitize(string(output), versionLimit)
+		if agent.RequireText != "" && !strings.Contains(strings.ToLower(r.Version), strings.ToLower(agent.RequireText)) {
+			r.Path, r.Status, r.Version = "", NotFound, ""
+			continue
+		}
 		r.Status = Available
 		if r.Version == "" {
 			r.Status, r.Err = VersionUnknown, "version output empty"
