@@ -1,0 +1,14 @@
+{
+  "promptFile": "docs/design/prompts/tui-15-approval-dialog.md",
+  "stitchScreenId": "d2cca9b34d404d8fae411e779bb50f43",
+  "generatedAt": "2026-10-28 07:15:46 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed invented requester model, action specifics, scope/expiry constraints, and safety guarantees"
+    ]
+  }
+}

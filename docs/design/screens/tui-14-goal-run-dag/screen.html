@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Goal Run e DAG de Tarefas (120x36)</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background-color: #06090e;
+    color: #F4F7FB;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+    line-height: 1.25;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Terminal 120x36 Frame */
+  .terminal-window {
+    width: 1040px;
+    background-color: #0B1220;
+    border: 1px solid #596982;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+  }
+
+  /* Header Bar */
+  .tui-topbar {
+    background-color: #111C2E;
+    border-bottom: 1px solid #596982;
+    padding: 4px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #9AAAC0;
+  }
+  .tui-topbar .title {
+    color: #F4F7FB;
+  }
+  .tui-topbar .project {
+    color: #1ECFA5;
+  }
+
+  /* Subheader / Context Bar */
+  .tui-context-bar {
+    background-color: #0E1726;
+    border-bottom: 1px solid #1B2A40;
+    padding: 4px 12px;
+    display: flex;
+    gap: 20px;
+    font-size: 11px;
+    color: #9AAAC0;
+    text-transform: uppercase;
+  }
+  .tui-context-bar span strong {
+    color: #F4F7FB;
+  }
+  .tui-context-bar .val-active {
+    color: #F2B84B;
+  }
+  .tui-context-bar .val-ready {
+    color: #1ECFA5;
+  }
+
+  /* Brand and Privacy Header */
+  .tui-brand-row {
+    padding: 6px 12px;
+    border-bottom: 1px solid #1B2A40;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .brand-logo {
+    font-weight: bold;
+    color: #1ECFA5;
+    font-size: 14px;
+  }
+  .screen-title-tag {
+    color: #C3CFDF;
+    font-size: 12px;
+    margin-left: 10px;
+  }
+  .privacy-statement {
+    color: #79B8FF;
+    font-size: 11px;
+  }
+
+  /* Main TUI Layout */
+  .tui-body {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Section Box */
+  .tui-box {
+    border: 1px solid #596982;
+    background-color: #111C2E;
+  }
+  .tui-box-header {
+    background-color: #1B2A40;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #C3CFDF;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #596982;
+    text-transform: uppercase;
+  }
+  .tui-box-content {
+    padding: 8px;
+  }
+
+  /* Row split layout for DAG and Task Detail */
+  .tui-split-row {
+    display: grid;
+    grid-template-columns: 500px 1fr;
+    gap: 10px;
+  }
+
+  /* DAG Panel */
+  .dag-container {
+    background-color: #0B1220;
+    border: 1px dashed #1B2A40;
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .dag-node {
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    border-left: 3px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .dag-node.done {
+    border-left-color: #43D19E;
+    color: #C3CFDF;
+  }
+  .dag-node.running {
+    border-left-color: #F2B84B;
+    background-color: #162438;
+    color: #F4F7FB;
+  }
+  .dag-node.queued {
+    border-left-color: #596982;
+    color: #9AAAC0;
+  }
+  .dag-arrow {
+    padding-left: 14px;
+    color: #596982;
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  /* Badges & Tags */
+  .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: bold;
+  }
+  .tag-done {
+    background-color: rgba(67, 209, 158, 0.15);
+    color: #43D19E;
+    border: 1px solid #43D19E;
+  }
+  .tag-running {
+    background-color: rgba(242, 184, 75, 0.15);
+    color: #F2B84B;
+    border: 1px solid #F2B84B;
+  }
+  .tag-queued {
+    background-color: rgba(154, 170, 192, 0.1);
+    color: #9AAAC0;
+    border: 1px dashed #596982;
+  }
+  .tag-accent {
+    background-color: #1ECFA5;
+    color: #0B1220;
+  }
+
+  /* Task Details Grid */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    row-gap: 5px;
+    font-size: 12px;
+  }
+  .detail-label {
+    color: #9AAAC0;
+  }
+  .detail-value {
+    color: #F4F7FB;
+  }
+  .detail-value-highlight {
+    color: #1ECFA5;
+    font-weight: bold;
+  }
+  .detail-value-working {
+    color: #F2B84B;
+  }
+
+  /* Gates Block */
+  .gates-panel {
+    margin-top: 8px;
+    border-top: 1px dashed #1B2A40;
+    padding-top: 6px;
+  }
+  .gates-title {
+    font-size: 11px;
+    color: #9AAAC0;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .gate-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    padding: 2px 0;
+  }
+
+  /* Events & Feed Panel */
+  .events-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  .events-table th {
+    text-align: left;
+    padding: 3px 6px;
+    color: #9AAAC0;
+    border-bottom: 1px solid #1B2A40;
+    background-color: #0E1726;
+  }
+  .events-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba(89, 105, 130, 0.2);
+    color: #C3CFDF;
+  }
+  .events-table tr.current-row td {
+    background-color: rgba(30, 207, 165, 0.05);
+    color: #F4F7FB;
+  }
+
+  /* Bottom Keyboard Hints & Status Bar */
+  .tui-footer {
+    background-color: #0E1726;
+    border-top: 1px solid #596982;
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+  }
+  .key-hints {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .key-pill {
+    background-color: #1B2A40;
+    color: #1ECFA5;
+    padding: 1px 5px;
+    border: 1px solid #596982;
+    font-weight: bold;
+  }
+  .key-desc {
+    color: #C3CFDF;
+    margin-left: 3px;
+  }
+  .status-indicator {
+    color: #F2B84B;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .status-indicator::before {
+    content: "¦";
+    font-size: 10px;
+    color: #F2B84B;
+  }
+</style>
+</head>
+<body>
+<div class="terminal-window">
+<!-- Topbar -->
+<div class="tui-topbar"><span>Terminal 120x36 • gasacli</span><span>UTF-8 | NO_COLOR: DESATIVADO</span></div>
+<!-- Context Bar -->
+<div class="tui-context-bar" style="flex-wrap: wrap; gap: 14px; font-size: 11px;"><span>PROJETO: <strong>VITRINE-API</strong></span><span>WORKTREE: <strong>feature/catalogo</strong></span><span>CONFIANÇA: <strong>CONCEDIDA</strong></span><span>RUN: <strong>R-204</strong></span><span>ESTADO: <strong class="val-active">working</strong></span><span>WORKER: <strong>Codex gpt-6-luna</strong></span><span>TOKENS: <strong>1.2k (informado pelo provedor)</strong></span><span>CUSTO: <strong>N/D</strong></span></div>
+<!-- Brand Row & Privacy Statement -->
+<div style="padding: 5px 12px; border-bottom: 1px solid #1B2A40; background-color: #0E1726; font-size: 12px;"><span class="brand-logo">G&gt; gasacli</span><span style="color: #596982; margin: 0 8px;">|</span><span style="color: #F4F7FB; font-weight: bold;">EXECUÇÃO DE META E DAG DE TAREFAS (/goal run)</span></div><div style="padding: 4px 12px; border-bottom: 1px solid #1B2A40; background-color: #0B1220; color: #79B8FF; font-size: 11px;">O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.</div>
+<div class="tui-body">
+<!-- Header Summary: Run / Budget Header -->
+<div class="tui-box">
+<div class="tui-box-header"><span>CABEÇALHO DA EXECUÇÃO (RUN R-204)</span>
+<span>ESTADO: WORKING</span></div>
+<div class="tui-box-content"><div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; font-size: 12px;">
+<div>
+<div style="color: #9AAAC0; font-size: 10px; text-transform: uppercase;">RUN</div>
+<div style="color: #F4F7FB; font-weight: bold; margin-top: 2px;">R-204</div>
+</div>
+<div>
+<div style="color: #9AAAC0; font-size: 10px; text-transform: uppercase;">WORKTREE</div>
+<div style="color: #F4F7FB; margin-top: 2px;">feature/catalogo</div>
+</div>
+<div>
+<div style="color: #9AAAC0; font-size: 10px; text-transform: uppercase;">WORKER</div>
+<div style="color: #F4F7FB; margin-top: 2px;">Codex gpt-6-luna</div>
+</div>
+<div>
+<div style="color: #9AAAC0; font-size: 10px; text-transform: uppercase;">ESTADO</div>
+<div style="color: #F2B84B; font-weight: bold; margin-top: 2px;">working</div>
+</div>
+<div>
+<div style="color: #9AAAC0; font-size: 10px; text-transform: uppercase;">TOKENS</div>
+<div style="color: #C3CFDF; margin-top: 2px;">1.2k (informado pelo provedor)</div>
+</div>
+<div>
+<div style="color: #9AAAC0; font-size: 10px; text-transform: uppercase;">CUSTO</div>
+<div style="color: #C3CFDF; margin-top: 2px;">N/D</div>
+</div>
+</div></div>
+</div>
+<!-- Split row: DAG (Left) and Selected Task Detail + Gates (Right) -->
+<div class="tui-split-row">
+<!-- Left: Task DAG -->
+<div class="tui-box">
+<div class="tui-box-header">
+<span>GRAFO DE TAREFAS (TASK DAG)</span>
+<span>[use ? / ? para selecionar]</span>
+</div>
+<div class="tui-box-content"><div class="dag-container">
+<!-- Task 1 -->
+<div class="dag-node done">
+<div>
+<strong>[T1]</strong> Tarefa T1
+              </div>
+<span class="tag tag-done">DONE</span>
+</div>
+<!-- Arrow connection -->
+<div class="dag-arrow">
+              ¦<br/>
+              ?
+            </div>
+<!-- Task 2 (Selected) -->
+<div class="dag-node running">
+<div>
+<strong>&gt; [T2]</strong> Tarefa T2
+              </div>
+<span class="tag tag-running">RUNNING</span>
+</div>
+<!-- Arrow connection -->
+<div class="dag-arrow">
+              ¦<br/>
+              ?
+            </div>
+<!-- Task 3 -->
+<div class="dag-node queued">
+<div>
+<strong>[T3]</strong> Tarefa T3
+              </div>
+<span class="tag tag-queued">QUEUED</span>
+</div>
+</div>
+<div style="margin-top: 8px; font-size: 11px; color: #9AAAC0; display: flex; justify-content: space-between;"><span>Ordem topológica: T1 ? T2 ? T3</span></div></div>
+</div>
+<!-- Right: Selected Task Details -->
+<div class="tui-box">
+<div class="tui-box-header">
+<span>DETALHE DA TAREFA SELECIONADA: T2</span>
+<span class="tag tag-running">RUNNING</span>
+</div>
+<div class="tui-box-content"><div class="detail-grid">
+<span class="detail-label">Identificador:</span>
+<span class="detail-value detail-value-highlight">T2</span>
+<span class="detail-label">Tentativa (Attempt):</span>
+<span class="detail-value">1</span>
+<span class="detail-label">Despacho:</span>
+<span class="detail-value">D-18</span>
+<span class="detail-label">Worker:</span>
+<span class="detail-value">Codex gpt-6-luna</span>
+<span class="detail-label">Estado:</span>
+<span class="detail-value detail-value-working">RUNNING</span>
+</div>
+<!-- Checks Section -->
+<div class="gates-panel">
+<div class="gates-title">VERIFICAÇÕES (CHECKS):</div>
+<div style="font-size: 11px; color: #C3CFDF; padding: 4px 0;">
+              Verificações visíveis no ambiente.
+            </div>
+</div></div>
+</div>
+</div>
+<!-- Feed / Events Panel -->
+<div class="tui-box">
+<div class="tui-box-header">
+<span>FLUXO DE EVENTOS DA EXECUÇÃO (EVENT FEED)</span>
+<span>REGISTRO RECENTE</span>
+</div>
+<div class="tui-box-content" style="padding: 0;"><div style="padding: 24px 16px; text-align: center;">
+<div style="color: #9AAAC0; font-size: 12px; font-weight: bold; letter-spacing: 0.5px;">[ NENHUM EVENTO REGISTRADO ]</div>
+<div style="color: #596982; font-size: 11px; margin-top: 4px;">Aguardando eventos da execução.</div>
+</div></div>
+</div>
+</div>
+<!-- Bottom Navigation & Shortcuts -->
+<div class="tui-footer"><div class="key-hints">
+<div><span class="key-pill">? / ?</span><span class="key-desc">Navegar tarefas</span></div>
+<div><span class="key-pill">Enter</span><span class="key-desc">Inspecionar tarefa</span></div>
+<div><span class="key-pill">Esc</span><span class="key-desc">Voltar ao status</span></div>
+<div><span class="key-pill">Ctrl+C</span><span class="key-desc">Sair</span></div>
+</div>
+<div class="status-indicator">
+      STATUS: EM EXECUÇÃO (T2 ATIVA)
+    </div></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "promptFile": "docs/design/prompts/tui-12-agents-doctor.md",
+  "stitchScreenId": "8e010601d8eb410da0c94d4731b66e11",
+  "generatedAt": "2026-10-28 06:54:44 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed fabricated versions, capabilities, probe timing, workspace-access and credential claims; kept only prompt sample plus explicit unverified rows"
+    ]
+  }
+}

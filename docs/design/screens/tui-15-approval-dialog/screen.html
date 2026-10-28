@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Diálogo de Aprovação (Approval Dialog 120x36)</title>
+<style>
+    /* Estilos reset e grid de terminal com fidelidade estrita */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #0B1220;
+      color: #F4F7FB;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.25;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    /* Container de terminal rígido 120 colunas x 36 linhas */
+    .terminal-container {
+      width: 1060px;
+      background-color: #0B1220;
+      border: 1px solid #596982;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Linhas do cabeçalho */
+    .header-row-1 {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #596982;
+      padding: 6px 14px;
+      background-color: #111C2E;
+      color: #C3CFDF;
+      font-size: 12px;
+    }
+    .header-row-2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 14px;
+      background-color: #0B1220;
+      border-bottom: 1px solid #596982;
+      color: #F4F7FB;
+      font-weight: bold;
+    }
+    .brand-mark {
+      color: #1ECFA5;
+    }
+    .header-row-3 {
+      padding: 4px 14px;
+      background-color: #0B1220;
+      border-bottom: 1px solid #596982;
+      color: #79B8FF;
+      font-size: 12px;
+    }
+
+    /* Context strip */
+    .context-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 6px 14px;
+      background-color: #111C2E;
+      border-bottom: 1px solid #596982;
+      font-size: 11px;
+      color: #C3CFDF;
+    }
+    .context-item span {
+      color: #F4F7FB;
+      font-weight: bold;
+    }
+    .context-item .status-working {
+      color: #F2B84B;
+    }
+
+    /* Conteúdo base sob o modal (Run R-204 esmaecido/inativo) */
+    .underlying-run-view {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      opacity: 0.35; /* Representa estado em segundo plano sob o modal */
+      pointer-events: none;
+    }
+    .tui-box {
+      border: 1px solid #596982;
+      background-color: #111C2E;
+    }
+    .tui-box-header {
+      padding: 4px 10px;
+      background-color: #1B2A40;
+      border-bottom: 1px solid #596982;
+      font-size: 11px;
+      font-weight: bold;
+      color: #C3CFDF;
+      display: flex;
+      justify-content: space-between;
+    }
+    .tui-box-body {
+      padding: 8px 10px;
+      font-size: 12px;
+      color: #C3CFDF;
+    }
+
+    /* Camada de Modal de Aprovação (Sobreposto no centro) */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(11, 18, 32, 0.78);
+      z-index: 10;
+      padding-top: 50px;
+      padding-bottom: 30px;
+    }
+
+    .approval-modal {
+      width: 720px;
+      background-color: #111C2E;
+      border: 2px solid #F2B84B; /* Borda de atenção/decisão pendente */
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.9);
+      position: relative;
+    }
+
+    .modal-title-bar {
+      background-color: #172A46;
+      border-bottom: 1px solid #F2B84B;
+      padding: 6px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: bold;
+      color: #F4F7FB;
+    }
+    .badge-approval {
+      background-color: #F2B84B;
+      color: #172A46;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 1px 6px;
+    }
+
+    .modal-content {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .prompt-box-art {
+      color: #1ECFA5;
+      font-size: 11px;
+      line-height: 1.15;
+      margin-bottom: 4px;
+    }
+
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #596982;
+      background-color: #0B1220;
+    }
+    .info-table th, .info-table td {
+      padding: 5px 10px;
+      border: 1px solid #596982;
+      font-size: 12px;
+      text-align: left;
+    }
+    .info-table th {
+      background-color: #1B2A40;
+      color: #C3CFDF;
+      width: 32%;
+      font-weight: normal;
+    }
+    .info-table td {
+      color: #F4F7FB;
+    }
+    .val-highlight {
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+    .val-neutral {
+      color: #C3CFDF;
+    }
+    .val-redacted {
+      color: #9AAAC0;
+      background-color: #1B2A40;
+      padding: 1px 4px;
+      font-size: 11px;
+    }
+
+    /* Bloco de Ações do Modal */
+    .action-options {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .action-card {
+      border: 1px solid #596982;
+      padding: 8px 12px;
+      background-color: #0B1220;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .action-card.selected {
+      border: 1px solid #1ECFA5;
+      background-color: #172A46;
+      outline: 1px solid #1ECFA5;
+    }
+    .action-card.secondary-selected {
+      border: 1px solid #FF7272;
+    }
+    .action-label-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+    .cursor-marker {
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+    .key-badge {
+      background-color: #1B2A40;
+      border: 1px solid #596982;
+      color: #F4F7FB;
+      padding: 1px 6px;
+      font-size: 11px;
+    }
+    .key-badge.primary {
+      background-color: #1ECFA5;
+      color: #172A46;
+      border-color: #1ECFA5;
+      font-weight: bold;
+    }
+    .key-badge.danger {
+      background-color: #FF7272;
+      color: #0B1220;
+      border-color: #FF7272;
+      font-weight: bold;
+    }
+    .state-indicator {
+      font-size: 11px;
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+
+    .modal-note {
+      font-size: 11px;
+      color: #9AAAC0;
+      border-top: 1px dashed #596982;
+      padding-top: 8px;
+    }
+
+    /* Barra inferior do modal */
+    .modal-footer {
+      background-color: #172A46;
+      border-top: 1px solid #596982;
+      padding: 6px 12px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #C3CFDF;
+    }
+
+    /* Rodapé principal da tela do terminal */
+    .terminal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 14px;
+      background-color: #0B1220;
+      border-top: 1px solid #596982;
+      font-size: 11px;
+      color: #C3CFDF;
+    }
+    .footer-keys {
+      display: flex;
+      gap: 12px;
+    }
+    .footer-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: bold;
+      color: #F2B84B;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: #F2B84B;
+    }
+  </style>
+</head>
+<body>
+<div class="terminal-container">
+<!-- Linha 1: Metadados do Terminal -->
+<div class="header-row-1"><div>Terminal 120x36 • gasacli</div><div>UTF-8 | NO_COLOR: DESATIVADO</div></div>
+<!-- Linha 2: Marca G> gasacli e Tela -->
+<div class="header-row-2"><div><span class="brand-mark">G&gt; gasacli</span> | SOLICITAÇÃO DE PERMISSÃO</div><div style="font-size: 11px; font-weight: normal; color: #F2B84B;">[DECISÃO PENDENTE]</div></div>
+<!-- Linha 3: Sentença Literal de Privacidade -->
+<div class="header-row-3">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+<!-- Faixa de Contexto Factual -->
+<div class="context-strip">
+<div class="context-item">PROJETO: <span>VITRINE-API</span></div>
+<div class="context-item">WORKTREE: <span>FEATURE/CATALOGO</span></div>
+<div class="context-item">CONFIANÇA: <span>CONCEDIDA</span></div>
+<div class="context-item">RUN: <span>R-204</span></div>
+<div class="context-item">ESTADO: <span class="status-working">WORKING</span></div>
+<div class="context-item">WORKER: <span>CODEX GPT-6-LUNA</span></div>
+<div class="context-item">TOKENS: <span>1.2k (INFORMADO PELO PROVEDOR)</span></div>
+<div class="context-item">CUSTO: <span>N/D</span></div>
+</div>
+<!-- Interface Subjacente (Run e Tarefa T2 Inativas/Esmaecidas sob o Modal) -->
+<div class="underlying-run-view">
+<div class="tui-box">
+<div class="tui-box-header">
+<span>GRAFO DE TAREFAS (TASK DAG)</span>
+<span>Ordem topológica: T1 ? T2 ? T3</span>
+</div>
+<div class="tui-box-body" style="font-family: monospace;">
+<div> [T1] Tarefa T1 .................................................. [DONE]</div>
+<div> &gt; [T2] Tarefa T2 ............................................... [RUNNING]</div>
+<div> [T3] Tarefa T3 ................................................ [QUEUED]</div>
+</div>
+</div>
+<div class="tui-box">
+<div class="tui-box-header">
+<span>DETALHE DA TAREFA ATIVA: T2</span>
+<span>ESTADO: RUNNING</span>
+</div>
+<div class="tui-box-body">
+          Identificador: T2 | Tentativa: 1 | Despacho: D-18 | Worker: Codex gpt-6-luna
+          <br/>
+          Verificações visíveis no ambiente.
+        </div>
+</div>
+<div class="tui-box">
+<div class="tui-box-header">
+<span>FLUXO DE EVENTOS (EVENT FEED)</span>
+<span>REGISTRO RECENTE</span>
+</div>
+<div class="tui-box-body" style="text-align: center; color: #9AAAC0; padding: 16px;">
+          [ NENHUM EVENTO REGISTRADO ]<br/>
+          Aguardando eventos da execução.
+        </div>
+</div>
+</div>
+<!-- Modal Sobreposto Centralizado -->
+<div class="modal-overlay">
+<div class="approval-modal">
+<!-- Barra de Título do Modal -->
+<div class="modal-title-bar">
+<span>+- DIÁLOGO DE APROVAÇÃO — SOLICITAÇÃO DE PERMISSÃO --------------+</span>
+<span class="badge-approval">DECISÃO PENDENTE</span>
+</div>
+<div class="modal-content">
+<!-- Pequeno glifo box-drawing G+chevron (<= 7 linhas) -->
+<pre class="prompt-box-art">  +--+
+  ¦  +--+  &gt; SOLICITAÇÃO DE PERMISSÃO
+  ¦  +--+  Decisão pendente do operador
+  +--+</pre>
+<!-- Tabela com Especificações Canônicas Fatuais -->
+<table class="info-table"><tbody><tr><th>Solicitante (Requester)</th><td><span class="val-highlight">Codex</span></td></tr><tr><th>Permissão Canônica</th><td><span class="val-highlight">write_project</span></td></tr><tr><th>Alvo da Operação (Target)</th><td><span class="val-highlight">src/catalog/search...</span></td></tr><tr><th>Ação Solicitada</th><td><span class="val-redacted">[AÇÃO REDIGIDA]</span></td></tr><tr><th>Escopo de Autorização</th><td><span class="val-neutral">N/D</span></td></tr><tr><th>Expiração da Permissão</th><td><span class="val-neutral">N/D</span></td></tr></tbody></table>
+<!-- Opções de Escolha / Ações Disponíveis -->
+<div class="action-options"><div class="action-card selected"><div class="action-label-row"><span class="cursor-marker">&gt;</span><span class="key-badge primary">[Enter] / [a]</span><span style="font-weight: bold; color: #F4F7FB;">Permitir uma vez (Allow once)</span></div><span class="state-indicator">[SELECIONADO / EM FOCO]</span></div><div class="action-card"><div class="action-label-row"><span style="width: 8px;"></span><span class="key-badge danger">[Esc] / [n]</span><span style="color: #F4F7FB;">Negar (Deny)</span></div><span style="font-size: 11px; color: #9AAAC0;">[NEGAR]</span></div></div>
+</div>
+<!-- Rodapé do Modal com atalhos de decisão rápida -->
+<div class="modal-footer"><div>[? / ?] Navegar opções   [a] Permitir uma vez   [n] Negar   [Esc] Fechar</div><div style="color: #F2B84B; font-weight: bold;">[DECISÃO PENDENTE]</div></div>
+</div>
+</div>
+<!-- Barra Inferior do Terminal Frame -->
+<div class="terminal-footer">
+<div class="footer-keys">
+<span><strong style="color:#F4F7FB;">Enter / a</strong> Confirmar permitir</span>
+<span><strong style="color:#F4F7FB;">Esc / n</strong> Negar</span>
+<span><strong style="color:#F4F7FB;">? / ?</strong> Alternar seleção</span>
+<span><strong style="color:#F4F7FB;">Ctrl+C</strong> Sair</span>
+</div>
+<div class="footer-status"><span class="status-dot"></span><span>STATUS: AGUARDANDO DECISÃO</span></div>
+</div>
+</div>
+</body>
+</html>

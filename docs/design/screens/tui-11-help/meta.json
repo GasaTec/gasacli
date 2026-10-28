@@ -1,0 +1,14 @@
+{
+  "promptFile": "docs/design/prompts/tui-11-help.md",
+  "stitchScreenId": "34da9521945e4cea9c57e7046f152bfa",
+  "generatedAt": "2026-10-28 06:49:49 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed unsupported local enclave and node identifier; simplified /doctor description to local diagnostics"
+    ]
+  }
+}

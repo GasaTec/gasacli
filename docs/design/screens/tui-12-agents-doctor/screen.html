@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TUI — Agents and doctor (120x36)</title>
+<style>
+    /* CSS Reset & Terminal Fixed Monospace Styling */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0B1220;
+      --surface: #111C2E;
+      --elevated: #1B2A40;
+      --border: #596982;
+      --text-primary: #F4F7FB;
+      --text-secondary: #C3CFDF;
+      --text-muted: #9AAAC0;
+      --brand-navy: #172A46;
+      --accent-teal: #1ECFA5;
+      --success: #43D19E;
+      --warning: #F2B84B;
+      --danger: #FF7272;
+      --info: #79B8FF;
+    }
+
+    body {
+      background-color: #05080F;
+      color: var(--text-primary);
+      font-family: 'Consolas', 'Courier New', Courier, 'DejaVu Sans Mono', monospace;
+      font-size: 13px;
+      line-height: 1.35;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Terminal 120x36 character cell viewport */
+    .terminal-container {
+      width: 100%;
+      max-width: 1140px;
+      height: 740px;
+      background-color: var(--bg);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Top Terminal Frame Title Bar */
+    .term-title-bar {
+      height: 28px;
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .term-title-bar .left-info {
+      color: var(--text-primary);
+    }
+
+    .term-title-bar .right-info {
+      color: var(--text-muted);
+    }
+
+    /* Sub-header / System Breadcrumb Row */
+    .system-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 12px;
+      background-color: var(--bg);
+      border-bottom: 1px solid #1f2d42;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-badge-group {
+      display: flex;
+      gap: 16px;
+    }
+
+    .val-accent {
+      color: var(--accent-teal);
+      font-weight: bold;
+    }
+
+    .val-warn {
+      color: var(--warning);
+    }
+
+    .val-muted {
+      color: var(--text-muted);
+    }
+
+    /* Brand and Privacy banner row */
+    .brand-privacy-row {
+      padding: 7px 12px;
+      border-bottom: 1px solid #1f2d42;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .brand-line {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .brand-wordmark {
+      color: var(--accent-teal);
+      font-weight: bold;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    .screen-title-badge {
+      color: var(--text-primary);
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .probe-info-pill {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-secondary);
+      background-color: var(--surface);
+      padding: 2px 8px;
+      border: 1px solid #23344d;
+    }
+
+    .privacy-text {
+      color: var(--accent-teal);
+      font-size: 11px;
+    }
+
+    /* Main Content Area */
+    .main-grid {
+      flex: 1;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    /* Section Boxes */
+    .tui-box {
+      border: 1px solid var(--border);
+      background-color: var(--surface);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tui-box-header {
+      padding: 4px 10px;
+      background-color: #17253a;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Table styling */
+    .agent-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .agent-table th {
+      text-align: left;
+      padding: 5px 10px;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: normal;
+      border-bottom: 1px solid #23344d;
+      background-color: #0d1624;
+    }
+
+    .agent-table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid #162233;
+      white-space: nowrap;
+    }
+
+    .agent-table tr.group-header td {
+      background-color: #131f33;
+      color: var(--info);
+      font-weight: bold;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-top: 1px solid #23344d;
+      border-bottom: 1px solid #23344d;
+    }
+
+    /* Row selection styling */
+    .agent-table tr.row-selected {
+      background-color: #1b2d47;
+    }
+
+    .agent-table tr.row-selected td {
+      color: #FFFFFF;
+    }
+
+    .cursor-marker {
+      display: inline-block;
+      width: 14px;
+      color: var(--accent-teal);
+      font-weight: bold;
+    }
+
+    /* Status Badges */
+    .badge {
+      display: inline-block;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .badge-ready {
+      color: #0B1220;
+      background-color: var(--accent-teal);
+    }
+
+    .badge-installed {
+      color: var(--info);
+      border: 1px solid var(--info);
+    }
+
+    .badge-absent {
+      color: var(--text-muted);
+      border: 1px dashed var(--border);
+    }
+
+    /* Detail Card (Selected Agent) */
+    .detail-card {
+      border: 1px solid var(--border);
+      background-color: #0f1929;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .detail-title-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #23344d;
+      padding-bottom: 5px;
+    }
+
+    .detail-agent-name {
+      color: var(--accent-teal);
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    .detail-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px 16px;
+      padding-top: 4px;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .meta-label {
+      color: var(--text-muted);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .meta-value {
+      color: var(--text-primary);
+      font-size: 12px;
+    }
+
+    .security-notice {
+      margin-top: 4px;
+      padding: 4px 8px;
+      background-color: #121e30;
+      border-left: 2px solid var(--accent-teal);
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    /* State Legend / Status Inspection Bar */
+    .states-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .state-cell {
+      background-color: #0d1624;
+      border: 1px solid #23344d;
+      padding: 4px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .state-title {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .state-desc {
+      color: var(--text-secondary);
+    }
+
+    /* Bottom Shortcut Action Bar */
+    .term-footer-bar {
+      height: 32px;
+      background-color: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+    }
+
+    .shortcuts-list {
+      display: flex;
+      gap: 14px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .key-btn {
+      color: var(--accent-teal);
+      font-weight: bold;
+    }
+
+    .key-desc {
+      color: var(--text-secondary);
+    }
+
+    .system-mode-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent-teal);
+      font-weight: bold;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      background-color: var(--accent-teal);
+    }
+  </style>
+</head>
+<body>
+<!-- 120x36 Character Cell Terminal Frame -->
+<main aria-label="Terminal 120x36" class="terminal-container" role="region">
+<!-- Title Bar -->
+<header class="term-title-bar">
+<div class="left-info">
+        Terminal 120x36 • gasacli — agentes e diagnóstico (/doctor) • projeto: vitrine-api
+      </div>
+<div class="right-info">
+        UTF-8 | NO_COLOR: DESATIVADO
+      </div>
+</header>
+<!-- Project Context & Orchestration Bar -->
+<section aria-label="Contexto do Sistema" class="system-status-row"><div class="status-badge-group"><div>PROJETO: <span class="val-accent">VITRINE-API</span></div><div>CONFIANÇA: <span class="val-accent">CONCEDIDA</span></div><div>RUNS: <span class="val-muted">0 RUNS</span></div></div></section>
+<!-- Brand Wordmark & Privacy Banner -->
+<section aria-label="Identidade e Política" class="brand-privacy-row">
+<div class="brand-line">
+<span class="brand-wordmark">G&gt; gasacli</span>
+<span class="screen-title-badge">DIAGNÓSTICO DE AGENTES LOCAIS (/doctor)</span>
+<span class="probe-info-pill">TEMPO DE SONDA: N/D (INDISPONÍVEL)</span>
+</div>
+<div class="privacy-text">
+        garantia de privacidade: O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+      </div>
+</section>
+<!-- Main Terminal Content Area -->
+<div class="main-grid">
+<!-- Agents Readiness & Groups Table -->
+<section aria-label="Tabela de Agentes e Prontidão" class="tui-box">
+<header class="tui-box-header"><span>GRUPOS DE PRONTIDÃO DE AGENTES</span><span style="color: var(--text-muted); font-weight: normal;">[use ↑/↓ para navegar]</span></header>
+<table class="agent-table"><thead><tr><th style="width: 28px;">SEL</th><th style="width: 260px;">AGENTE</th><th style="width: 180px;">STATUS</th><th>VERSÃO</th></tr></thead><tbody><tr class="row-selected"><td><span class="cursor-marker">&gt;</span></td><td style="font-weight: bold; color: var(--accent-teal);">Claude Code</td><td><span class="badge badge-ready">READY</span></td><td>v2</td></tr><tr><td><span class="cursor-marker"> </span></td><td style="color: var(--text-primary);">Cursor CLI</td><td><span class="badge badge-absent">NÃO VERIFICADO</span></td><td style="color: var(--text-muted);">N/D</td></tr><tr><td><span class="cursor-marker"> </span></td><td style="color: var(--text-primary);">OpenCode</td><td><span class="badge badge-absent">NÃO VERIFICADO</span></td><td style="color: var(--text-muted);">N/D</td></tr></tbody></table>
+</section>
+<!-- Selected Capability Detail Card -->
+<section aria-label="Detalhes da Capacidade Selecionada" class="detail-card"><div class="detail-title-line"><span style="color: var(--text-muted);">DETALHE DO AGENTE:</span><span class="detail-agent-name">Claude Code</span><span class="badge badge-ready">READY</span></div><div class="detail-meta-grid" style="grid-template-columns: repeat(2, 1fr);"><div class="meta-item"><span class="meta-label">Nome</span><span class="meta-value" style="color: var(--accent-teal);">Claude Code</span></div><div class="meta-item"><span class="meta-label">Versão</span><span class="meta-value">v2</span></div></div><div class="security-notice" style="margin-top: 6px; border-left: 2px solid var(--border);">Selecione um agente para ver seu status.</div></section>
+<!-- States Summary (Default, Focus, Disabled, Loading, Offline) -->
+</div>
+<!-- Bottom Keyboard Navigation Bar -->
+<footer class="term-footer-bar">
+<nav aria-label="Atalhos do Teclado" class="shortcuts-list"><div class="shortcut-item"><span class="key-btn">[↑ / ↓]</span><span class="key-desc">Navegar agentes</span></div><div class="shortcut-item"><span class="key-btn">[Enter]</span><span class="key-desc">Ver detalhes</span></div><div class="shortcut-item"><span class="key-btn">[Esc]</span><span class="key-desc">Voltar</span></div><div class="shortcut-item"><span class="key-btn" style="color: var(--danger);">[Ctrl+C]</span><span class="key-desc">Sair com segurança</span></div></nav>
+<div class="system-mode-indicator"><span class="status-dot"></span><span>STATUS: PRONTO</span></div>
+</footer>
+</main>
+</body>
+</html>

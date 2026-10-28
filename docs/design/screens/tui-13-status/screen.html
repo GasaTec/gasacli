@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TUI — Status (120x36)</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background-color: #070b12;
+    color: #F4F7FB;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.25;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 120x36 Terminal Canvas Window */
+  .terminal-frame {
+    width: 1060px;
+    background-color: #0B1220;
+    border: 1px solid #596982;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+  }
+
+  /* Titlebar */
+  .terminal-titlebar {
+    background-color: #0B1220;
+    border-bottom: 1px solid #596982;
+    padding: 5px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #9AAAC0;
+    letter-spacing: 0.5px;
+  }
+  .title-left {
+    color: #F4F7FB;
+  }
+  .title-left .accent-dot {
+    color: #1ECFA5;
+    margin: 0 4px;
+  }
+  .title-right {
+    color: #9AAAC0;
+  }
+
+  /* Metadata Strip */
+  .meta-strip {
+    background-color: #111C2E;
+    border-bottom: 1px solid #596982;
+    padding: 6px 14px;
+    display: flex;
+    gap: 20px;
+    font-size: 12px;
+    color: #9AAAC0;
+    font-weight: 500;
+  }
+  .meta-item {
+    display: flex;
+    gap: 6px;
+  }
+  .meta-label {
+    color: #9AAAC0;
+  }
+  .meta-val {
+    color: #F4F7FB;
+    font-weight: 600;
+  }
+  .meta-val.trusted {
+    color: #43D19E;
+  }
+  .meta-val.planned {
+    color: #F2B84B;
+  }
+  .meta-val.cyan {
+    color: #1ECFA5;
+  }
+
+  /* Brand and Privacy Header */
+  .brand-header {
+    padding: 10px 14px 8px 14px;
+    border-bottom: 1px solid #1B2A40;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .brand-logo-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-wordmark {
+    font-weight: bold;
+    font-size: 15px;
+    color: #1ECFA5;
+    letter-spacing: 0.5px;
+  }
+  .screen-title {
+    color: #F4F7FB;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  .privacy-notice {
+    font-size: 12px;
+    color: #1ECFA5;
+    padding: 2px 0;
+  }
+
+  /* Main Workspace Grid (120x36 layout) */
+  .main-grid {
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 520px;
+  }
+
+  /* Two Column Section: Run Card & Endpoint/Readiness */
+  .top-panels-row {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 10px;
+  }
+
+  /* Generic TUI Box Container */
+  .tui-box {
+    border: 1px solid #596982;
+    background-color: #0B1220;
+    display: flex;
+    flex-direction: column;
+  }
+  .tui-box-header {
+    background-color: #111C2E;
+    border-bottom: 1px solid #596982;
+    padding: 5px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #F4F7FB;
+    letter-spacing: 0.5px;
+  }
+  .box-tag {
+    font-size: 11px;
+    font-weight: normal;
+    color: #9AAAC0;
+  }
+  .tui-box-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  /* Run Card Specifics */
+  .run-status-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background-color: #111C2E;
+    border: 1px dashed #596982;
+  }
+  .status-badge {
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-idle {
+    background-color: #1B2A40;
+    color: #9AAAC0;
+    border: 1px solid #596982;
+  }
+  .badge-planned {
+    background-color: #242013;
+    color: #F2B84B;
+    border: 1px solid #8A5600;
+  }
+  .badge-ready {
+    background-color: #0B2A22;
+    color: #1ECFA5;
+    border: 1px solid #1ECFA5;
+  }
+  .badge-disabled {
+    background-color: #131A26;
+    color: #596982;
+    border: 1px solid #596982;
+  }
+
+  .data-table-simple {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .data-table-simple td {
+    padding: 4px 6px;
+    vertical-align: top;
+  }
+  .data-table-simple td.label-col {
+    color: #9AAAC0;
+    width: 140px;
+  }
+  .data-table-simple td.val-col {
+    color: #F4F7FB;
+  }
+
+  /* Agent Readiness List */
+  .agent-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 8px;
+    border-bottom: 1px solid #1B2A40;
+    font-size: 12px;
+  }
+  .agent-row:last-child {
+    border-bottom: none;
+  }
+  .agent-row.selected {
+    background-color: #111C2E;
+    color: #1ECFA5;
+    border-left: 2px solid #1ECFA5;
+  }
+  .agent-name {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Timeline Panel (Empty state) */
+  .timeline-panel {
+    border: 1px solid #596982;
+    background-color: #0B1220;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .empty-timeline-box {
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    background-color: #0B1220;
+    border: 1px dashed #1B2A40;
+    margin: 10px;
+    min-height: 120px;
+  }
+  .empty-icon-text {
+    font-size: 13px;
+    color: #9AAAC0;
+    font-weight: 600;
+  }
+  .empty-desc {
+    font-size: 12px;
+    color: #C3CFDF;
+    max-width: 680px;
+    line-height: 1.4;
+  }
+  .empty-hint {
+    font-size: 11px;
+    color: #1ECFA5;
+    margin-top: 4px;
+  }
+
+  /* Context Actions Banner */
+  .context-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #111C2E;
+    border: 1px solid #596982;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .action-lead {
+    color: #C3CFDF;
+  }
+  .action-lead strong {
+    color: #F4F7FB;
+  }
+  .command-tags {
+    display: flex;
+    gap: 12px;
+  }
+  .cmd-item {
+    color: #9AAAC0;
+  }
+  .cmd-item .key {
+    color: #1ECFA5;
+    font-weight: bold;
+  }
+
+  /* Footer Shortcut Bar */
+  .terminal-footer {
+    background-color: #0B1220;
+    border-top: 1px solid #596982;
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #9AAAC0;
+  }
+  .shortcut-list {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+  .shortcut-btn {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .shortcut-key {
+    background-color: #111C2E;
+    color: #1ECFA5;
+    border: 1px solid #596982;
+    padding: 1px 5px;
+    font-weight: bold;
+  }
+  .shortcut-label {
+    color: #F4F7FB;
+  }
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: #43D19E;
+  }
+  .status-indicator.ready {
+    color: #43D19E;
+  }
+  .dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    background-color: #43D19E;
+  }
+</style>
+</head>
+<body>
+<div class="terminal-frame">
+<!-- Terminal Header / Titlebar -->
+<div class="terminal-titlebar">
+<div class="title-left">
+<span>Terminal 120x36</span>
+<span class="accent-dot">•</span>
+<span>gasacli — status do ambiente</span>
+<span class="accent-dot">•</span>
+<span style="color: #1ECFA5;">projeto: vitrine-api</span>
+</div>
+<div class="title-right">
+      UTF-8 | NO_COLOR: DESATIVADO
+    </div>
+</div>
+<!-- Status Metadata Strip -->
+<div class="meta-strip"><div class="meta-item"><span class="meta-label">PROJETO:</span><span class="meta-val cyan">VITRINE-API</span></div><div class="meta-item"><span class="meta-label">CONFIANÇA:</span><span class="meta-val trusted">CONCEDIDA</span></div><div class="meta-item"><span class="meta-label">DASHBOARD:</span><span class="meta-val">LOCAL</span></div><div class="meta-item"><span class="meta-label">ORQUESTRAÇÃO:</span><span class="meta-val planned">PLANEJADA</span></div><div class="meta-item"><span class="meta-label">RUNS:</span><span class="meta-val">NENHUMA (0 RUNS)</span></div></div>
+<!-- Brand & Privacy Header -->
+<div class="brand-header">
+<div class="brand-logo-line">
+<span class="brand-wordmark">G&gt; gasacli</span>
+<span class="screen-title">STATUS DO SISTEMA (/status)</span>
+</div>
+<div class="privacy-notice">
+      garantia de privacidade: O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+</div>
+<!-- Main Terminal Panels Grid -->
+<div class="main-grid">
+<!-- Top Row: Run Card & Endpoint / Readiness -->
+<div class="top-panels-row">
+<!-- Panel 1: Card de Execução (Run Card) -->
+<div class="tui-box">
+<div class="tui-box-header">
+<span>CARD DE EXECUÇÃO (RUN)</span>
+<span class="box-tag">[nenhum run ativo]</span>
+</div>
+<div class="tui-box-body"><div class="run-status-line"><span style="color: #F4F7FB; font-weight: 500;">ESTADO DA EXECUÇÃO:</span><span class="status-badge badge-idle">NENHUM RUN ATIVO</span></div><table class="data-table-simple"><tr><td class="label-col">ORQUESTRAÇÃO:</td><td class="val-col"><span class="status-badge badge-planned">PLANEJADA</span></td></tr><tr><td class="label-col">TOKENS:</td><td class="val-col" style="color: #9AAAC0;">N/D</td></tr></table></div>
+</div>
+<!-- Panel 2: Endpoint e Prontidão de Agentes -->
+<div class="tui-box">
+<div class="tui-box-header"><span>PRONTIDÃO DE AGENTES &amp; ENDPOINT</span><span class="box-tag">[diagnóstico via /doctor]</span></div>
+<div class="tui-box-body" style="padding: 6px;">
+<div style="font-size: 11px; color: #9AAAC0; padding: 4px 6px; border-bottom: 1px solid #1B2A40;">
+            AGENTES RECONHECIDOS NO AMBIENTE LOCAL
+          </div>
+<div class="agent-row selected">
+<div class="agent-name">
+<span>&gt;</span>
+<strong>Claude Code</strong>
+<span style="font-size: 11px; color: #9AAAC0;">v2</span>
+</div>
+<span class="status-badge badge-ready">READY</span>
+</div>
+<div class="agent-row">
+<div class="agent-name">
+<span style="opacity: 0;">&gt;</span>
+<span>Cursor CLI</span>
+<span style="font-size: 11px; color: #596982;">v N/D</span>
+</div>
+<span class="status-badge badge-disabled">NÃO VERIFICADO</span>
+</div>
+<div class="agent-row">
+<div class="agent-name">
+<span style="opacity: 0;">&gt;</span>
+<span>OpenCode</span>
+<span style="font-size: 11px; color: #596982;">v N/D</span>
+</div>
+<span class="status-badge badge-disabled">NÃO VERIFICADO</span>
+</div>
+<div style="margin-top: 6px; padding: 6px 8px; background-color: #111C2E; border: 1px solid #1B2A40; font-size: 11px;"><div style="display: flex; gap: 8px; align-items: center;"><span style="color: #9AAAC0;">ENDPOINT DO DASHBOARD:</span><span style="color: #1ECFA5; font-weight: 600;">local</span></div></div>
+</div>
+</div>
+</div>
+<!-- Bottom Section: Linha do Tempo / Histórico de Eventos (Timeline) -->
+<div class="timeline-panel">
+<div class="tui-box-header"><span>LINHA DO TEMPO DE EVENTOS</span></div>
+<div class="empty-timeline-box"><div class="empty-icon-text">[ LINHA DO TEMPO VAZIA ]</div><div class="empty-desc" style="text-align: center;">Nenhum evento registrado.</div><div class="empty-hint" style="color: #9AAAC0;">Orquestração: planejada; tokens: N/D.</div></div>
+</div>
+<!-- Context Actions Banner -->
+</div>
+<!-- Terminal Keyboard Shortcuts Bar -->
+<div class="terminal-footer">
+<div class="shortcut-list"><div class="shortcut-btn"><span class="shortcut-key">r</span><span class="shortcut-label">Atualizar status</span></div><div class="shortcut-btn"><span class="shortcut-key">Enter</span><span class="shortcut-label">Abrir detalhes</span></div><div class="shortcut-btn"><span class="shortcut-key">Esc</span><span class="shortcut-label">Voltar ao chat</span></div><div class="shortcut-btn"><span class="shortcut-key">Ctrl+C</span><span class="shortcut-label">Sair com segurança</span></div></div>
+<div class="status-indicator ready">
+<span class="dot"></span>
+<span>STATUS: PRONTO (OCIOSO)</span>
+</div>
+</div>
+</div>
+</body>
+</html>

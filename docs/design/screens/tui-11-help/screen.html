@@ -1,0 +1,349 @@
+﻿<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI â€” Help command (/help) 120x36 TUI</title>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-lowest": "#0d0e10",
+            "secondary-fixed-dim": "#3bdeb3",
+            "on-surface": "#e4e2e5",
+            "surface-container-low": "#1b1b1e",
+            "on-error": "#690005",
+            "secondary-container": "#00c59c",
+            "text-primary-dark": "#F4F7FB",
+            "surface-container": "#1f1f22",
+            "outline-variant": "#44474d",
+            "on-primary-container": "#7f92b3",
+            "surface-container-high": "#292a2c",
+            "surface-dark": "#111C2E",
+            "outline": "#8e9098",
+            "error": "#ffb4ab",
+            "warning-light": "#8A5600",
+            "elevated-light": "#FFFFFF",
+            "inverse-surface": "#e4e2e5",
+            "on-surface-variant": "#c4c6ce",
+            "on-primary": "#1e314d",
+            "secondary-fixed": "#61fbcf",
+            "primary": "#b5c7eb",
+            "on-primary-fixed-variant": "#354765",
+            "tertiary-fixed": "#ffddb1",
+            "on-secondary-container": "#004b3a",
+            "tertiary-container": "#3b2500",
+            "background": "#0B1220",
+            "danger-light": "#B4232F",
+            "surface-variant": "#343537",
+            "border-light": "#8996A8",
+            "warning-dark": "#F2B84B",
+            "background-dark": "#0B1220",
+            "on-error-container": "#ffdad6",
+            "primary-container": "#172A46",
+            "surface-dim": "#131315",
+            "info-light": "#145FA8",
+            "text-muted-dark": "#9AAAC0",
+            "info-dark": "#79B8FF",
+            "success-dark": "#1ECFA5",
+            "text-primary-light": "#172A46",
+            "on-secondary-fixed-variant": "#00513f",
+            "on-secondary-fixed": "#002117",
+            "on-background": "#F4F7FB",
+            "surface-container-highest": "#343537",
+            "surface-bright": "#39393b",
+            "secondary": "#1ECFA5",
+            "text-secondary-light": "#44546A",
+            "primary-fixed": "#d6e3ff",
+            "surface-tint": "#b5c7eb",
+            "on-tertiary-container": "#ad8b5b",
+            "on-tertiary": "#432c04",
+            "border-dark": "#596982",
+            "text-muted-light": "#5B6B80",
+            "inverse-on-surface": "#303033",
+            "tertiary-fixed-dim": "#e7c08b",
+            "on-tertiary-fixed-variant": "#5c4218",
+            "on-tertiary-fixed": "#291800",
+            "danger-dark": "#FF7272",
+            "success-light": "#137A54",
+            "on-primary-fixed": "#061c37",
+            "elevated-dark": "#1B2A40",
+            "text-secondary-dark": "#C3CFDF",
+            "surface": "#111C2E",
+            "surface-light": "#FFFFFF",
+            "background-light": "#F4F7FB",
+            "inverse-primary": "#4d5f7e",
+            "error-container": "#93000a",
+            "on-secondary": "#00382a",
+            "primary-fixed-dim": "#b5c7eb",
+            "tertiary": "#F2B84B"
+          },
+          "borderRadius": {
+            "DEFAULT": "0px",
+            "lg": "0px",
+            "xl": "0px",
+            "full": "0px"
+          },
+          "spacing": {
+            "space-md": "12px",
+            "space-3xl": "40px",
+            "margin": "24px",
+            "space-lg": "16px",
+            "space-4xl": "48px",
+            "space-2xl": "32px",
+            "space-xl": "24px",
+            "space-sm": "8px",
+            "space-xs": "4px",
+            "gutter": "24px"
+          },
+          "fontFamily": {
+            "metadata": ["\"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace\""],
+            "body-emphasized": ["\"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace\""],
+            "section-title": ["\"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace\""],
+            "code": ["\"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace\""],
+            "page-title": ["\"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace\""],
+            "body": ["\"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace\""],
+            "hero": ["\"ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace\""]
+          },
+          "fontSize": {
+            "metadata": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "body-emphasized": ["13px", { "lineHeight": "17px", "fontWeight": "500" }],
+            "section-title": ["13px", { "lineHeight": "17px", "fontWeight": "600" }],
+            "code": ["13px", { "lineHeight": "17px", "fontWeight": "400" }],
+            "page-title": ["13px", { "lineHeight": "17px", "fontWeight": "600" }],
+            "body": ["13px", { "lineHeight": "17px", "fontWeight": "400" }],
+            "hero": ["14px", { "lineHeight": "18px", "fontWeight": "600" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    /* Strict Character-cell terminal display geometry */
+    .tui-grid {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-feature-settings: "tnum" 1, "zero" 1;
+      letter-spacing: 0px;
+      line-height: 18px;
+    }
+    ::selection {
+      background-color: #172A46;
+      color: #1ECFA5;
+    }
+  </style>
+<body class="bg-background-dark text-text-primary-dark font-code text-code min-h-screen p-0 m-0 flex items-center justify-center select-none overflow-x-auto overflow-y-hidden">
+<!-- Character-Cell Terminal Frame 120 Columns x 36 Rows -->
+<main class="w-[992px] h-[648px] bg-background-dark border border-border-dark flex flex-col justify-between tui-grid leading-[18px] text-[12.5px] shadow-none">
+<!-- LINHA 1: Top Title & Session Meta -->
+<header class="w-full bg-primary-container text-text-secondary-dark px-space-sm border-b border-border-dark flex items-center justify-between text-metadata font-metadata h-[18px]">
+<div class="flex items-center">
+<span class="text-secondary font-bold mr-space-xs">â”Œâ”€</span>
+<span class="text-text-primary-dark font-bold">Terminal 120x36</span>
+<span class="text-border-dark mx-space-xs">â€¢</span>
+<span class="text-text-primary-dark">gasacli â€“ ajuda e comandos (/help)</span>
+<span class="text-border-dark mx-space-xs">â€¢</span>
+<span class="text-secondary">projeto: vitrine-api</span>
+</div>
+<div class="flex items-center text-text-muted-dark">
+<span>UTF-8</span>
+<span class="text-border-dark mx-space-xs">|</span>
+<span class="text-text-secondary-dark">NO_COLOR: DESATIVADO</span>
+<span class="text-secondary font-bold ml-space-xs">â”€â”</span>
+</div>
+</header>
+<!-- LINHA 2: Project Status Ribbon -->
+<section class="w-full bg-surface-dark px-space-sm border-b border-border-dark flex items-center justify-between text-metadata font-metadata text-text-muted-dark h-[18px]">
+<div class="flex items-center gap-space-xl">
+<span>PROJETO: <strong class="text-text-primary-dark font-normal">VITRINE-API</strong></span>
+<span>CONFIANÃ‡A: <span class="text-secondary font-bold">CONCEDIDA</span></span>
+<span>DASHBOARD: <strong class="text-text-primary-dark font-normal">AUTOMÃTICO</strong></span>
+<span>RUNS: <strong class="text-text-primary-dark font-normal">0 RUNS</strong></span>
+<span>MODO: <span class="text-secondary font-bold">LOCAL</span></span>
+</div>
+<div class="text-border-dark">â”‚</div>
+</section>
+<!-- LINHA 3: Canonical Wordmark Lockup & Privacy Guarantee -->
+<section class="w-full bg-background-dark px-space-sm border-b border-border-dark flex items-center justify-between h-[24px]">
+<div class="flex items-center gap-space-sm">
+<span class="text-text-primary-dark font-bold tracking-tight">
+<span class="text-text-secondary-dark">G</span><span class="text-secondary">&gt;</span> <span class="text-text-primary-dark">gasacli</span>
+</span>
+<span class="text-border-dark">â”‚</span>
+<span class="text-text-muted-dark text-metadata font-metadata">
+          garantia de privacidade: O GasaCLI nÃ£o coleta telemetria; cada agente segue a polÃ­tica do seu provedor.
+        </span>
+</div>
+</section>
+<!-- LINHA 4: Command Filter Input -->
+<section class="w-full bg-surface-dark px-space-sm py-[2px] border-b border-border-dark flex items-center text-body font-body">
+<span class="text-text-secondary-dark font-bold">BUSCA / FILTRO DE COMANDOS</span>
+<span class="text-text-muted-dark mx-space-xs">[/ para focar]:</span>
+<span class="text-secondary font-bold">[</span>
+<div class="flex-1 px-space-xs text-secondary bg-background-dark border-x border-border-dark h-[18px] flex items-center">
+<span class="text-secondary font-bold mr-[1px]">&gt;</span>
+<span class="text-text-muted-dark">digite para filtrar comandos ou grupos...</span>
+<span class="inline-block w-[7px] h-[13px] bg-secondary ml-[2px]"></span>
+</div>
+<span class="text-secondary font-bold">]</span>
+<span class="ml-space-md text-text-muted-dark">FILTRO: <span class="text-text-primary-dark font-bold">TODOS</span></span>
+</section>
+<!-- LINHAS 5-23: Central Monospace Content Panes -->
+<div class="flex-1 w-full bg-background-dark flex flex-col p-space-sm gap-space-sm overflow-hidden">
+<!-- Catalog Table Box -->
+<div class="border border-border-dark bg-surface-dark flex flex-col">
+<!-- Table Header Bar -->
+<div class="bg-primary-container px-space-sm border-b border-border-dark flex items-center justify-between text-text-muted-dark text-metadata font-metadata">
+<div class="flex items-center w-full">
+<span class="w-[180px] text-text-primary-dark font-bold">COMANDO</span>
+<span class="flex-1 text-text-primary-dark font-bold">DESCRIÃ‡ÃƒO OPERACIONAL</span>
+<span class="w-[240px] text-text-primary-dark font-bold">SINTAXE / EXEMPLO</span>
+<span class="w-[110px] text-right text-text-primary-dark font-bold">DISPONIBILIDADE</span>
+</div>
+</div>
+<!-- Section 1: GRUPO SESSÃƒO E DESCOBERTA -->
+<div class="bg-elevated-dark px-space-sm py-[1px] border-b border-border-dark text-text-secondary-dark font-bold text-metadata flex items-center justify-between">
+<span>â”Œâ”€ GRUPO SESSÃƒO E DESCOBERTA (session/discovery) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€</span>
+<span class="text-text-muted-dark font-normal">2 COMANDOS</span>
+</div>
+<!-- Row: /help (Active Highlighted) -->
+<div class="bg-primary-container border-l-2 border-secondary px-space-sm py-[2px] flex items-center text-text-primary-dark font-code text-code">
+<div class="w-[180px] flex items-center">
+<span class="text-secondary font-bold mr-space-xs">&gt;</span>
+<span class="text-secondary font-bold">/help</span>
+</div>
+<div class="flex-1 text-text-primary-dark">
+            Exibir catÃ¡logo de comandos, grupos e atalhos de teclado
+          </div>
+<div class="w-[240px] text-text-secondary-dark">
+            Exemplo: <span class="text-text-primary-dark">/help [comando]</span>
+</div>
+<div class="w-[110px] text-right font-bold text-secondary">
+            [DISPONÃVEL]
+          </div>
+</div>
+<!-- Row: /doctor -->
+<div class="bg-surface-dark border-l-2 border-transparent px-space-sm py-[2px] flex items-center text-text-secondary-dark font-code text-code border-b border-border-dark">
+<div class="w-[180px] flex items-center">
+<span class="text-border-dark mr-space-xs"> </span>
+<span class="text-text-primary-dark">/doctor</span>
+</div>
+<div class="flex-1 text-text-secondary-dark">DiagnÃ³sticos locais</div>
+<div class="w-[240px] text-text-muted-dark">
+            Exemplo: <span class="text-text-secondary-dark">/doctor</span>
+</div>
+<div class="w-[110px] text-right font-bold text-secondary">
+            [DISPONÃVEL]
+          </div>
+</div>
+<!-- Section 2: GRUPO CONFIGURAÃ‡ÃƒO E AMBIENTE -->
+<div class="bg-elevated-dark px-space-sm py-[1px] border-b border-border-dark text-text-secondary-dark font-bold text-metadata flex items-center justify-between">
+<span>â”œâ”€ GRUPO CONFIGURAÃ‡ÃƒO E AMBIENTE (setup) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€</span>
+<span class="text-text-muted-dark font-normal">2 COMANDOS</span>
+</div>
+<!-- Row: /setup -->
+<div class="bg-surface-dark border-l-2 border-transparent px-space-sm py-[2px] flex items-center text-text-secondary-dark font-code text-code">
+<div class="w-[180px] flex items-center">
+<span class="text-border-dark mr-space-xs"> </span>
+<span class="text-text-primary-dark">/setup</span>
+</div>
+<div class="flex-1 text-text-secondary-dark">
+            Rever configuraÃ§Ã£o inicial e orientaÃ§Ã£o de ferramentas
+          </div>
+<div class="w-[240px] text-text-muted-dark">
+            Exemplo: <span class="text-text-secondary-dark">/setup</span>
+</div>
+<div class="w-[110px] text-right font-bold text-secondary">
+            [DISPONÃVEL]
+          </div>
+</div>
+<!-- Row: /backup -->
+<div class="bg-surface-dark border-l-2 border-transparent px-space-sm py-[2px] flex items-center text-text-secondary-dark font-code text-code border-b border-border-dark">
+<div class="w-[180px] flex items-center">
+<span class="text-border-dark mr-space-xs"> </span>
+<span class="text-text-primary-dark">/backup</span>
+</div>
+<div class="flex-1 text-text-muted-dark">
+            Criar cÃ³pia de seguranÃ§a local das configuraÃ§Ãµes
+          </div>
+<div class="w-[240px] text-text-muted-dark">
+            Exemplo: <span class="text-text-muted-dark">/backup</span>
+</div>
+<div class="w-[110px] text-right text-text-muted-dark font-bold">
+            [PLANEJADO]
+          </div>
+</div>
+<!-- Section 3: GRUPO INTERFACE E EXECUÃ‡ÃƒO -->
+<div class="bg-elevated-dark px-space-sm py-[1px] border-b border-border-dark text-text-secondary-dark font-bold text-metadata flex items-center justify-between">
+<span>â””â”€ GRUPO INTERFACE E EXECUÃ‡ÃƒO (web/execution) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€</span>
+<span class="text-text-muted-dark font-normal">2 COMANDOS</span>
+</div>
+<!-- Row: /web -->
+<div class="bg-surface-dark border-l-2 border-transparent px-space-sm py-[2px] flex items-center text-text-secondary-dark font-code text-code">
+<div class="w-[180px] flex items-center">
+<span class="text-border-dark mr-space-xs"> </span>
+<span class="text-text-primary-dark">/web</span>
+</div>
+<div class="flex-1 text-text-secondary-dark">
+            Abrir ou consultar o dashboard web local
+          </div>
+<div class="w-[240px] text-text-muted-dark">
+            Exemplo: <span class="text-text-secondary-dark">/web</span>
+</div>
+<div class="w-[110px] text-right font-bold text-tertiary">
+            [PARCIAL]
+          </div>
+</div>
+<!-- Row: /goal -->
+<div class="bg-surface-dark border-l-2 border-transparent px-space-sm py-[2px] flex items-center text-text-secondary-dark font-code text-code">
+<div class="w-[180px] flex items-center">
+<span class="text-border-dark mr-space-xs"> </span>
+<span class="text-text-primary-dark">/goal</span>
+</div>
+<div class="flex-1 text-text-muted-dark">
+            Planejar e despachar tarefas (nÃ£o inicia tarefa)
+          </div>
+<div class="w-[240px] text-text-muted-dark">
+            Exemplo: <span class="text-text-muted-dark">/goal "tarefa"</span>
+</div>
+<div class="w-[110px] text-right text-text-muted-dark font-bold">
+            [PLANEJADO]
+          </div>
+</div>
+</div>
+<!-- Active Selected Command Detail Panel -->
+<div class="border border-border-dark bg-surface-dark p-space-sm flex flex-col gap-[2px]">
+<div class="flex items-center justify-between border-b border-border-dark pb-[2px] mb-[2px]">
+<span class="font-bold text-secondary">DETALHE DO COMANDO SELECIONADO: <span class="text-text-primary-dark">/help</span></span>
+</div>
+<div class="grid grid-cols-12 gap-y-[2px] text-metadata font-code">
+<span class="col-span-2 text-text-muted-dark">DescriÃ§Ã£o:</span>
+<span class="col-span-10 text-text-primary-dark">Exibe informaÃ§Ãµes sobre comandos disponÃ­veis, opÃ§Ãµes de configuraÃ§Ã£o e atalhos do terminal.</span>
+<span class="col-span-2 text-text-muted-dark">Sintaxe:</span>
+<span class="col-span-10 text-secondary font-bold">gasacli /help [comando]</span>
+<span class="col-span-2 text-text-muted-dark">Estado:</span>
+<span class="col-span-10 text-text-secondary-dark"><span class="text-secondary font-bold">DISPONÃVEL</span> (funcional no ambiente local)</span>
+<span class="col-span-12 text-tertiary pt-[2px]">
+            [i] Pressione [Enter] para executar, ou [Tab] para inserir no compositor.
+          </span>
+</div>
+</div>
+</div>
+<!-- LINHA 35-36: Bottom Footer Keyboard Shortcut Bar & Global Status -->
+<footer class="w-full bg-primary-container px-space-sm border-t border-border-dark flex items-center justify-between text-metadata font-metadata h-[26px]">
+<div class="flex items-center gap-space-md text-text-secondary-dark">
+<span><strong class="text-text-primary-dark font-bold">[â†‘ / â†“]</strong> Navegar</span>
+<span><strong class="text-text-primary-dark font-bold">[Enter]</strong> Selecionar/Executar</span>
+<span><strong class="text-text-primary-dark font-bold">[Tab]</strong> Completar</span>
+<span><strong class="text-text-primary-dark font-bold">[/]</strong> Filtrar</span>
+<span><strong class="text-text-primary-dark font-bold">[Esc]</strong> Limpar/Voltar</span>
+<span><strong class="text-text-primary-dark font-bold">[Ctrl+D]</strong> Sair com seguranÃ§a</span>
+</div>
+<div class="flex items-center gap-space-xs text-secondary font-bold">
+<span>â—</span>
+<span>STATUS: PRONTO (modo ajuda ativo)</span>
+</div>
+</footer>
+</main>
+</body></html>

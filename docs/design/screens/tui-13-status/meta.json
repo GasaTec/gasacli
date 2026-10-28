@@ -1,0 +1,14 @@
+{
+  "promptFile": "docs/design/prompts/tui-13-status.md",
+  "stitchScreenId": "c2be08d4e52247f9900dceb70134c56b",
+  "generatedAt": "2026-10-28 06:58:45 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed invented counts, durations, IDs, cost and service status; retained only prompt sample fields"
+    ]
+  }
+}
