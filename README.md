@@ -2,7 +2,10 @@
 
 **Make your coding AIs work together.** A local-first, open-source terminal orchestrator for coding agents already installed on your machine.
 
-> **Status:** pre-alpha. The architecture, governance and roadmap are documented; the interactive CLI and cloud service are not implemented yet.
+> **Status:** pre-alpha.
+>
+> **Works today:** terminal shell with project trust, first-run onboarding (`gasa setup`), agent discovery (`gasa doctor`), a local dashboard, and a safe `gasa reset` / `gasa uninstall`.
+> **Not implemented yet:** chatting with a model, `/goal`, the orchestration engine, and Cloud. The sections below describe the goal, not what is available now.
 
 ## Vision
 Run `gasa` in a trusted project directory to open a terminal chat. Use `/goal` to request an outcome, not a sequence of prompts. GasaCLI will discover available coding CLIs, plan work, coordinate implementers and independent reviewers, and only mark tasks DONE after applicable verification gates pass. If blocked, it must explain why rather than loop indefinitely.
@@ -31,20 +34,74 @@ See [monorepo design](docs/monorepo.md), [interactive UX](docs/adr/0004-interact
 
 ## Install
 
-GasaCLI is **pre-alpha**; interactive orchestration commands are still in development.
+No release is published yet. The one-line installers and the `npm` package below start working with the first release; until then, build from source (it works today).
+
+### Build from source (Windows, Linux, macOS)
+Needs [Go](https://go.dev/dl/) 1.24 or newer and Git.
+
+```sh
+git clone https://github.com/GasaTec/gasacli.git
+cd gasacli
+go build -o gasa ./cmd/gasa
+./gasa --version
+```
+
+On Windows build `gasa.exe` instead and run it as `.gasa.exe --version`:
+
+```bat
+go build -o gasa.exe ./cmd/gasa
+.gasa.exe --version
+```
+
+To run `gasa` from any folder, put the binary on your PATH: on Windows add its folder to your user PATH and open a new terminal; on Linux and macOS move it to `~/.local/bin`.
+
+### Windows (cmd or PowerShell, not Git Bash)
+Needs Windows 10 or newer (`curl.exe` and PowerShell 5.1 or 7 ship with it).
 
 ```powershell
 irm https://raw.githubusercontent.com/GasaTec/gasacli/main/scripts/install.ps1 | iex
 ```
 
+It installs to `%LOCALAPPDATA%Programsgasacliin` and adds that folder to your **user** PATH, so open a new terminal afterwards. No administrator rights are needed. To remove it: `$env:GASA_UNINSTALL='1'` before running the same command.
+
+### Linux and macOS (WSL counts as Linux)
+Needs `curl`, `tar` and `sha256sum` (or `shasum` on macOS).
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/GasaTec/gasacli/main/scripts/install.sh | sh
-npm i -g gasacli
-npx gasacli --version
+```
+
+It installs to `~/.local/bin` and prints the exact line to add to your PATH if that folder is not on it. No `sudo` is needed. To remove it: `GASA_UNINSTALL=1` before the same command. Do not use this script in Git Bash on Windows; use the Windows section.
+
+### Any system with Node.js 18 or newer
+```sh
+npm i -g gasacli      # install the `gasa` command
+npx gasacli --version # or run it once without installing
+```
+The package only downloads and verifies the same binary; the binary itself does not need Node.
+
+### Go users
+```sh
 go install github.com/GasaTec/gasacli/cmd/gasa@latest
 ```
 
-The direct installers download an archive (about 3 MB; measured at 2.9–3.3 MB in a GoReleaser snapshot) and `checksums.txt` from this repository's GitHub Releases, then verify the archive's SHA-256 before installing. Windows installs to `%LOCALAPPDATA%\Programs\gasacli\bin`; Linux/macOS use `~/.local/bin`. Windows adds the install directory to the user PATH; Unix prints a PATH command if needed. No administrator or `sudo` access is needed, and GasaCLI sends no telemetry. The Windows command was exercised with Windows PowerShell 5.1 and PowerShell 7 using the source-loading and local download-flow tests described in the [installation guide](docs/install.md); the one-line command follows mutable `main`, so inspect or pin the script when needed.
+### What gets downloaded, and how
+The direct installers fetch one archive (about 3 MB) and `checksums.txt` from this repository's GitHub Releases, verify the archive's SHA-256, and only then install the single `gasa` executable. The checksum proves the file was not corrupted; it does not prove who published it (provenance attestations are published for `gh attestation verify`). There is no telemetry. The one-line commands follow the mutable `main` branch, so inspect the script or pin it to a release tag when it matters. Full details, every environment variable and troubleshooting are in the [installation guide](docs/install.md) (Portuguese).
+
+## First run and commands
+Run `gasa` in a project folder. The first time, it offers to install missing agents (Claude Code, Codex, Cursor CLI, OpenCode, Orca, Kimi) and Obsidian in a checklist: space toggles, Enter confirms, Esc skips. **Nothing is installed until you confirm the exact command shown.** Then it asks whether you trust the folder.
+
+| Command | What it does |
+|---|---|
+| `gasa` | Terminal shell and local dashboard (`http://127.0.0.1:3199`) |
+| `gasa setup` | Reopen the agent and Obsidian onboarding |
+| `gasa doctor` | Show which coding CLIs are installed and their versions |
+| `gasa web open` | Start only the dashboard |
+| `gasa reset [--all] [--dry-run]` | Delete GasaCLI settings (and with `--all`, its data) after showing a plan |
+| `gasa uninstall` | `reset --all` plus how to remove the binary |
+| `gasa --version` | Version and build information |
+
+Your settings live in `%AppData%gasacli` on Windows, `~/.config/gasacli` on Linux and `~/Library/Application Support/gasacli` on macOS. See [onboarding and reset](docs/onboarding.md) (Portuguese) for the safety rules.
 
 ## Contribute
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md). Issues and PRs are welcome once the repository is public.
