@@ -46,6 +46,16 @@ func TestApprovalLogRedactsAndChains(t *testing.T) {
 	}
 }
 
+func TestApprovalRejectsInvalidDecisionAndRedactsCommandSecrets(t *testing.T) {
+	if err := New(t.TempDir(), nil).RecordApproval(ApprovalEvent{Decision: Ask, Permission: "read_project"}); err == nil {
+		t.Fatal("ask event accepted")
+	}
+	got := RedactTarget("run --password hunter2 https://user:pass@example.test")
+	if strings.Contains(got, "hunter2") || strings.Contains(got, "user:pass") {
+		t.Fatalf("command secrets not redacted: %s", got)
+	}
+}
+
 func TestApprovalTamperingFailsClosed(t *testing.T) {
 	home := t.TempDir()
 	e := New(home, nil)

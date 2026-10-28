@@ -70,7 +70,7 @@ type ApprovalEvent struct {
 
 var approvalMaxBytes = 1024 * 1024
 
-var secretPattern = regexp.MustCompile(`(?i)(bearer\s+[^\s"']+|(?:token|password|secret|api[_-]?key|authorization)\s*[:=]\s*[^\s,;"']+)`)
+var secretPattern = regexp.MustCompile(`(?i)(bearer\s+[^\s"']+|--?(?:token|password|secret|api[_-]?key|authorization)(?:=|\s+)[^\s,;"']+|(?:token|password|secret|api[_-]?key|authorization)\s*[:=]\s*[^\s,;"']+|https?://[^:/\s]+:[^@/\s]+@)`)
 
 func RedactTarget(target string) string {
 	target = secretPattern.ReplaceAllString(target, "[REDACTED]")
@@ -83,6 +83,12 @@ func RedactTarget(target string) string {
 // RecordApproval appends a hash-chained event to approvals/events.jsonl, rotating
 // the active file before it would exceed 1 MiB. A lock serializes writers.
 func (e *Engine) RecordApproval(event ApprovalEvent) error {
+	if event.Decision != Allow && event.Decision != Deny {
+		return errors.New("approval event decision must be allow or deny")
+	}
+	if !ValidPermission(event.Permission) {
+		return fmt.Errorf("approval event has unknown permission %q", event.Permission)
+	}
 	dir := filepath.Join(e.Home, "approvals")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
