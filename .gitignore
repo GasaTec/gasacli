@@ -15,3 +15,7 @@ coverage/
 .DS_Store
 Thumbs.db
 npm/vendor/
+
+# worker validation copies
+.validation-*
+.w3b-verify-*
