@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI - Registro de Skills e Consentimento</title>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "success-light": "#137A54",
+            "inverse-surface": "#e4e2e5",
+            "surface-container-highest": "#343537",
+            "surface": "#131315",
+            "surface-bright": "#39393b",
+            "outline-variant": "#44474d",
+            "success-dark": "#43D19E",
+            "primary-fixed": "#d6e3ff",
+            "on-tertiary-fixed-variant": "#5c4218",
+            "on-surface": "#e4e2e5",
+            "on-background": "#e4e2e5",
+            "primary-container": "#172a46",
+            "on-secondary-fixed-variant": "#00513f",
+            "surface-tint": "#b5c7eb",
+            "text-muted-light": "#5B6B80",
+            "on-tertiary-container": "#ad8b5b",
+            "info-dark": "#79B8FF",
+            "on-primary-fixed": "#061c37",
+            "text-secondary-dark": "#C3CFDF",
+            "text-muted-dark": "#9AAAC0",
+            "text-primary-light": "#172A46",
+            "on-tertiary": "#432c04",
+            "info-light": "#145FA8",
+            "border-dark": "#596982",
+            "background-light": "#F4F7FB",
+            "text-primary-dark": "#F4F7FB",
+            "danger-dark": "#FF7272",
+            "on-secondary-fixed": "#002117",
+            "background-dark": "#0B1220",
+            "surface-light": "#FFFFFF",
+            "surface-container": "#1f1f22",
+            "surface-variant": "#343537",
+            "on-primary": "#1e314d",
+            "error": "#ffb4ab",
+            "text-secondary-light": "#44546A",
+            "on-secondary": "#00382a",
+            "elevated-dark": "#1B2A40",
+            "background": "#131315",
+            "tertiary-fixed-dim": "#e7c08b",
+            "secondary-fixed": "#61fbcf",
+            "on-error": "#690005",
+            "inverse-on-surface": "#303033",
+            "warning-light": "#8A5600",
+            "secondary-container": "#00c59c",
+            "on-surface-variant": "#c4c6ce",
+            "tertiary": "#e7c08b",
+            "surface-dim": "#131315",
+            "secondary-fixed-dim": "#3bdeb3",
+            "surface-container-high": "#292a2c",
+            "surface-container-low": "#1b1b1e",
+            "tertiary-container": "#3b2500",
+            "elevated-light": "#FFFFFF",
+            "primary": "#b5c7eb",
+            "on-primary-fixed-variant": "#354765",
+            "on-error-container": "#ffdad6",
+            "surface-dark": "#111C2E",
+            "primary-fixed-dim": "#b5c7eb",
+            "danger-light": "#B4232F",
+            "border-light": "#8996A8",
+            "error-container": "#93000a",
+            "surface-container-lowest": "#0d0e10",
+            "inverse-primary": "#4d5f7e",
+            "tertiary-fixed": "#ffddb1",
+            "secondary": "#3fe1b6",
+            "outline": "#8e9098",
+            "on-primary-container": "#7f92b3",
+            "on-secondary-container": "#004b3a",
+            "warning-dark": "#F2B84B",
+            "on-tertiary-fixed": "#291800"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-2xl": "32px",
+            "space-xs": "4px",
+            "space-4xl": "48px",
+            "space-xl": "24px",
+            "space-sm": "8px",
+            "margin": "24px",
+            "space-lg": "16px",
+            "space-md": "12px",
+            "gutter": "24px",
+            "space-3xl": "40px"
+          },
+          "fontFamily": {
+            "section-title": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "page-title": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "code": ["\"ui-monospace, SFMono-Regular, Consolas, monospace\""],
+            "body-emphasized": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "metadata": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "body": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "hero": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""]
+          },
+          "fontSize": {
+            "section-title": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+            "page-title": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+            "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+            "body-emphasized": ["14px", {"lineHeight": "21px", "fontWeight": "500"}],
+            "metadata": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+            "body": ["13px", {"lineHeight": "19px", "fontWeight": "400"}],
+            "hero": ["28px", {"lineHeight": "34px", "fontWeight": "600"}]
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-background-dark text-on-surface antialiased flex flex-col h-screen overflow-hidden select-none font-body text-body">
+<!-- TopNavBar (Shared Component Specification) -->
+<header class="w-full h-8 flex items-center justify-between px-space-sm border-b border-border-dark bg-surface-container-lowest shrink-0 z-40"><div class="flex items-center gap-space-sm font-code text-code">
+<span class="font-bold text-secondary tracking-tight">G&gt; gasacli</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface font-semibold">skills</span>
+</div>
+<div class="flex items-center gap-space-sm font-code text-metadata text-outline">
+<span>REGISTRO DE SKILLS</span>
+</div></header>
+<!-- Mobile Pane Selector Tabs (Responsive Support) -->
+<div aria-label="Seleção de Painel" class="flex md:hidden border-b border-border-dark bg-surface-dark font-code text-metadata shrink-0" role="tablist">
+<button aria-selected="true" class="flex-1 py-2 text-center text-secondary border-b-2 border-secondary font-bold" id="tab-pane-1" onclick="switchPane('pane-1')" role="tab" type="button">[1] Catálogo</button>
+<button aria-selected="false" class="flex-1 py-2 text-center text-outline hover:text-on-surface" id="tab-pane-2" onclick="switchPane('pane-2')" role="tab" type="button">[2] Detalhes</button>
+<button aria-selected="false" class="flex-1 py-2 text-center text-outline hover:text-on-surface" id="tab-pane-3" onclick="switchPane('pane-3')" role="tab" type="button">[3] Inspetor</button>
+</div>
+<!-- Main Three-Pane Architecture -->
+<main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+<!-- LEFT PANE [1]: Catálogo de Skills -->
+<section aria-labelledby="pane-1-title" class="w-full md:w-80 lg:w-96 flex flex-col border-r border-border-dark bg-surface-dark shrink-0 overflow-hidden" id="pane-1">
+<!-- Pane Header & Filter Bar -->
+<div class="p-space-sm border-b border-border-dark bg-surface-container-low">
+<div class="flex items-center justify-between mb-space-xs">
+<h2 class="font-section-title text-section-title text-on-surface flex items-center gap-space-xs" id="pane-1-title">
+<span class="text-secondary">[1]</span> Catálogo de Skills
+          </h2>
+<span class="font-code text-metadata text-outline">3 ITENS</span>
+</div>
+<div class="relative">
+<input aria-label="Filtrar catálogo de skills" class="w-full bg-surface-container-lowest border border-border-dark text-on-surface font-code text-code px-2 py-1 placeholder-outline focus:outline-none focus:border-secondary transition-none" placeholder="Filtrar skills... (/ para focar)" type="text"/>
+</div>
+</div>
+<!-- Exactly 3 Authorized Sample Items -->
+<div aria-label="Lista de Skills do Catálogo" class="flex-1 overflow-y-auto divide-y divide-border-dark" role="list">
+<!-- Item 1: Skill integrada N/D -->
+<div class="p-space-sm bg-surface-dark hover:bg-surface-container-high transition-none cursor-pointer flex flex-col gap-1 border-l-2 border-transparent" role="listitem">
+<div class="flex items-center justify-between">
+<span class="font-code text-code font-bold text-on-surface">Skill integrada N/D</span>
+<span class="px-1.5 py-0.2 bg-surface-container-highest text-on-surface font-code text-metadata rounded">Padrão</span>
+</div>
+<div class="flex items-center justify-between text-outline font-code text-metadata"><span>Built-in (Integrada)</span></div>
+</div>
+<!-- Item 2: Skill opcional N/D (SELECTED / EM FOCO) -->
+<div aria-current="true" class="p-space-sm bg-elevated-dark hover:bg-elevated-dark transition-none cursor-pointer flex flex-col gap-1 border-l-2 border-secondary shadow-inner" role="listitem">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-secondary">arrow_right</span>
+<span class="font-code text-code font-bold text-secondary">Skill opcional N/D</span>
+</div>
+<span class="px-1.5 py-0.2 bg-primary-container text-secondary font-code text-metadata rounded border border-secondary">Revisada</span>
+</div>
+<div class="flex items-center justify-between text-text-secondary-dark font-code text-metadata pl-5">
+<span>Opcional</span>
+<span class="text-secondary font-semibold">Em foco</span>
+</div>
+</div>
+<!-- Item 3: Skill pendente N/D -->
+<div class="p-space-sm bg-surface-dark hover:bg-surface-container-high transition-none cursor-pointer flex flex-col gap-1 border-l-2 border-transparent" role="listitem">
+<div class="flex items-center justify-between">
+<span class="font-code text-code font-bold text-on-surface">Skill pendente N/D</span>
+<span class="px-1.5 py-0.2 bg-tertiary-container text-tertiary font-code text-metadata rounded">Pendente</span>
+</div>
+<div class="flex items-center justify-between text-outline font-code text-metadata">
+<span>Opcional</span>
+<span>Pendente de revisão</span>
+</div>
+</div>
+</div>
+<!-- Quick Action / Status Footer of Left Pane -->
+<div class="p-space-sm border-t border-border-dark bg-surface-container-low font-code text-metadata text-outline flex items-center justify-between"><span>CATÁLOGO LOCAL</span><span>ESTADO: N/D</span></div>
+</section>
+<!-- CENTRAL PANE [2]: Detalhes & Confirmação de Consentimento -->
+<section aria-labelledby="pane-2-title" class="hidden md:flex flex-1 flex-col bg-background-dark overflow-y-auto" id="pane-2">
+<!-- Detail Header -->
+<div class="p-space-md border-b border-border-dark bg-surface-container-low shrink-0">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<h1 class="font-page-title text-page-title text-on-surface" id="pane-2-title">
+              Skill opcional N/D
+            </h1>
+<span class="px-2 py-0.5 bg-primary-container text-secondary font-code text-metadata border border-secondary rounded">Revisada</span>
+</div>
+<span class="font-code text-metadata text-outline">ID: N/D</span>
+</div>
+<p class="font-metadata text-metadata text-outline mt-1">Escopo: N/D</p>
+</div>
+<!-- Content Canvas: Bento Grid & Modal Focus -->
+<div class="p-space-lg flex-1 flex flex-col gap-space-lg">
+<!-- Bento Grid: Metadata Estruturada Factual -->
+<div class="grid grid-cols-2 lg:grid-cols-3 gap-space-md">
+<div class="p-space-md bg-surface-dark border border-border-dark rounded-none">
+<span class="font-metadata text-metadata text-outline block">Origem</span>
+<span class="font-code text-code text-on-surface font-semibold mt-1 block">N/D</span>
+</div>
+<div class="p-space-md bg-surface-dark border border-border-dark rounded-none">
+<span class="font-metadata text-metadata text-outline block">Licença</span>
+<span class="font-code text-code text-on-surface font-semibold mt-1 block">N/D</span>
+</div>
+<div class="p-space-md bg-surface-dark border border-border-dark rounded-none">
+<span class="font-metadata text-metadata text-outline block">Versão</span>
+<span class="font-code text-code text-on-surface font-semibold mt-1 block">N/D</span>
+</div>
+<div class="p-space-md bg-surface-dark border border-border-dark rounded-none">
+<span class="font-metadata text-metadata text-outline block">Status de revisão</span>
+<span class="font-code text-code text-secondary font-semibold mt-1 block">Revisada</span>
+</div>
+<div class="p-space-md bg-surface-dark border border-border-dark rounded-none">
+<span class="font-metadata text-metadata text-outline block">Permissões</span>
+<span class="font-code text-code text-on-surface font-semibold mt-1 block">N/D</span>
+</div>
+<div class="p-space-md bg-surface-dark border border-border-dark rounded-none">
+<span class="font-metadata text-metadata text-outline block">Impacto no sistema</span>
+<span class="font-code text-code text-on-surface font-semibold mt-1 block">N/D</span>
+</div>
+</div>
+<!-- Card / Modal de Confirmação de Consentimento (Explicitamente em Foco) -->
+<div aria-labelledby="consent-title" aria-modal="false" class="bg-surface-dark border-2 border-secondary p-space-lg shadow-lg flex flex-col gap-space-md" role="dialog">
+<div class="flex items-start justify-between border-b border-border-dark pb-space-sm"><div class="flex items-center justify-between w-full">
+<div>
+<div class="flex items-center gap-space-xs text-secondary mb-1">
+<span class="font-code text-metadata font-bold uppercase tracking-wider">Confirmação de Consentimento</span>
+</div>
+<h2 class="font-section-title text-section-title text-on-surface" id="consent-title">Autorização de Execução da Skill</h2>
+</div>
+<span class="font-code text-metadata text-outline">ID: N/D</span>
+</div></div>
+<p class="font-body text-body text-text-secondary-dark leading-relaxed"><div class="flex flex-col gap-1 font-code text-metadata text-outline"><span>Autorização: <strong class="text-on-surface font-normal">N/D</strong></span><span>Parâmetros: <strong class="text-on-surface font-normal">N/D</strong></span></div></p>
+<!-- Technical Specs Matrix -->
+<div class="bg-surface-container-lowest p-space-sm border border-border-dark font-code text-code flex flex-col gap-1 text-outline"><div class="flex justify-between">
+<span>ALVO:</span>
+<span class="text-on-surface">Skill opcional N/D</span>
+</div>
+<div class="flex justify-between">
+<span>PERMISSÕES REQUISITADAS:</span>
+<span class="text-on-surface">N/D</span>
+</div>
+<div class="flex justify-between">
+<span>ISOLAMENTO:</span>
+<span class="text-outline">N/D</span>
+</div></div>
+<!-- Dialog Decision Controls -->
+<div class="flex items-center justify-end gap-space-md pt-space-xs">
+<button class="px-space-lg py-1.5 border border-border-dark text-on-surface hover:bg-surface-container-high font-body-emphasized text-body-emphasized transition-none focus:ring-1 focus:ring-secondary focus:outline-none" type="button">
+              Voltar
+            </button>
+<button class="px-space-lg py-1.5 bg-secondary text-on-secondary font-body-emphasized text-body-emphasized font-bold hover:bg-secondary-fixed transition-none focus:ring-2 focus:ring-secondary focus:outline-none" type="button">
+              Confirmar consentimento
+            </button>
+</div>
+</div>
+<!-- Seção: Reverter alterações (Rollback) -->
+<div class="bg-surface-dark border border-border-dark p-space-md flex flex-col gap-space-sm mt-auto"><div class="flex items-center justify-between">
+<h3 class="font-section-title text-section-title text-on-surface flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-outline">history</span>
+Reverter alterações (Rollback)
+</h3>
+<span class="font-code text-metadata text-outline">ESTADO: N/D</span>
+</div>
+<p class="font-metadata text-metadata text-outline">Reversão: N/D</p>
+<div>
+<button aria-disabled="true" class="w-full text-left p-space-sm bg-surface-container-lowest border border-outline-variant text-outline font-code text-code cursor-not-allowed opacity-75" disabled="" type="button">Ação indisponível (histórico N/D)</button>
+</div></div>
+</div>
+</section>
+<!-- RIGHT PANE [3]: Inspetor de Políticas & Histórico Factual -->
+<section aria-labelledby="pane-3-title" class="hidden md:flex w-80 lg:w-96 flex-col border-l border-border-dark bg-surface-dark shrink-0 overflow-y-auto" id="pane-3"><div class="p-space-sm border-b border-border-dark bg-surface-container-low">
+<h2 class="font-section-title text-section-title text-on-surface flex items-center gap-space-xs" id="pane-3-title">
+<span class="text-secondary">[3]</span> Inspetor de Políticas
+</h2>
+</div>
+<div class="p-space-md flex flex-col gap-space-lg flex-1">
+<div class="flex flex-col gap-1 border-b border-border-dark pb-space-md">
+<span class="font-metadata text-metadata text-outline uppercase font-semibold">Origem da política</span>
+<div class="p-space-sm bg-surface-container-lowest border border-border-dark font-code text-code text-on-surface">N/D</div>
+<span class="font-metadata text-metadata text-outline">Manifesto: N/D</span>
+</div>
+<div class="flex flex-col gap-1 border-b border-border-dark pb-space-md">
+<span class="font-metadata text-metadata text-outline uppercase font-semibold">Permissões canônicas avaliadas</span>
+<div class="p-space-sm bg-surface-container-lowest border border-border-dark font-code text-code text-on-surface">N/D</div>
+<span class="font-metadata text-metadata text-outline">Avaliação: N/D</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="font-metadata text-metadata text-outline uppercase font-semibold">Histórico de instalações/reversões</span>
+<div class="p-space-sm bg-surface-container-lowest border border-border-dark font-code text-code text-on-surface min-h-[96px] flex items-center justify-center text-center">N/D</div>
+<p class="font-metadata text-metadata text-outline mt-1 leading-normal">Histórico: N/D</p>
+</div>
+<div class="mt-auto p-space-sm bg-primary-container border border-border-dark font-code text-metadata text-primary">
+<div class="flex items-center gap-1 font-bold text-secondary mb-1">
+<span class="material-symbols-outlined text-[14px]">shield</span>
+POLÍTICA DE EXECUÇÃO
+</div>
+<span>POLÍTICA DE EXECUÇÃO: N/D</span>
+</div>
+</div></section>
+</main>
+<!-- Footer (Terminal Shortcut Strip + Privacy Mandate) -->
+<footer class="w-full h-8 flex items-center justify-between px-space-md border-t border-border-dark bg-surface-container-lowest shrink-0 z-50 font-code text-metadata select-none"><div class="flex items-center gap-space-sm text-outline truncate max-w-[50%]">
+<span class="material-symbols-outlined text-[14px] text-secondary">verified</span>
+<span class="truncate">O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.</span>
+</div>
+<nav aria-label="Atalhos Rápidos de Navegação" class="flex items-center gap-space-md font-code text-metadata">
+<span class="hidden lg:inline text-secondary font-bold">[1] Catálogo</span>
+<span class="hidden lg:inline text-secondary font-bold">[2] Detalhes</span>
+<span class="hidden lg:inline text-secondary font-bold">[3] Inspetor</span>
+<span class="text-outline">[Esc] Voltar</span>
+<span class="flex items-center gap-1 text-secondary">
+<span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
+REGISTRO DE SKILLS
+</span>
+</nav></footer>
+<!-- Script for Accessible Responsive Pane Toggling -->
+<script>
+    function switchPane(activeId) {
+      const panes = ['pane-1', 'pane-2', 'pane-3'];
+      panes.forEach(id => {
+        const el = document.getElementById(id);
+        const tab = document.getElementById('tab-' + id);
+        if (id === activeId) {
+          el.classList.remove('hidden');
+          el.classList.add('flex');
+          if (tab) {
+            tab.classList.add('text-secondary', 'border-b-2', 'border-secondary', 'font-bold');
+            tab.classList.remove('text-outline');
+            tab.setAttribute('aria-selected', 'true');
+          }
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('flex');
+          if (tab) {
+            tab.classList.remove('text-secondary', 'border-b-2', 'border-secondary', 'font-bold');
+            tab.classList.add('text-outline');
+            tab.setAttribute('aria-selected', 'false');
+          }
+        }
+      });
+    }
+
+    // Keyboard Shortcuts Listener for Power Users
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '1') switchPane('pane-1');
+      if (e.key === '2') switchPane('pane-2');
+      if (e.key === '3') switchPane('pane-3');
+    });
+  </script>
+</body></html>

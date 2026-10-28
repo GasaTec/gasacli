@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-11-logs.md",
+    "stitchScreenId":  "6aec4d0fb91146359cf4e98ec67d1f6e",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  0,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept only the 09:42 check event and N/D for unknown fields",
+                                                  "bounded log capacity remains N/D",
+                                                  "no credentials, IDs or environment values",
+                                                  "preserved exact Portuguese privacy sentence",
+                                                  "no external resources; PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-15-plugins-github.md",
+    "stitchScreenId":  "d40b286ad76e4cbfbaadd36ac8cba62c",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept GitHub CLI available, auth N/D, repo gasatec/vitrine, read issues and write approval requirement",
+                                                  "removed invented plugin ID and active/official labels",
+                                                  "issue list and link preview N/D, no zero count",
+                                                  "version N/D; no credentials; no external resources",
+                                                  "preserved exact privacy sentence; PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

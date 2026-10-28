@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Web — Inbox de Permissões e Aprovações (GasaCLI)</title>
+<style>
+    /* CSS Tokens & Reset baseado em DESIGN.md */
+    :root {
+      --bg: #0B1220;
+      --surface: #111C2E;
+      --surface-elevated: #1B2A40;
+      --border: #596982;
+      --border-subtle: #24344d;
+      --text-primary: #F4F7FB;
+      --text-secondary: #C3CFDF;
+      --text-muted: #9AAAC0;
+      --accent: #1ECFA5;
+      --accent-hover: #17b38e;
+      --accent-bg: rgba(30, 207, 165, 0.12);
+      --warning: #F2B84B;
+      --warning-bg: rgba(242, 184, 75, 0.12);
+      --danger: #FF7272;
+      --danger-hover: #e05b5b;
+      --danger-bg: rgba(255, 114, 114, 0.12);
+      --navy: #172A46;
+      --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Navigation Bar */
+    header.top-bar {
+      height: 48px;
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .wordmark {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .wordmark span.prompt {
+      color: var(--accent);
+      margin-right: 4px;
+    }
+
+    .nav-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .nav-breadcrumb .separator {
+      color: var(--border);
+    }
+
+    .nav-breadcrumb .current {
+      color: var(--text-secondary);
+    }
+
+    .top-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+    }
+
+    .top-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .top-link:hover, .top-link:focus-visible {
+      color: var(--text-primary);
+      background-color: var(--surface-elevated);
+      outline: 1px solid var(--accent);
+    }
+
+    .top-link.active {
+      color: var(--accent);
+      background-color: var(--accent-bg);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    /* Main Responsive Three-Pane Layout */
+    main.workspace {
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      flex: 1;
+      height: calc(100vh - 48px - 32px);
+      min-height: 520px;
+      background-color: var(--bg);
+    }
+
+    /* Pane Common Styles */
+    .pane {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background-color: var(--bg);
+      overflow-y: auto;
+    }
+
+    .pane:last-child {
+      border-right: none;
+    }
+
+    .pane-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      background-color: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .pane-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pane-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      font-size: 11px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .badge-pending {
+      background-color: var(--warning-bg);
+      color: var(--warning);
+      border: 1px solid rgba(242, 184, 75, 0.4);
+    }
+
+    .badge-neutral {
+      background-color: rgba(154, 170, 192, 0.12);
+      color: var(--text-muted);
+      border: 1px solid rgba(89, 105, 130, 0.4);
+    }
+
+    .badge-accent {
+      background-color: var(--accent-bg);
+      color: var(--accent);
+      border: 1px solid rgba(30, 207, 165, 0.4);
+    }
+
+    /* Left Pane: Inbox List */
+    .inbox-list {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .filter-bar {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .filter-item {
+      padding: 3px 8px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .filter-item.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-bg);
+    }
+
+    .approval-card {
+      border: 1px solid var(--border);
+      background-color: var(--surface);
+      border-radius: 4px;
+      padding: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+      position: relative;
+    }
+
+    .approval-card:hover, .approval-card:focus-visible {
+      border-color: var(--accent);
+      background-color: var(--surface-elevated);
+      outline: none;
+    }
+
+    .approval-card.selected {
+      border-color: var(--accent);
+      border-left: 3px solid var(--accent);
+      background-color: var(--surface-elevated);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      gap: 6px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-meta-line {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .card-meta-line div {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .card-meta-val {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .inbox-empty-hint {
+      margin-top: 16px;
+      padding: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border: 1px dashed var(--border-subtle);
+      border-radius: 4px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* Center Pane: Focused Request & Action Affordances */
+    .center-pane {
+      background-color: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .center-content {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .detail-card {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background-color: var(--surface);
+      padding: 20px;
+    }
+
+    .detail-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .header-text-group h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .header-text-group p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Details Grid */
+    .properties-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px 20px;
+      margin-bottom: 20px;
+    }
+
+    .prop-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px 12px;
+      background-color: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+    }
+
+    .prop-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .prop-val {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .prop-val.mono-code {
+      font-family: var(--font-mono);
+      color: var(--accent);
+    }
+
+    /* Action Decision Box */
+    .action-container {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background-color: var(--surface-elevated);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .action-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .action-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    .action-status-label {
+      font-size: 11px;
+      color: var(--warning);
+      font-weight: 600;
+    }
+
+    .action-buttons-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Permitir uma vez (Primary Action) */
+    .btn-allow {
+      background-color: var(--accent);
+      color: var(--navy);
+      border-color: var(--accent);
+    }
+
+    .btn-allow:hover {
+      background-color: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    /* Negar (Destructive Action - Outlined until confirmation) */
+    .btn-deny {
+      background-color: transparent;
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .btn-deny:hover {
+      background-color: var(--danger-bg);
+      border-color: var(--danger-hover);
+    }
+
+    .action-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 10px;
+    }
+
+    /* Right Pane: Policy Profile & Effective Rules */
+    .right-pane {
+      background-color: var(--surface);
+    }
+
+    .policy-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .policy-block {
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      background-color: var(--bg);
+      padding: 14px;
+    }
+
+    .policy-block-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .policy-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.2);
+    }
+
+    .policy-row:last-child {
+      border-bottom: none;
+    }
+
+    .policy-key {
+      color: var(--text-muted);
+    }
+
+    .policy-val {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Tabela de Regras Efetivas */
+    .rules-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-top: 6px;
+    }
+
+    .rules-table th {
+      text-align: left;
+      padding: 6px 4px;
+      color: var(--text-muted);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .rules-table td {
+      padding: 7px 4px;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.15);
+      color: var(--text-secondary);
+    }
+
+    .rules-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .rule-name {
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+
+    /* Footer Privacy & Shortcut Bar */
+    footer.status-footer {
+      height: 32px;
+      background-color: #0d0e10;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .shortcut-tag {
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      background-color: var(--surface);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    /* Responsive Reflow Breakpoints */
+    @media (max-width: 1080px) {
+      main.workspace {
+        grid-template-columns: 240px 1fr 280px;
+      }
+      .properties-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 860px) {
+      main.workspace {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .pane {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+<!-- Top Navigation Bar -->
+<header class="top-bar">
+<div class="brand-section">
+<div class="wordmark"><span class="prompt">G&gt;</span> gasacli</div>
+<span class="nav-breadcrumb">
+<span class="separator">/</span>
+<span class="current">permissões e aprovações</span>
+</span>
+</div>
+<nav aria-label="Navegação do workspace" class="top-links">
+<a class="top-link" href="#geral">Visão Geral</a>
+<a class="top-link" href="#runs">Goal Run &amp; DAG</a>
+<a class="top-link" href="#chat">Chat da Sessão</a>
+<a aria-current="page" class="top-link active" href="#aprovacoes">Aprovações</a>
+<a class="top-link" href="#politica">Políticas</a>
+</nav>
+</header>
+<!-- Responsive Three-Pane Workspace -->
+<main class="workspace">
+<!-- Painel 1 (Esquerda): Lista / Inbox de Aprovações -->
+<section aria-labelledby="inbox-heading" class="pane left-pane">
+<div class="pane-header">
+<div class="pane-title" id="inbox-heading">
+          [1] Caixa de Entrada
+        </div>
+<span class="pane-badge badge-pending">1 PENDENTE</span>
+</div>
+<div class="filter-bar">
+<span class="filter-item active" tabindex="0">Todas (1)</span>
+<span class="filter-item" tabindex="0">write_project</span>
+</div>
+<div class="inbox-list">
+<!-- Único item autorizado na amostra -->
+<article aria-pressed="true" class="approval-card selected" role="button" tabindex="0">
+<div class="card-top">
+<span class="card-title">Permissão de escrita</span>
+<span class="pane-badge badge-pending">PENDENTE</span>
+</div>
+<div class="card-meta-line">
+<div>
+<span>Solicitante:</span>
+<span class="card-meta-val">Worker Codex</span>
+</div>
+<div>
+<span>Ação:</span>
+<span class="card-meta-val">write_project</span>
+</div>
+<div>
+<span>Alvo:</span>
+<span class="card-meta-val">N/D</span>
+</div>
+</div>
+</article>
+<div class="inbox-empty-hint">
+          Nenhuma outra solicitação registrada no momento.
+        </div>
+</div>
+</section>
+<!-- Painel 2 (Centro): Detalhe da Solicitação e Ações Disponíveis -->
+<section aria-labelledby="detail-heading" class="pane center-pane">
+<div class="pane-header">
+<div class="pane-title" id="detail-heading">
+          [2] Detalhes da Solicitação Selecionada
+        </div>
+<span class="pane-badge badge-accent">FOCO ATIVO</span>
+</div>
+<div class="center-content">
+<!-- Card Principal de Detalhes -->
+<article class="detail-card">
+<header class="detail-card-header">
+<div class="header-text-group">
+<h1>Permissão de escrita</h1>
+<p>Solicitação pendente de aprovação.</p>
+</div>
+<span class="pane-badge badge-pending">PENDENTE</span>
+</header>
+<!-- Propriedades da Solicitação: requester, target, action, scope, lifetime -->
+<div class="properties-grid">
+<div class="prop-item">
+<span class="prop-label">Solicitante (Requester)</span>
+<span class="prop-val">Worker Codex (Codex CLI)</span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Ação Solicitada (Action)</span>
+<span class="prop-val mono-code">write_project</span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Alvo / Caminho (Target)</span>
+<span class="prop-val">N/D</span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Escopo (Scope)</span>
+<span class="prop-val">N/D</span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Duração / Validade (Lifetime)</span>
+<span class="prop-val">N/D</span>
+</div>
+<div class="prop-item">
+<span class="prop-label">Identificador (Request ID)</span>
+<span class="prop-val">N/D</span>
+</div>
+</div>
+<!-- Caixa de Decisão / Ações do Usuário -->
+<div class="action-container">
+<div class="action-header">
+<span class="action-title">Ações Disponíveis do Operador</span>
+<span class="action-status-label">AGUARDANDO AÇÃO</span>
+</div>
+<div class="action-buttons-group">
+<!-- Botão Permitir uma vez (Primary) -->
+<button class="btn btn-allow" id="btn-allow-once" type="button">
+                Permitir uma vez
+              </button>
+<!-- Botão Negar (Secondary / Destructive) -->
+<button class="btn btn-deny" id="btn-deny" type="button">
+                Negar
+              </button>
+</div>
+</div>
+</article>
+</div>
+</section>
+<!-- Painel 3 (Direita): Perfil de Política e Regras Efetivas -->
+<aside aria-labelledby="policy-heading" class="pane right-pane">
+<div class="pane-header">
+<div class="pane-title" id="policy-heading">
+          [3] Políticas &amp; Regras Efetivas
+        </div>
+<span class="pane-badge badge-neutral">INSPEÇÃO</span>
+</div>
+<div class="policy-content">
+<!-- Perfil de Política -->
+<section class="policy-block">
+<div class="policy-block-title">
+<span>Perfil de Política</span>
+<span class="pane-badge badge-neutral">N/D</span>
+</div>
+<div class="policy-row">
+<span class="policy-key">Nome do Perfil:</span>
+<span class="policy-val">N/D</span>
+</div>
+<div class="policy-row">
+<span class="policy-key">Origem:</span>
+<span class="policy-val">N/D</span>
+</div>
+<div class="policy-row">
+<span class="policy-key">Modo de Operação:</span>
+<span class="policy-val">N/D</span>
+</div>
+</section>
+<!-- Regras Efetivas -->
+<section class="policy-block">
+<div class="policy-block-title">
+<span>Regras Efetivas</span>
+<span class="pane-badge badge-neutral">N/D</span>
+</div>
+<table class="rules-table">
+<thead>
+<tr>
+<th>Capacidade</th>
+<th>Estado Efetivo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="rule-name">write_project</td>
+<td><span class="pane-badge badge-neutral">N/D</span></td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- Resumo de Auditoria / Parâmetros -->
+<section class="policy-block">
+<div class="policy-block-title">
+<span>Contexto da Sessão</span>
+</div>
+<div class="policy-row">
+<span class="policy-key">Solicitações Ativas:</span>
+<span class="policy-val">1</span>
+</div>
+<div class="policy-row">
+<span class="policy-key">Decisões Concluídas:</span>
+<span class="policy-val">N/D</span>
+</div>
+<div class="policy-row">
+<span class="policy-key">Status Declarado:</span>
+<span class="policy-val">N/D</span>
+</div>
+</section>
+</div>
+</aside>
+</main>
+<!-- Rodapé Institucional e Frase Exata de Privacidade -->
+<footer class="status-footer">
+<div class="footer-left">
+<span>O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.</span>
+</div>
+<div class="footer-right">
+<span><span class="shortcut-tag">[1]</span> Inbox</span>
+<span><span class="shortcut-tag">[2]</span> Detalhes</span>
+<span><span class="shortcut-tag">[3]</span> Políticas</span>
+<span><span class="shortcut-tag">[Esc]</span> Voltar</span>
+</div>
+</footer>
+</body>
+</html>

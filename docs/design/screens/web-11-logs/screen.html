@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GasaCLI — Logs</title>
+  <style>
+    /* Reset & Base Fonts (System Mono / Sans strictly without external resources) */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0B1220;
+      --surface: #111C2E;
+      --surface-elevated: #1B2A40;
+      --border: #596982;
+      --border-subtle: #23354E;
+      --text-primary: #F4F7FB;
+      --text-secondary: #C3CFDF;
+      --text-muted: #9AAAC0;
+      --accent: #1ECFA5;
+      --accent-dim: #137A54;
+      --accent-ink: #0B1220;
+      --warning: #F2B84B;
+      --danger: #FF7272;
+      --info: #79B8FF;
+      --brand-navy: #172A46;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Focus styling */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    /* Top Navigation Bar */
+    header.top-nav {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      min-height: 48px;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .brand-chevron {
+      color: var(--accent);
+    }
+
+    .nav-breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+    }
+
+    .nav-tab {
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .nav-tab:hover {
+      color: var(--text-primary);
+      background-color: var(--surface-elevated);
+    }
+
+    .nav-tab.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      background-color: rgba(30, 207, 165, 0.08);
+      font-weight: 600;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background-color: var(--surface-elevated);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .badge-accent {
+      border-color: var(--accent);
+      color: var(--accent);
+      background-color: rgba(30, 207, 165, 0.1);
+    }
+
+    .btn {
+      background-color: var(--surface-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.15s ease;
+    }
+
+    .btn:hover {
+      background-color: var(--border-subtle);
+      border-color: var(--text-muted);
+    }
+
+    .btn-accent {
+      background-color: var(--accent);
+      color: var(--accent-ink);
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .btn-accent:hover {
+      background-color: #26e6b8;
+    }
+
+    /* Main Responsive Three-Pane Layout */
+    .workspace-layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      background-color: var(--bg);
+      min-height: calc(100vh - 48px - 34px);
+    }
+
+    /* Panes */
+    .pane {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--surface);
+      border-right: 1px solid var(--border-subtle);
+      overflow-y: auto;
+    }
+
+    .pane-last {
+      border-right: none;
+      border-left: 1px solid var(--border-subtle);
+    }
+
+    .pane-header {
+      padding: 12px 14px;
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .pane-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pane-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Form and Filters */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .form-select, .form-input {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 7px 10px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 12px;
+      width: 100%;
+    }
+
+    .form-select:disabled, .form-input:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Central Stream Area */
+    .stream-container {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg);
+      overflow: hidden;
+    }
+
+    .stream-toolbar {
+      padding: 10px 16px;
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .stream-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .stream-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Follow-Tail Toggle Switch */
+    .toggle-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-primary);
+      user-select: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background-color: var(--surface-elevated);
+      border: 1px solid var(--border);
+    }
+
+    .toggle-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      display: inline-block;
+    }
+
+    .toggle-indicator.off {
+      background-color: var(--text-muted);
+      box-shadow: none;
+    }
+
+    /* Logs Table / Stream View */
+    .log-viewport {
+      flex: 1;
+      overflow-y: auto;
+      background-color: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .log-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    .log-table th {
+      position: sticky;
+      top: 0;
+      background-color: #0E1626;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      z-index: 2;
+    }
+
+    .log-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #16233B;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .log-row-selected {
+      background-color: rgba(30, 207, 165, 0.09) !important;
+      color: var(--text-primary) !important;
+      position: relative;
+    }
+
+    .log-row-selected td:first-child {
+      border-left: 3px solid var(--accent);
+    }
+
+    .log-row-selected td {
+      color: var(--text-primary);
+    }
+
+    .log-timestamp {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .log-type-tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background-color: var(--surface-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .log-summary-box {
+      margin-top: auto;
+      padding: 8px 16px;
+      background-color: var(--surface);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* Inspector / Sanitized Details Pane */
+    .details-card {
+      background-color: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .details-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 8px;
+    }
+
+    .details-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12px;
+      padding: 3px 0;
+    }
+
+    .details-key {
+      color: var(--text-muted);
+      min-width: 100px;
+    }
+
+    .details-val {
+      color: var(--text-primary);
+      font-weight: 500;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .sanitized-box {
+      background-color: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 10px;
+      font-size: 12px;
+      color: var(--text-primary);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .sanitized-badge {
+      font-size: 10px;
+      padding: 2px 5px;
+      border-radius: 3px;
+      background-color: rgba(30, 207, 165, 0.15);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    /* Footer Shortcut Bar */
+    footer.app-footer {
+      background-color: #070C15;
+      border-top: 1px solid var(--border);
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      min-height: 34px;
+    }
+
+    .footer-privacy {
+      color: var(--text-secondary);
+    }
+
+    .footer-keys {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .key-badge {
+      color: var(--text-primary);
+      background-color: var(--surface-elevated);
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    /* Mobile / Responsive Collapse */
+    @media (max-width: 1080px) {
+      .workspace-layout {
+        grid-template-columns: 240px 1fr 280px;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .workspace-layout {
+        grid-template-columns: 1fr;
+      }
+      .pane-filters, .pane-inspector {
+        display: none; /* In single-pane mobile view, stream takes full width with drawer triggers */
+      }
+      .mobile-pane-toggle {
+        display: inline-flex !important;
+      }
+    }
+
+    .mobile-pane-toggle {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="top-nav">
+    <div class="brand-section">
+      <div class="brand-title">
+        <span class="brand-chevron">G&gt;</span> gasacli
+      </div>
+      <div class="nav-breadcrumbs">
+        <span>/</span>
+        <span>workspace</span>
+        <span>/</span>
+        <span style="color: var(--text-primary); font-weight: 600;">logs</span>
+      </div>
+    </div>
+
+    <!-- Center Navigation Tabs -->
+    <nav class="nav-tabs" aria-label="Navegação Principal">
+      <a href="#geral" class="nav-tab">Visão Geral</a>
+      <a href="#goal" class="nav-tab">Goal Run &amp; DAG</a>
+      <a href="#chat" class="nav-tab">Chat da Sessão</a>
+      <a href="#agentes" class="nav-tab">Agentes e Papéis</a>
+      <a href="#barramento" class="nav-tab">Barramento</a>
+      <a href="#analytics" class="nav-tab">Analytics</a>
+      <a href="#logs" class="nav-tab active">Logs</a>
+    </nav>
+
+    <!-- Top Actions -->
+    <div class="top-actions">
+      <div class="badge badge-accent">
+        <span>STREAM DELIMITADO</span>
+      </div>
+      <button class="btn mobile-pane-toggle" type="button" title="Abrir Filtros">[1] Filtros</button>
+      <button class="btn mobile-pane-toggle" type="button" title="Abrir Inspetor">[2] Detalhes</button>
+      <button class="btn" type="button" title="Recarregar Buffer">[r] Atualizar</button>
+      <button class="btn" type="button" title="Voltar ao Terminal">[Esc] Voltar</button>
+    </div>
+  </header>
+
+  <!-- Responsive Three-Pane Layout -->
+  <main class="workspace-layout">
+
+    <!-- Painel Esquerdo: Filtros de Escopo e Severidade -->
+    <aside class="pane pane-filters" aria-label="Filtros de Logs">
+      <div class="pane-header">
+        <div class="pane-title">
+          <span>[1] Filtros de Escopo</span>
+        </div>
+        <span class="badge">Ativos: N/D</span>
+      </div>
+
+      <div class="pane-body">
+        <!-- Severidade -->
+        <div class="form-group">
+          <label class="form-label" for="filter-severity">
+            <span>Severidade</span>
+            <span>N/D</span>
+          </label>
+          <select id="filter-severity" class="form-select">
+            <option selected>Todas as severidades (N/D)</option>
+            <option disabled>debug (N/D)</option>
+            <option disabled>info (N/D)</option>
+            <option disabled>warning (N/D)</option>
+            <option disabled>error (N/D)</option>
+          </select>
+        </div>
+
+        <!-- Projeto -->
+        <div class="form-group">
+          <label class="form-label" for="filter-project">
+            <span>Projeto Alvo</span>
+            <span>N/D</span>
+          </label>
+          <select id="filter-project" class="form-select">
+            <option selected>Todos os projetos (N/D)</option>
+          </select>
+        </div>
+
+        <!-- Agente -->
+        <div class="form-group">
+          <label class="form-label" for="filter-agent">
+            <span>Agente / Worker</span>
+            <span>N/D</span>
+          </label>
+          <select id="filter-agent" class="form-select">
+            <option selected>Todos os agentes (N/D)</option>
+          </select>
+        </div>
+
+        <!-- Run -->
+        <div class="form-group">
+          <label class="form-label" for="filter-run">
+            <span>Execução (Run)</span>
+            <span>N/D</span>
+          </label>
+          <select id="filter-run" class="form-select">
+            <option selected>Todas as execuções (N/D)</option>
+          </select>
+        </div>
+
+        <!-- Busca por Texto / Termo -->
+        <div class="form-group">
+          <label class="form-label" for="filter-query">
+            <span>Filtrar no Fluxo</span>
+          </label>
+          <input id="filter-query" type="text" class="form-input" placeholder="Filtrar por tipo/texto..." value="check">
+        </div>
+
+        <!-- Parâmetros da Amostra -->
+        <div class="details-card" style="margin-top: 4px;">
+          <div class="details-row">
+            <span class="details-key">Capacidade Máxima:</span>
+            <span class="details-val">N/D (delimitada)</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Descartes no Buffer:</span>
+            <span class="details-val">N/D</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Filtro Ativo:</span>
+            <span class="details-val">check</span>
+          </div>
+        </div>
+
+        <button class="btn" style="width: 100%; justify-content: center; margin-top: auto;" type="button">
+          Limpar Filtros
+        </button>
+      </div>
+    </aside>
+
+    <!-- Painel Central: Stream Delimitado de Eventos / Logs -->
+    <section class="stream-container" aria-label="Stream de Eventos e Logs">
+
+      <!-- Toolbar do Stream -->
+      <div class="stream-toolbar">
+        <div class="stream-meta">
+          <span style="font-weight: 600; color: var(--text-primary);">Fluxo de Logs do Workspace</span>
+          <span>•</span>
+          <span>Capacidade: <strong style="color: var(--text-primary);">N/D</strong></span>
+          <span>•</span>
+          <span>Total Listado: <strong style="color: var(--accent);">1 evento</strong></span>
+        </div>
+
+        <div class="stream-actions">
+          <!-- Follow-Tail Toggle -->
+          <div class="toggle-control" role="switch" aria-checked="true" tabindex="0" title="Alternar Rolagem Automática (Follow-tail)">
+            <span class="toggle-indicator"></span>
+            <span>Follow-tail: <strong>ATIVO</strong></span>
+            <span class="key-badge">[f]</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Log Viewport / Tabela de Eventos -->
+      <div class="log-viewport" tabindex="0" aria-label="Lista de logs">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th style="width: 90px;">Horário</th>
+              <th style="width: 110px;">Tipo / Evento</th>
+              <th style="width: 110px;">Severidade</th>
+              <th style="width: 120px;">Projeto</th>
+              <th style="width: 120px;">Agente</th>
+              <th style="width: 90px;">Run</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Único evento fornecido na especificação -->
+            <tr class="log-row-selected" tabindex="0" aria-selected="true">
+              <td class="log-timestamp">09:42</td>
+              <td>
+                <span class="log-type-tag">check</span>
+              </td>
+              <td>N/D</td>
+              <td>N/D</td>
+              <td>N/D</td>
+              <td>N/D</td>
+              <td>N/D</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Barra Inferior do Fluxo Central -->
+      <div class="log-summary-box">
+        <div>
+          <span>Amostra factual exibida: <strong>1 registro pontual</strong> (09:42 check).</span>
+        </div>
+        <div>
+          <span>Buffer: delimitado (limite numérico N/D)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Painel Direito: Detalhes Sanitizados do Evento Selecionado -->
+    <aside class="pane pane-last pane-inspector" aria-label="Inspetor de Detalhes Sanitizados">
+      <div class="pane-header">
+        <div class="pane-title">
+          <span>[2] Detalhes Sanitizados</span>
+        </div>
+        <span class="sanitized-badge">Higienizado</span>
+      </div>
+
+      <div class="pane-body">
+        <div class="details-card">
+          <div class="details-header">
+            <span style="font-weight: 600; color: var(--text-primary);">Evento em Foco</span>
+            <span class="log-type-tag">check</span>
+          </div>
+
+          <div class="details-row">
+            <span class="details-key">Horário:</span>
+            <span class="details-val" style="color: var(--accent);">09:42</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Tipo de Evento:</span>
+            <span class="details-val">check</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Severidade:</span>
+            <span class="details-val">N/D</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Projeto:</span>
+            <span class="details-val">N/D</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Agente:</span>
+            <span class="details-val">N/D</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Identificador Run:</span>
+            <span class="details-val">N/D</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Status Declarado:</span>
+            <span class="details-val">N/D</span>
+          </div>
+        </div>
+
+        <!-- Carga e Metadados Higienizados -->
+        <div class="form-group">
+          <div class="form-label">
+            <span>Carga do Evento (Sanitizada)</span>
+            <span>Higienizado</span>
+          </div>
+          <div class="sanitized-box">
+check
+          </div>
+        </div>
+
+        <!-- Parâmetros de Isolamento de Dados -->
+        <div class="details-card">
+          <div class="details-header">
+            <span style="font-weight: 600; font-size: 11px; text-transform: uppercase; color: var(--text-secondary);">Campos Sanitizados</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Identificadores (IDs):</span>
+            <span class="details-val">N/D</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Credenciais / Chaves:</span>
+            <span class="details-val">N/D</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Variáveis de Ambiente:</span>
+            <span class="details-val">N/D</span>
+          </div>
+          <div class="details-row">
+            <span class="details-key">Contagem de Entradas:</span>
+            <span class="details-val">N/D</span>
+          </div>
+        </div>
+
+        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4; padding: 6px 2px;">
+          Exibição estritamente restrita aos dados fornecidos na amostra. Qualquer campo não instrumentado permanece classificado como N/D.
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Rodapé com Atalhos e Declaração Estrita de Privacidade -->
+  <footer class="app-footer">
+    <div class="footer-privacy">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+
+    <div class="footer-keys">
+      <span><span class="key-badge">[1]</span> Filtros</span>
+      <span><span class="key-badge">[2]</span> Detalhes</span>
+      <span><span class="key-badge">[f]</span> Follow-tail</span>
+      <span><span class="key-badge">[r]</span> Atualizar</span>
+      <span><span class="key-badge">[Esc]</span> Voltar</span>
+    </div>
+  </footer>
+
+</body>
+</html>

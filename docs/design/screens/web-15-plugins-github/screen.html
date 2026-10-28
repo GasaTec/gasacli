@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Web — Plugins GitHub (GasaCLI)</title>
+<style>
+    /* Reset & Base System */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0B1220;
+      --surface: #111C2E;
+      --elevated: #1B2A40;
+      --border: #596982;
+      --border-subtle: #22344D;
+      --text-primary: #F4F7FB;
+      --text-secondary: #C3CFDF;
+      --text-muted: #9AAAC0;
+      --accent: #1ECFA5;
+      --accent-dim: rgba(30, 207, 165, 0.15);
+      --navy-brand: #172A46;
+      --warning: #F2B84B;
+      --warning-dim: rgba(242, 184, 75, 0.15);
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+    }
+
+    /* Top Navigation Bar */
+    header.app-header {
+      height: 38px;
+      background-color: #070D18;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+
+    .brand-separator {
+      color: var(--border);
+      font-size: 12px;
+    }
+
+    .breadcrumb {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+    }
+
+    .nav-item {
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 4px 8px;
+    }
+
+    .nav-item.active {
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .header-shortcuts {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .key-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 3px;
+      color: var(--text-secondary);
+      font-size: 10px;
+    }
+
+    /* Main Workspace Layout (3 Panes) */
+    main.workspace-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 310px 1fr 340px;
+      background-color: var(--bg);
+      min-height: calc(100vh - 72px);
+    }
+
+    /* Pane 1: Sidebar / Plugin List */
+    section.pane-sidebar {
+      background-color: var(--surface);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pane-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pane-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .pane-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: rgba(89, 105, 130, 0.2);
+      padding: 1px 6px;
+      border-radius: 2px;
+    }
+
+    .plugin-list {
+      list-style: none;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .plugin-item {
+      padding: 10px 12px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background-color 0.1s ease, border-color 0.1s ease;
+      background: transparent;
+      outline: none;
+    }
+
+    .plugin-item.selected {
+      background-color: var(--elevated);
+      border-color: var(--accent);
+      box-shadow: inset 2px 0 0 0 var(--accent);
+    }
+
+    .plugin-item:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .plugin-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .plugin-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+
+    .status-chip {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-chip.ready {
+      background-color: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(30, 207, 165, 0.3);
+    }
+
+    .status-chip.neutral {
+      background-color: rgba(154, 170, 192, 0.12);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .status-chip.warning {
+      background-color: var(--warning-dim);
+      color: var(--warning);
+      border: 1px solid rgba(242, 184, 75, 0.3);
+    }
+
+    .plugin-meta-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .sidebar-footer-note {
+      margin-top: auto;
+      padding: 12px;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Pane 2: Primary Content / GitHub Plugin Inspection */
+    section.pane-content {
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background-color: var(--bg);
+    }
+
+    .content-container {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      max-width: 900px;
+    }
+
+    .title-banner {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .title-banner h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .title-banner p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Metric & Status Cards Grid */
+    .grid-props {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .prop-card {
+      background-color: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 10px 12px;
+    }
+
+    .prop-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .prop-value {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .prop-value.accent {
+      color: var(--accent);
+    }
+
+    .prop-value.nd {
+      color: var(--text-muted);
+    }
+
+    /* Sections / Fieldsets */
+    .card-block {
+      background-color: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 14px 16px;
+    }
+
+    .block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.15);
+    }
+
+    .block-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Repository & Permissions Table */
+    .table-spec {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .table-spec th {
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .table-spec td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.12);
+      color: var(--text-secondary);
+    }
+
+    .table-spec tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Issue List Container (Empty / N/D) */
+    .empty-placeholder-box {
+      border: 1px dashed var(--border-subtle);
+      background-color: rgba(11, 18, 32, 0.4);
+      border-radius: 4px;
+      padding: 24px 16px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .placeholder-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .placeholder-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Actions Bar */
+    .actions-strip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .btn {
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      outline: none;
+      user-select: none;
+      text-decoration: none;
+      transition: background-color 0.1s ease;
+    }
+
+    .btn-secondary {
+      background-color: var(--elevated);
+      border-color: var(--border);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:focus-visible {
+      outline: 2px solid var(--accent);
+    }
+
+    /* Pane 3: Inspector / Link Preview */
+    section.pane-inspector {
+      background-color: var(--surface);
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .inspector-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .kv-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .kv-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.1);
+    }
+
+    .kv-key {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .kv-val {
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .kv-val.nd {
+      color: var(--text-muted);
+    }
+
+    .card-preview-box {
+      border: 1px solid var(--border-subtle);
+      background-color: rgba(11, 18, 32, 0.5);
+      border-radius: 4px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* App Footer */
+    footer.app-footer {
+      height: 34px;
+      background-color: #070D18;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .privacy-text {
+      color: var(--text-secondary);
+    }
+
+    .footer-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--accent);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+      main.workspace-grid {
+        grid-template-columns: 260px 1fr 280px;
+      }
+      .grid-props {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 800px) {
+      main.workspace-grid {
+        grid-template-columns: 1fr;
+      }
+      section.pane-sidebar, section.pane-inspector {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+<!-- Top Navigation Bar -->
+<header class="app-header">
+<div class="brand-group">
+<span class="brand-mark mono">G&gt; gasacli</span>
+<span class="brand-separator">/</span>
+<span class="breadcrumb mono">plugins / github</span>
+</div>
+<nav class="header-nav">
+<span class="nav-item">Visão Geral</span>
+<span class="nav-item">Agentes</span>
+<span class="nav-item active">Plugins</span>
+<span class="nav-item">Permissões</span>
+</nav>
+<div class="header-shortcuts mono">
+<span>[1] Plugins</span>
+<span>[2] Detalhes</span>
+<span>[3] Inspetor</span>
+<span class="key-badge">Esc Voltar</span>
+</div>
+</header>
+<!-- Responsive 3-Pane Workspace -->
+<main class="workspace-grid">
+<!-- Pane 1: Plugin List -->
+<section aria-labelledby="pane1-title" class="pane-sidebar">
+<div class="pane-header">
+<h2 class="pane-title" id="pane1-title">[1] Plugins Registrados</h2>
+</div>
+<ul class="plugin-list" role="listbox">
+<li aria-selected="true" class="plugin-item selected" role="option" tabindex="0">
+<div class="plugin-header-row">
+<span class="plugin-name">GitHub</span>
+<span class="status-chip ready mono">Disponível</span>
+</div>
+</li>
+</ul>
+<div class="sidebar-footer-note mono"><div style="color: var(--text-muted);">CATÁLOGO LOCAL</div></div>
+</section>
+<!-- Pane 2: Content (GitHub Plugin Status, Repo Opt-In, Issue List) -->
+<section aria-labelledby="pane2-title" class="pane-content">
+<div class="content-container">
+<!-- Title Banner -->
+<div class="title-banner"><div>
+<h1 id="pane2-title">Plugin GitHub</h1>
+<p>Configuração e escopo de acesso.</p>
+</div>
+<div class="mono" style="font-size: 11px; color: var(--text-muted);">
+            ID: N/D
+          </div></div>
+<!-- Metric / State Grid -->
+<div class="grid-props mono"><div class="prop-card">
+<div class="prop-label">Disponibilidade gh</div>
+<div class="prop-value accent">CLI disponível</div>
+</div>
+<div class="prop-card">
+<div class="prop-label">Autenticação</div>
+<div class="prop-value nd">N/D (Não inspecionado)</div>
+</div>
+<div class="prop-card">
+<div class="prop-label">Repositório Vinculado</div>
+<div class="prop-value">gasatec/vitrine (Opt-in)</div>
+</div>
+<div class="prop-card">
+<div class="prop-label">Versão do Plugin</div>
+<div class="prop-value nd">N/D</div>
+</div></div>
+<!-- Repository Opt-In & Permissions Block -->
+<div class="card-block">
+<div class="block-header">
+<h3 class="block-title">Configuração e Política de Acesso</h3>
+<span class="status-chip neutral mono">Opt-in Ativo</span>
+</div>
+<table class="table-spec mono"><thead>
+<tr>
+<th>Item</th>
+<th>Valor / Definição</th>
+<th>Estado de Aprovação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Repositório autorizado</td>
+<td style="color: var(--text-primary);">gasatec/vitrine</td>
+<td><span class="status-chip neutral">Opt-in</span></td>
+</tr>
+<tr>
+<td>Leitura de issues</td>
+<td style="color: var(--text-primary);">read issues</td>
+<td><span class="status-chip neutral">N/D</span></td>
+</tr>
+<tr>
+<td>Ações de escrita</td>
+<td style="color: var(--text-primary);">write</td>
+<td><span class="status-chip warning">Requer aprovação prévia</span></td>
+</tr>
+</tbody></table>
+</div>
+<!-- Issue List Block (Clean / Empty / N/D) -->
+<div class="card-block">
+<div class="block-header">
+<h3 class="block-title">Lista de Issues</h3>
+<span class="mono" style="font-size: 11px; color: var(--text-muted);">N/D</span>
+</div>
+<div class="empty-placeholder-box"><div class="placeholder-title mono">N/D</div></div>
+</div>
+<!-- Actions Strip -->
+<div class="actions-strip mono">
+<button class="btn btn-secondary" type="button">[r] Recarregar status</button>
+<button class="btn btn-secondary" type="button">[Esc] Retornar ao workspace</button>
+</div>
+</div>
+</section>
+<!-- Pane 3: Inspector / Link Preview -->
+<section aria-labelledby="pane3-title" class="pane-inspector">
+<div class="pane-header">
+<h2 class="pane-title" id="pane3-title">[3] Inspetor de Vínculo</h2>
+<span class="pane-count mono">DETALHES</span>
+</div>
+<div class="inspector-body">
+<div class="kv-group mono">
+<div class="kv-item">
+<span class="kv-key">Alvo do Plugin</span>
+<span class="kv-val">GitHub CLI (gh)</span>
+</div>
+<div class="kv-item">
+<span class="kv-key">Status da Ferramenta</span>
+<span class="kv-val accent">CLI disponível</span>
+</div>
+<div class="kv-item">
+<span class="kv-key">Status de Autenticação</span>
+<span class="kv-val nd">N/D (Não inspecionado na UI)</span>
+</div>
+<div class="kv-item">
+<span class="kv-key">Repositório Selecionado</span>
+<span class="kv-val">gasatec/vitrine</span>
+</div>
+<div class="kv-item">
+<span class="kv-key">Política de Escrita</span>
+<span class="kv-val" style="color: var(--warning);">Requer aprovação prévia</span>
+</div>
+</div>
+<!-- Link Preview Block (N/D) -->
+<div class="card-preview-box"><div class="pane-title" style="margin-bottom: 4px;">Pré-visualização de Link</div>
+<div class="mono" style="font-size: 11px; color: var(--text-muted);">
+            Link preview: N/D
+          </div></div>
+</div>
+</section>
+</main>
+<!-- App Footer -->
+<footer class="app-footer mono">
+<div class="privacy-text">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+<div class="footer-status"><span class="status-indicator" style="color: var(--text-muted);">
+        Modo de inspeção
+      </span></div>
+</footer>
+</body>
+</html>

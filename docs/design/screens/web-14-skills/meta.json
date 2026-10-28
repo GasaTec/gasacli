@@ -1,0 +1,22 @@
+{
+    "promptFile":  "docs/design/prompts/web-14-skills.md",
+    "stitchScreenId":  "304fa90fae58457591ef9275911ed943",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept one built-in skill, one reviewed optional skill and one pending review",
+                                                  "removed invented IDs, names, policies, runtime and isolation claims",
+                                                  "origin/license/version/permissions/impact are N/D",
+                                                  "consent and rollback affordances shown without claiming execution",
+                                                  "removed external fonts and Tailwind CDN links",
+                                                  "preserved exact privacy sentence; PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

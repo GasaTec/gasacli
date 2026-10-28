@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI — Editor de Prompts</title>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-secondary-fixed": "#002117",
+            "success-dark": "#43D19E",
+            "tertiary-fixed-dim": "#e7c08b",
+            "secondary-fixed": "#61fbcf",
+            "surface-tint": "#b5c7eb",
+            "on-tertiary-fixed-variant": "#5c4218",
+            "on-tertiary": "#432c04",
+            "surface-bright": "#39393b",
+            "text-primary-dark": "#F4F7FB",
+            "warning-dark": "#F2B84B",
+            "surface-container-high": "#292a2c",
+            "success-light": "#137A54",
+            "secondary": "#3fe1b6",
+            "primary": "#b5c7eb",
+            "on-primary-fixed": "#061c37",
+            "text-secondary-light": "#44546A",
+            "secondary-container": "#00c59c",
+            "on-secondary-container": "#004b3a",
+            "elevated-light": "#FFFFFF",
+            "text-muted-dark": "#9AAAC0",
+            "on-primary-container": "#7f92b3",
+            "on-primary-fixed-variant": "#354765",
+            "outline": "#8e9098",
+            "elevated-dark": "#1B2A40",
+            "text-secondary-dark": "#C3CFDF",
+            "on-tertiary-container": "#ad8b5b",
+            "tertiary-container": "#3b2500",
+            "background": "#131315",
+            "primary-container": "#172a46",
+            "surface-container-low": "#1b1b1e",
+            "inverse-primary": "#4d5f7e",
+            "border-dark": "#596982",
+            "on-error-container": "#ffdad6",
+            "tertiary-fixed": "#ffddb1",
+            "background-dark": "#0B1220",
+            "text-primary-light": "#172A46",
+            "on-surface": "#e4e2e5",
+            "on-background": "#e4e2e5",
+            "surface-container-highest": "#343537",
+            "text-muted-light": "#5B6B80",
+            "on-primary": "#1e314d",
+            "surface-container-lowest": "#0d0e10",
+            "on-error": "#690005",
+            "surface-variant": "#343537",
+            "on-tertiary-fixed": "#291800",
+            "border-light": "#8996A8",
+            "on-secondary": "#00382a",
+            "surface-container": "#1f1f22",
+            "error": "#ffb4ab",
+            "surface-dark": "#111C2E",
+            "surface-dim": "#131315",
+            "primary-fixed": "#d6e3ff",
+            "primary-fixed-dim": "#b5c7eb",
+            "info-light": "#145FA8",
+            "danger-dark": "#FF7272",
+            "outline-variant": "#44474d",
+            "surface": "#131315",
+            "secondary-fixed-dim": "#3bdeb3",
+            "tertiary": "#e7c08b",
+            "inverse-on-surface": "#303033",
+            "background-light": "#F4F7FB",
+            "info-dark": "#79B8FF",
+            "error-container": "#93000a",
+            "warning-light": "#8A5600",
+            "surface-light": "#FFFFFF",
+            "inverse-surface": "#e4e2e5",
+            "on-surface-variant": "#c4c6ce",
+            "on-secondary-fixed-variant": "#00513f",
+            "danger-light": "#B4232F"
+          },
+          borderRadius: {
+            DEFAULT: "0.125rem",
+            lg: "0.25rem",
+            xl: "0.5rem",
+            full: "0.75rem"
+          },
+          spacing: {
+            "space-3xl": "40px",
+            margin: "24px",
+            "space-xl": "24px",
+            "space-sm": "8px",
+            "space-2xl": "32px",
+            "space-lg": "16px",
+            "space-4xl": "48px",
+            "space-md": "12px",
+            gutter: "24px",
+            "space-xs": "4px"
+          },
+          fontFamily: {
+            body: ["Inter, ui-sans-serif, system-ui, sans-serif"],
+            "body-emphasized": ["Inter, ui-sans-serif, system-ui, sans-serif"],
+            "section-title": ["Inter, ui-sans-serif, system-ui, sans-serif"],
+            "page-title": ["Inter, ui-sans-serif, system-ui, sans-serif"],
+            metadata: ["Inter, ui-sans-serif, system-ui, sans-serif"],
+            hero: ["Inter, ui-sans-serif, system-ui, sans-serif"],
+            code: ["ui-monospace, SFMono-Regular, Consolas, monospace"]
+          },
+          fontSize: {
+            body: ["13px", { lineHeight: "19px", fontWeight: "400" }],
+            "body-emphasized": ["14px", { lineHeight: "21px", fontWeight: "500" }],
+            "section-title": ["16px", { lineHeight: "24px", fontWeight: "600" }],
+            "page-title": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+            "metadata": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+            hero: ["28px", { lineHeight: "34px", fontWeight: "600" }],
+            code: ["13px", { lineHeight: "18px", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-background-dark text-text-primary-dark font-body text-body min-h-screen flex flex-col antialiased selection:bg-secondary selection:text-on-secondary-fixed">
+<!-- Top Bar / Header de Sessão -->
+<header class="w-full h-8 flex items-center justify-between px-space-md border-b border-border-dark bg-surface-dark select-none shrink-0" role="banner">
+<div class="flex items-center gap-space-md">
+<span class="font-code text-section-title font-bold text-secondary tracking-tight">G&gt; gasacli</span>
+<span class="text-border-dark">|</span>
+<span class="font-code text-metadata text-text-muted-dark">EDITOR DE PROMPTS</span>
+</div>
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-space-sm font-code text-metadata text-text-muted-dark"><span>PAPEL: <strong class="text-secondary font-semibold">Desenvolvedor</strong></span>
+<span>•</span>
+<span>VERSÃO: <strong class="text-text-primary-dark font-semibold">v1</strong></span>
+<span>•</span>
+<span>ORIGEM: <span class="text-warning-dark">N/D</span></span></div>
+<div class="flex items-center gap-space-xs font-code text-metadata">
+<span class="px-1.5 py-0.5 bg-primary-container text-text-secondary-dark border border-border-dark">ESC: CANCELAR</span>
+</div>
+</div>
+</header>
+<!-- Canvas Principal de Três Painéis -->
+<main class="flex-1 flex flex-col md:flex-row overflow-hidden w-full relative" role="main">
+<!-- [1] PAINEL ESQUERDO: Seletor de Papéis, Versão e Origem da Definição -->
+<section aria-labelledby="heading-panel-roles" class="w-full md:w-72 lg:w-80 border-r border-border-dark bg-surface-dark flex flex-col shrink-0">
+<!-- Cabeçalho do Painel 1 -->
+<div class="h-9 px-space-md flex items-center justify-between border-b border-border-dark bg-primary-container/40">
+<div class="flex items-center gap-space-xs">
+<span aria-hidden="true" class="font-code text-metadata px-1 border border-secondary text-secondary font-bold">[1]</span>
+<h2 class="font-section-title text-body-emphasized text-text-primary-dark uppercase tracking-wider" id="heading-panel-roles">Definição &amp; Papéis</h2>
+</div>
+<span class="font-code text-metadata text-text-muted-dark">F1: AUX</span>
+</div>
+<div class="p-space-md flex-1 overflow-y-auto space-y-space-lg">
+<!-- Seletor de Papéis / Roles -->
+<fieldset class="space-y-space-xs"><legend class="font-code text-metadata text-text-muted-dark uppercase tracking-wide block mb-1">
+            Papel do Agente (Role)
+          </legend>
+<div class="flex items-center justify-between p-space-sm border border-border-dark/60 bg-surface-dark text-text-muted-dark transition-none">
+<label class="flex items-center gap-2 cursor-pointer w-full text-text-secondary-dark font-code text-code">
+<input class="rounded-none border-border-dark text-secondary focus:ring-0 focus:ring-offset-0 bg-background-dark" disabled="" name="agent-role" type="radio" value="orchestrator"/>
+<span>Orquestrador</span>
+</label>
+</div>
+<div class="flex items-center justify-between p-space-sm border border-border-dark/60 bg-surface-dark text-text-muted-dark transition-none">
+<label class="flex items-center gap-2 cursor-pointer w-full text-text-secondary-dark font-code text-code">
+<input class="rounded-none border-border-dark text-secondary focus:ring-0 focus:ring-offset-0 bg-background-dark" disabled="" name="agent-role" type="radio" value="tech-lead"/>
+<span>Líder Técnico (TL)</span>
+</label>
+</div>
+<div class="flex items-center justify-between p-space-sm border-2 border-secondary bg-primary-container text-text-primary-dark">
+<label class="flex items-center gap-2 cursor-pointer w-full font-code text-code font-bold text-text-primary-dark">
+<input checked="" class="rounded-none border-secondary text-secondary focus:ring-secondary focus:ring-offset-0 bg-background-dark" name="agent-role" type="radio" value="developer"/>
+<span class="text-secondary">&gt;</span>
+<span>Desenvolvedor</span>
+</label>
+<span class="font-code text-metadata text-secondary border border-secondary px-1 font-bold">SELECIONADO</span>
+</div>
+<div class="flex items-center justify-between p-space-sm border border-border-dark/60 bg-surface-dark text-text-muted-dark transition-none">
+<label class="flex items-center gap-2 cursor-pointer w-full text-text-secondary-dark font-code text-code">
+<input class="rounded-none border-border-dark text-secondary focus:ring-0 focus:ring-offset-0 bg-background-dark" disabled="" name="agent-role" type="radio" value="tester"/>
+<span>Testador</span>
+</label>
+</div></fieldset>
+<!-- Controle de Versão -->
+<!-- Seletor de Origem da Definição -->
+<!-- Indicador de Status dos Arquivos Locais -->
+</div>
+<div class="p-space-sm border-t border-border-dark bg-surface-dark font-code text-metadata text-text-muted-dark text-center">
+        PAINEL 1 — NAVEGAÇÃO DE ESCOPO
+      </div>
+</section>
+<!-- [2] PAINEL CENTRAL: Editor de Prompt, Esquema (Schema), Preview Efetivo e Diff -->
+<section aria-labelledby="heading-panel-editor" class="flex-1 flex flex-col bg-background-dark overflow-hidden min-w-0">
+<!-- Barra Superior / Abas do Painel 2 -->
+<div class="h-9 px-space-md flex items-center justify-between border-b border-border-dark bg-surface-dark select-none shrink-0">
+<div class="flex items-center gap-space-md h-full">
+<div class="flex items-center gap-space-xs">
+<span aria-hidden="true" class="font-code text-metadata px-1 border border-secondary text-secondary font-bold">[2]</span>
+<h2 class="font-section-title text-body-emphasized text-text-primary-dark uppercase tracking-wider" id="heading-panel-editor">Editor &amp; Inspeção</h2>
+</div>
+<div class="flex items-center h-full border-l border-border-dark pl-space-md gap-1" role="tablist">
+<button aria-selected="true" class="h-full px-space-md border-b-2 border-secondary font-code text-code text-secondary font-semibold bg-primary-container/30" role="tab">
+              Editor de Prompt
+            </button>
+<button aria-selected="false" class="h-full px-space-md border-b-2 border-transparent font-code text-code text-text-muted-dark hover:text-text-primary-dark" role="tab">
+              Esquema (Schema)
+            </button>
+<button aria-selected="false" class="h-full px-space-md border-b-2 border-transparent font-code text-code text-text-muted-dark hover:text-text-primary-dark" role="tab">
+              Pré-visualização Efetiva
+            </button>
+<button aria-selected="false" class="h-full px-space-md border-b-2 border-transparent font-code text-code text-text-muted-dark hover:text-text-primary-dark" role="tab">
+              Diff Comparativo
+            </button>
+</div>
+</div>
+<div class="font-code text-metadata text-text-muted-dark">
+          BUFFER: DESCONHECIDO (N/D)
+        </div>
+</div>
+<!-- Área de Edição e Vistas Divididas -->
+<div class="flex-1 flex flex-col lg:grid lg:grid-rows-2 lg:grid-cols-2 gap-0 overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-border-dark"><!-- Seção 2.1: Conteúdo do Editor de Prompt -->
+<article aria-label="Editor de Prompt" class="p-space-md flex flex-col bg-background-dark lg:border-b border-border-dark overflow-hidden">
+<div class="flex items-center justify-between pb-space-sm border-b border-border-dark mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="font-code text-metadata text-secondary font-bold">»</span>
+<h3 class="font-code text-body-emphasized text-text-primary-dark font-semibold">Texto do Prompt</h3>
+</div>
+<span class="font-code text-metadata px-1.5 py-0.5 border border-border-dark text-text-muted-dark">ESTADO: N/D</span>
+</div>
+<div class="flex-1 border border-border-dark bg-surface-dark/70 p-space-md flex flex-col justify-center items-center text-center font-code">
+<span class="text-text-muted-dark text-body-emphasized font-semibold">N/D</span>
+</div>
+</article>
+<!-- Seção 2.2: Esquema (Schema) -->
+<article aria-label="Esquema da Definição" class="p-space-md flex flex-col bg-background-dark lg:border-b border-border-dark overflow-hidden">
+<div class="flex items-center justify-between pb-space-sm border-b border-border-dark mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="font-code text-metadata text-secondary font-bold">»</span>
+<h3 class="font-code text-body-emphasized text-text-primary-dark font-semibold">Esquema (Schema)</h3>
+</div>
+<span class="font-code text-metadata px-1.5 py-0.5 border border-border-dark text-text-muted-dark">VALIDAÇÃO: N/D</span>
+</div>
+<div class="flex-1 border border-border-dark bg-surface-dark/70 p-space-md flex flex-col justify-center items-center text-center font-code">
+<span class="text-text-muted-dark text-body-emphasized font-semibold">N/D</span>
+</div>
+</article>
+<!-- Seção 2.3: Pré-visualização Efetiva -->
+<article aria-label="Pré-visualização Efetiva" class="p-space-md flex flex-col bg-background-dark overflow-hidden">
+<div class="flex items-center justify-between pb-space-sm border-b border-border-dark mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="font-code text-metadata text-secondary font-bold">»</span>
+<h3 class="font-code text-body-emphasized text-text-primary-dark font-semibold">Pré-visualização Efetiva</h3>
+</div>
+<span class="font-code text-metadata px-1.5 py-0.5 border border-border-dark text-text-muted-dark">RESOLUÇÃO: N/D</span>
+</div>
+<div class="flex-1 border border-border-dark bg-surface-dark/70 p-space-md flex flex-col justify-center items-center text-center font-code">
+<span class="text-text-muted-dark text-body-emphasized font-semibold">N/D</span>
+</div>
+</article>
+<!-- Seção 2.4: Diff Comparativo -->
+<article aria-label="Diff Comparativo" class="p-space-md flex flex-col bg-background-dark overflow-hidden">
+<div class="flex items-center justify-between pb-space-sm border-b border-border-dark mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="font-code text-metadata text-secondary font-bold">»</span>
+<h3 class="font-code text-body-emphasized text-text-primary-dark font-semibold">Diff Comparativo</h3>
+</div>
+<span class="font-code text-metadata px-1.5 py-0.5 border border-border-dark text-text-muted-dark">STATUS: N/D</span>
+</div>
+<div class="flex-1 border border-border-dark bg-surface-dark/70 p-space-md flex flex-col justify-center items-center text-center font-code">
+<span class="text-text-muted-dark text-body-emphasized font-semibold">N/D</span>
+</div>
+</article></div>
+<div class="h-6 px-space-md border-t border-border-dark bg-surface-dark flex items-center justify-between font-code text-metadata text-text-muted-dark">
+<span></span>
+<span>PAINEL 2 — VISUALIZADOR PRINCIPAL</span>
+</div>
+</section>
+<!-- [3] PAINEL DIREITO: Inspetor de Salvamento e Confirmação -->
+<aside aria-labelledby="heading-panel-inspector" class="w-full md:w-80 lg:w-96 border-l border-border-dark bg-surface-dark flex flex-col shrink-0">
+<!-- Cabeçalho do Painel 3 -->
+<div class="h-9 px-space-md flex items-center justify-between border-b border-border-dark bg-primary-container/40">
+<div class="flex items-center gap-space-xs">
+<span aria-hidden="true" class="font-code text-metadata px-1 border border-secondary text-secondary font-bold">[3]</span>
+<h2 class="font-section-title text-body-emphasized text-text-primary-dark uppercase tracking-wider" id="heading-panel-inspector">Inspetor de Salvamento</h2>
+</div>
+<span class="font-code text-metadata text-text-muted-dark">Ctrl+S</span>
+</div>
+<div class="p-space-md flex-1 overflow-y-auto space-y-space-lg">
+<!-- Caixa de Confirmação Contextual / Estado Não Salvo -->
+<!-- Parâmetros da Definição -->
+<div class="space-y-space-xs">
+<h3 class="font-code text-metadata uppercase tracking-wide text-text-muted-dark">
+            Parâmetros da Definição
+          </h3>
+<dl class="border border-border-dark bg-background-dark p-space-sm font-code text-metadata space-y-2">
+<div>
+<dt class="text-text-muted-dark">Papel Alvo:</dt>
+<dd class="text-text-primary-dark font-semibold">Desenvolvedor</dd>
+</div>
+<div>
+<dt class="text-text-muted-dark">Tag de Versão:</dt>
+<dd class="text-text-primary-dark font-semibold">v1</dd>
+</div>
+<div>
+<dt class="text-text-muted-dark">Origem Selecionada:</dt>
+<dd class="text-warning-dark font-semibold">N/D</dd>
+</div>
+<div>
+<dt class="text-text-muted-dark">Opções no Seletor:</dt>
+<dd class="text-text-secondary-dark">built-in, usuário, projeto</dd>
+</div>
+<div>
+<dt class="text-text-muted-dark">Caminho de Gravação:</dt>
+<dd class="text-text-muted-dark italic">N/D</dd>
+</div>
+</dl>
+</div>
+<!-- Bloco de Ação: Confirmação e Salvamento Desabilitado -->
+<div class="border-2 border-border-dark bg-surface-dark p-space-md space-y-space-md"><div>
+<h4 class="font-code text-body-emphasized text-text-primary-dark font-bold">
+              Fluxo de Confirmação
+            </h4>
+</div>
+<button aria-disabled="true" class="w-full p-space-sm border border-border-dark bg-primary-container/20 text-text-muted-dark font-code text-code text-center cursor-not-allowed opacity-70" disabled="" type="button">
+            Salvar alterações [Diff: N/D]
+          </button>
+<div class="text-center font-code text-metadata text-text-muted-dark">
+            Ação indisponível (diff N/D)
+          </div></div>
+<!-- Atalhos de Teclado -->
+<div class="space-y-space-xs">
+<h3 class="font-code text-metadata uppercase tracking-wide text-text-muted-dark">
+            Atalhos de Teclado
+          </h3>
+<ul class="border border-border-dark bg-background-dark p-space-sm font-code text-metadata space-y-1.5 text-text-secondary-dark">
+<li class="flex items-center justify-between">
+<span>Foco Painel Papéis</span>
+<kbd class="px-1 border border-border-dark bg-surface-dark text-secondary">[1]</kbd>
+</li>
+<li class="flex items-center justify-between">
+<span>Foco Painel Editor</span>
+<kbd class="px-1 border border-border-dark bg-surface-dark text-secondary">[2]</kbd>
+</li>
+<li class="flex items-center justify-between">
+<span>Foco Inspetor</span>
+<kbd class="px-1 border border-border-dark bg-surface-dark text-secondary">[3]</kbd>
+</li>
+<li class="flex items-center justify-between">
+<span>Ação de Salvar</span>
+<kbd class="px-1 border border-border-dark bg-surface-dark text-text-muted-dark">[Ctrl+S]</kbd>
+</li>
+<li class="flex items-center justify-between">
+<span>Fechar / Voltar</span>
+<kbd class="px-1 border border-border-dark bg-surface-dark text-text-muted-dark">[Esc]</kbd>
+</li>
+</ul>
+</div>
+</div>
+<div class="p-space-sm border-t border-border-dark bg-surface-dark font-code text-metadata text-text-muted-dark text-center">
+        PAINEL 3 — INSPEÇÃO &amp; PERSISTÊNCIA
+      </div>
+</aside>
+</main>
+<!-- Rodapé Global: Atalhos e Aviso Legal de Privacidade Obrigatório -->
+<footer class="h-8 border-t border-border-dark bg-surface-dark flex items-center justify-between px-space-md font-code text-metadata text-text-muted-dark select-none shrink-0" role="contentinfo">
+<!-- Frase Literal e Obrigatória de Privacidade -->
+<div class="flex items-center gap-2">
+<span aria-hidden="true" class="w-1.5 h-1.5 bg-secondary rounded-none"></span>
+<span class="text-text-primary-dark font-medium">
+        O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+      </span>
+</div>
+<!-- Tira de Navegação Rápida -->
+<div class="hidden sm:flex items-center gap-space-md text-text-muted-dark">
+<span>[TAB] Mudar Painel</span>
+<span>[/] Buscar</span>
+<span>[F1] Ajuda</span>
+</div>
+</footer>
+</body></html>

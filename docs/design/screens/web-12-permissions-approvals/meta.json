@@ -1,0 +1,22 @@
+{
+    "promptFile":  "docs/design/prompts/web-12-permissions-approvals.md",
+    "stitchScreenId":  "4ea4c2080c514109bc53c4f703cfa22a",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept one pending write_project approval from Worker Codex",
+                                                  "only Negar and Permitir uma vez actions shown",
+                                                  "target, scope, lifetime, ID and policy values N/D",
+                                                  "removed unsupported capabilities and approval-history claims",
+                                                  "preserved exact Portuguese privacy sentence",
+                                                  "no external resources; PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

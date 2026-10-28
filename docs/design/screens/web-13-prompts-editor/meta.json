@@ -1,0 +1,22 @@
+{
+    "promptFile":  "docs/design/prompts/web-13-prompts-editor.md",
+    "stitchScreenId":  "cd39007e260b4fa1a1c945db316dbe0c",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "selected role developer and prompt version v1",
+                                                  "source, content, schema, preview and diff show N/D",
+                                                  "save action disabled with diff N/D",
+                                                  "removed unsupported session/runtime and save-history claims",
+                                                  "removed external fonts and Tailwind CDN links",
+                                                  "PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+                                                   "footer still displays GasaCLI v1, which may be mistaken for a product version"
+                                               ]
+                      }
+}
