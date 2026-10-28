@@ -82,29 +82,48 @@ func buildSnapshot(home string, roots sessions.Roots, current ...string) snapsho
 	for _, root := range trustedProjects {
 		paths[projectID(root)] = root
 	}
+	type resolvedSessionPath struct {
+		root, worktreeRoot, branch string
+		trusted, valid             bool
+	}
+	resolvedByCWD := make(map[string]resolvedSessionPath)
 	for _, session := range sessions.ScanMetadata(roots) {
-		worktreeRoot := sessions.WorktreeRoot(session.CWD)
-		root := sessions.ProjectRoot(session.CWD)
-		if root == "" {
-			continue
-		}
-		trusted, err := store.IsTrusted(root)
-		if err != nil {
-			continue
-		}
-		if trusted {
-			root, err = trust.Canonical(root)
+		cwd := filepath.Clean(session.CWD)
+		resolved, ok := resolvedByCWD[cwd]
+		if !ok {
+			worktreeRoot := sessions.WorktreeRoot(session.CWD)
+			root := sessions.ProjectRoot(session.CWD)
+			if root == "" {
+				resolvedByCWD[cwd] = resolvedSessionPath{}
+				continue
+			}
+			trusted, err := store.IsTrusted(root)
 			if err != nil {
 				continue
 			}
-			worktreeRoot, err = trust.Canonical(worktreeRoot)
-			if err != nil {
-				worktreeRoot = root
+			if trusted {
+				root, err = trust.Canonical(root)
+				if err != nil {
+					continue
+				}
+				worktreeRoot, err = trust.Canonical(worktreeRoot)
+				if err != nil {
+					worktreeRoot = root
+				}
 			}
+			resolved = resolvedSessionPath{root: root, worktreeRoot: worktreeRoot, trusted: trusted, valid: true}
+			if trusted {
+				resolved.branch = sessions.Branch(session.CWD)
+			}
+			resolvedByCWD[cwd] = resolved
 		}
+		if !resolved.valid {
+			continue
+		}
+		root, worktreeRoot := resolved.root, resolved.worktreeRoot
 		id := projectID(root)
-		if trusted {
-			session.Branch = sessions.Branch(session.CWD)
+		if resolved.trusted {
+			session.Branch = resolved.branch
 			session.WorktreeID = projectID(filepath.Clean(worktreeRoot))
 			grouped[id] = append(grouped[id], session)
 			paths[id] = root
