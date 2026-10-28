@@ -16,7 +16,7 @@ Os instaladores diretos e o wrapper npm baixam um archive e checksums.txt. Antes
 
 As instalações diretas não precisam de administrador ou `sudo`, não configuram serviços e não alteram arquivos do shell. O instalador Windows adiciona o diretório ao PATH do usuário e à sessão atual; abra um terminal novo para outros processos receberem a alteração. No Linux/macOS, ele não edita o shell; se `~/.local/bin` não estiver no PATH, imprime o comando para adicioná-lo.
 
-Os dados do aplicativo seguem `os.UserConfigDir()`: `%AppData%\gasacli` no Windows, `~/.config/gasacli` no Linux e `~/Library/Application Support/gasacli` no macOS. Desinstalar preserva esses dados.
+Os dados do aplicativo seguem o diretório de dados do sistema: `%AppData%\gasacli` no Windows, `${XDG_DATA_HOME:-~/.local/share}/gasacli` no Linux e `~/Library/Application Support/gasacli` no macOS. Se `XDG_DATA_HOME` estiver definido, ele deve ser um caminho absoluto. Desinstalar preserva esses dados.
 
 ## Windows: PowerShell
 

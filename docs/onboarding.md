@@ -8,7 +8,7 @@ Claude Code e Codex aparecem selecionados por padrão quando ausentes. O plano m
 
 ## Adoção do diretório de dados
 
-Antes de escrever, `config.Ensure` e o reset usam a mesma validação de caminho: caminhos estendidos e de dispositivo no Windows, componentes symlink/reparse, diretórios protegidos e nomes reservados são recusados. Um diretório de dados novo é criado com permissões `0700`; um diretório existente e vazio pode ser adotado. Um marcador `.gasacli` válido permite completar a estrutura faltante. Sem marcador, somente o diretório padrão `os.UserConfigDir()/gasacli` pode ser adotado como legado, e apenas se `config.yaml` não vazio for estritamente válido e não houver sinais de outra aplicação (`.git`, `package.json`, `go.mod` e semelhantes).
+Antes de escrever, `config.Ensure` e o reset usam a mesma validação de caminho: caminhos estendidos e de dispositivo no Windows, componentes symlink/reparse, diretórios protegidos e nomes reservados são recusados. Um diretório de dados novo é criado com permissões `0700`; um diretório existente e vazio pode ser adotado. Um marcador `.gasacli` válido permite completar a estrutura faltante. No Linux, o diretório padrão usa `XDG_DATA_HOME` ou `~/.local/share`; no Windows usa AppData e no macOS Application Support. Uma instalação Linux legada em `os.UserConfigDir()/gasacli` só é copiada para o novo local quando `config.yaml` não vazio for estritamente válido e não houver sinais de outra aplicação (`.git`, `package.json`, `go.mod` e semelhantes). Os arquivos legados são preservados na origem.
 
 Um `GASACLI_HOME` apontando para uma pasta existente que não satisfaz esses critérios retorna erro sem escrever nela. Escolha um caminho novo ou vazio por `GASACLI_HOME`, ou remova a pasta manualmente.
 

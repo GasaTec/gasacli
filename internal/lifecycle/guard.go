@@ -243,12 +243,24 @@ func canonicalLoose(p string) string {
 }
 
 func isDefaultHome(home string) bool {
-	base, err := os.UserConfigDir()
-	if err != nil {
-		return false
+	bases := []string{}
+	if runtime.GOOS == "linux" {
+		if data := os.Getenv("XDG_DATA_HOME"); data != "" {
+			bases = append(bases, data)
+		} else if userHome, err := os.UserHomeDir(); err == nil {
+			bases = append(bases, filepath.Join(userHome, ".local", "share"))
+		}
 	}
-	want := filepath.Join(base, "gasacli")
-	return samePath(home, want) || samePath(home, canonicalLoose(want))
+	if config, err := os.UserConfigDir(); err == nil {
+		bases = append(bases, config) // current Windows/macOS home and legacy Linux home
+	}
+	for _, base := range bases {
+		want := filepath.Join(base, "gasacli")
+		if samePath(home, want) || samePath(home, canonicalLoose(want)) {
+			return true
+		}
+	}
+	return false
 }
 
 func isStrictProtectedRoot(path string) bool {

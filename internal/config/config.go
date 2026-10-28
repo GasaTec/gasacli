@@ -8,8 +8,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/GasaTec/gasacli/internal/lifecycle"
+	"github.com/GasaTec/gasacli/internal/storage"
+	"github.com/GasaTec/gasacli/internal/trust"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,11 +35,41 @@ func Home() (string, error) {
 	if home := os.Getenv("GASACLI_HOME"); home != "" {
 		return home, nil
 	}
-	home, err := os.UserConfigDir()
+	home, err := userDataDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve user config directory: %w", err)
+		return "", fmt.Errorf("resolve user data directory: %w", err)
 	}
 	return filepath.Join(home, "gasacli"), nil
+}
+
+// userDataDir follows ADR-0016: Linux uses the XDG user data root, while
+// Windows and macOS use their OS-standard AppData/Application Support roots.
+func userDataDir() (string, error) {
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+		return os.UserConfigDir()
+	}
+	if runtime.GOOS == "linux" {
+		if data := os.Getenv("XDG_DATA_HOME"); data != "" {
+			if !filepath.IsAbs(data) {
+				return "", fmt.Errorf("XDG_DATA_HOME must be an absolute path")
+			}
+			return data, nil
+		}
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, ".local", "share"), nil
+	}
+	return os.UserConfigDir()
+}
+
+func legacyHome() (string, error) {
+	base, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "gasacli"), nil
 }
 
 // Ensure creates defaults without replacing existing user configuration.
@@ -44,6 +77,16 @@ func Ensure() error {
 	home, err := Home()
 	if err != nil {
 		return err
+	}
+	legacy, legacyErr := legacyHome()
+	if legacyErr == nil && !samePath(legacy, home) {
+		if _, statErr := os.Lstat(home); os.IsNotExist(statErr) {
+			if _, validateErr := lifecycle.ValidateHome(legacy); validateErr == nil {
+				if err := copyLegacyHome(legacy, home); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	home, err = lifecycle.ValidateEnsureHome(home)
 	if err != nil {
@@ -59,7 +102,10 @@ func Ensure() error {
 	}
 	path := filepath.Join(home, "config.yaml")
 	if _, err := os.Lstat(path); err == nil {
-		return writeIdentityMarker(home)
+		if err := writeIdentityMarker(home); err != nil {
+			return err
+		}
+		return ensureDatabase(home)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("inspect config file: %w", err)
 	}
@@ -91,7 +137,120 @@ func Ensure() error {
 	if err := writeIdentityMarker(home); err != nil {
 		return err
 	}
+	return ensureDatabase(home)
+}
+
+func ensureDatabase(home string) error {
+	db, err := storage.Open(filepath.Join(home, "gasacli.db"))
+	if err != nil {
+		return err
+	}
+	if err := db.Close(); err != nil {
+		return fmt.Errorf("close initialized database: %w", err)
+	}
 	return nil
+}
+
+// EnsureProjectLayout creates the optional project projection directory only
+// for a project already approved by the supplied trust store.
+func EnsureProjectLayout(project string, approvals *trust.Store) (string, error) {
+	if approvals == nil {
+		return "", fmt.Errorf("project layout requires a trust store")
+	}
+	trusted, err := approvals.IsTrusted(project)
+	if err != nil {
+		return "", fmt.Errorf("check project trust: %w", err)
+	}
+	if !trusted {
+		return "", fmt.Errorf("refusing project layout for untrusted project")
+	}
+	canonical, err := trust.Canonical(project)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(canonical, "gasacli")
+	if err := os.Mkdir(path, 0700); err != nil && !errors.Is(err, os.ErrExist) {
+		return "", fmt.Errorf("create project GasaCLI directory: %w", err)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || lifecycle.IsReparsePoint(info) {
+		return "", fmt.Errorf("refusing project GasaCLI path that is not a regular directory")
+	}
+	return path, nil
+}
+
+func copyLegacyHome(source, target string) error {
+	parent := filepath.Dir(target)
+	if err := os.MkdirAll(parent, 0700); err != nil {
+		return fmt.Errorf("create user data root: %w", err)
+	}
+	stage, err := os.MkdirTemp(parent, ".gasacli-adopt-*")
+	if err != nil {
+		return fmt.Errorf("prepare legacy data adoption: %w", err)
+	}
+	defer os.RemoveAll(stage)
+	err = filepath.WalkDir(source, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path == source {
+			return nil
+		}
+		rel, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		dest := filepath.Join(stage, rel)
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 || lifecycle.IsReparsePoint(info) {
+			return fmt.Errorf("refusing legacy data link %s", path)
+		}
+		if info.IsDir() {
+			return os.MkdirAll(dest, 0700)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("refusing non-regular legacy data file %s", path)
+		}
+		in, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		out, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+		if err != nil {
+			in.Close()
+			return err
+		}
+		_, copyErr := io.Copy(out, in)
+		inCloseErr := in.Close()
+		closeErr := out.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if inCloseErr != nil {
+			return inCloseErr
+		}
+		return closeErr
+	})
+	if err != nil {
+		return fmt.Errorf("copy legacy GasaCLI data: %w", err)
+	}
+	if err := os.Rename(stage, target); err != nil {
+		if _, statErr := os.Lstat(target); statErr == nil {
+			return nil // A concurrent initializer won; the legacy source is untouched.
+		}
+		return fmt.Errorf("publish adopted GasaCLI data: %w", err)
+	}
+	return nil
+}
+
+func samePath(a, b string) bool {
+	return filepath.Clean(a) == filepath.Clean(b)
 }
 
 type identityMarker struct {

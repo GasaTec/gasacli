@@ -103,7 +103,7 @@ Run `gasa` in a project folder. The first time, it offers to install missing age
 | `gasa uninstall` | `reset --all` plus how to remove the binary |
 | `gasa --version` | Version and build information |
 
-Your settings live in `%AppData%gasacli` on Windows, `~/.config/gasacli` on Linux and `~/Library/Application Support/gasacli` on macOS. See [onboarding and reset](docs/onboarding.md) (Portuguese) for the safety rules.
+Your data lives in `%AppData%\gasacli` on Windows, `${XDG_DATA_HOME:-~/.local/share}/gasacli` on Linux and `~/Library/Application Support/gasacli` on macOS. See [onboarding and reset](docs/onboarding.md) (Portuguese) for the safety rules.
 
 ## Contribute
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md). Issues and PRs are welcome once the repository is public.

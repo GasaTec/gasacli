@@ -9,11 +9,13 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/GasaTec/gasacli/internal/trust"
 )
 
 func TestHome(t *testing.T) {
 	t.Setenv("GASACLI_HOME", "")
-	base, err := os.UserConfigDir()
+	base, err := userDataDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,6 +55,9 @@ func TestEnsureDefaultsAndIdempotence(t *testing.T) {
 		if runtime.GOOS != "windows" && info.Mode().Perm() != 0700 {
 			t.Errorf("%s mode %o", dir, info.Mode().Perm())
 		}
+	}
+	if _, err := os.Stat(filepath.Join(home, "gasacli.db")); err != nil {
+		t.Fatalf("database not initialized: %v", err)
 	}
 	path := filepath.Join(home, "config.yaml")
 	custom := "# retained\nweb:\n  mode: manual\n  port: 4312\n  fallback_port: false\n"
@@ -186,72 +191,42 @@ func TestEnsureRejectsExistingUnmarkedConfigOutsideDefaultHome(t *testing.T) {
 
 func TestEnsureAdoptsOnlyValidLegacyDefault(t *testing.T) {
 	base := t.TempDir()
-	switch runtime.GOOS {
-	case "windows":
-		t.Setenv("APPDATA", base)
-	case "darwin":
-		t.Setenv("HOME", base)
-	default:
-		t.Setenv("XDG_CONFIG_HOME", base)
-	}
+	configureTestRoots(t, base)
 	t.Setenv("GASACLI_HOME", "")
-	home, err := Home()
+	legacy, err := legacyHome()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(home, 0700); err != nil {
+	if err := os.MkdirAll(legacy, 0700); err != nil {
 		t.Fatal(err)
 	}
 	valid := []byte("web: {mode: manual, host: localhost, port: 4321}\n")
-	if err := os.WriteFile(filepath.Join(home, "config.yaml"), valid, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(legacy, "config.yaml"), valid, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(legacy, "user-data.txt"), []byte("keep"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := Ensure(); err != nil {
 		t.Fatalf("valid default legacy config rejected: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(home, ".gasacli")); err != nil {
-		t.Fatalf("legacy marker missing: %v", err)
-	}
-
-	badBase := t.TempDir()
-	switch runtime.GOOS {
-	case "windows":
-		t.Setenv("APPDATA", badBase)
-	case "darwin":
-		t.Setenv("HOME", badBase)
-	default:
-		t.Setenv("XDG_CONFIG_HOME", badBase)
-	}
-	badHome, err := Home()
+	home, err := Home()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(badHome, 0700); err != nil {
-		t.Fatal(err)
+	if data, err := os.ReadFile(filepath.Join(home, "user-data.txt")); err != nil || string(data) != "keep" {
+		t.Fatalf("legacy user data was not adopted: %q %v", data, err)
 	}
-	if err := os.WriteFile(filepath.Join(badHome, "config.yaml"), []byte{}, 0600); err != nil {
-		t.Fatal(err)
+	if _, err := os.Stat(filepath.Join(home, ".gasacli")); err != nil {
+		t.Fatalf("legacy marker missing: %v", err)
 	}
-	if err := os.Mkdir(filepath.Join(badHome, ".git"), 0700); err != nil {
-		t.Fatal(err)
+	if _, err := os.Stat(filepath.Join(legacy, "user-data.txt")); err != nil {
+		t.Fatalf("legacy source was removed: %v", err)
 	}
-	before := snapshotTree(t, badHome)
-	if err := Ensure(); err == nil {
-		t.Fatal("adopted empty legacy config with foreign marker")
-	}
-	if got := snapshotTree(t, badHome); got != before {
-		t.Fatalf("rejected legacy directory changed: before=%s after=%s", before, got)
-	}
+
 	invalidBase := t.TempDir()
-	switch runtime.GOOS {
-	case "windows":
-		t.Setenv("APPDATA", invalidBase)
-	case "darwin":
-		t.Setenv("HOME", invalidBase)
-	default:
-		t.Setenv("XDG_CONFIG_HOME", invalidBase)
-	}
-	invalidHome, err := Home()
+	configureTestRoots(t, invalidBase)
+	invalidHome, err := legacyHome()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,9 +236,48 @@ func TestEnsureAdoptsOnlyValidLegacyDefault(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(invalidHome, "config.yaml"), []byte("web: {port: 0}\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("GASACLI_HOME", "")
-	if err := Ensure(); err == nil {
-		t.Fatal("adopted invalid legacy configuration")
+	before := snapshotTree(t, invalidHome)
+	ensureErr := Ensure()
+	if samePath(invalidHome, func() string { home, _ := Home(); return home }()) {
+		if ensureErr == nil {
+			t.Fatal("invalid configuration in the unchanged OS data root was accepted")
+		}
+	} else if ensureErr != nil {
+		t.Fatalf("fresh root should initialize without adopting invalid legacy data: %v", ensureErr)
+	}
+	if got := snapshotTree(t, invalidHome); got != before {
+		t.Fatalf("invalid legacy config changed: before=%s after=%s", before, got)
+	}
+}
+
+func configureTestRoots(t *testing.T, base string) {
+	t.Helper()
+	switch runtime.GOOS {
+	case "windows":
+		t.Setenv("APPDATA", base)
+	case "darwin":
+		t.Setenv("HOME", base)
+	default:
+		t.Setenv("XDG_CONFIG_HOME", filepath.Join(base, "config"))
+		t.Setenv("XDG_DATA_HOME", filepath.Join(base, "data"))
+	}
+}
+
+func TestEnsureProjectLayoutRequiresTrust(t *testing.T) {
+	project := t.TempDir()
+	trustStore := trust.NewStore(t.TempDir())
+	if _, err := EnsureProjectLayout(project, trustStore); err == nil {
+		t.Fatal("created layout for untrusted project")
+	}
+	if _, err := os.Stat(filepath.Join(project, "gasacli")); !os.IsNotExist(err) {
+		t.Fatalf("untrusted project was modified: %v", err)
+	}
+	if err := trustStore.Grant(project); err != nil {
+		t.Fatal(err)
+	}
+	path, err := EnsureProjectLayout(project, trustStore)
+	if err != nil || path != filepath.Join(project, "gasacli") {
+		t.Fatalf("EnsureProjectLayout()=%q, %v", path, err)
 	}
 }
 
