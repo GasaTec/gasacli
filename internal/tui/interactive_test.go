@@ -244,7 +244,7 @@ func normalizeInteractiveGolden(view string) string {
 
 func TestInteractiveAgentsStayCheckingUntilDiscoveryResult(t *testing.T) {
 	model := newInteractiveModel(&Session{ProjectPath: "C:/workspace", DiscoverReady: func() int { return 3 }}, "C:/workspace", true)
-	if !strings.Contains(model.welcomeCard(), "checking...") {
+	if !strings.Contains(model.welcomeCard(), i18n.T("tui.agents.checking")) {
 		t.Fatal("discovery did not start in checking state")
 	}
 	updated, _ := model.Update(readyAgentsResult{count: 2})

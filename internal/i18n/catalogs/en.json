@@ -62,5 +62,6 @@
   "permission.issue_write": "Change tracker records",
   "permission.plugin_install": "Install plugins or extensions",
   "permission.secret_access": "Use approved credential providers",
-  "command.status.summary": "Project: %s\nTrust: granted\nDashboard: %s (%s)\nAgents ready: %s\nNo active run; orchestration is planned (issue %s)."
+  "command.status.summary": "Project: %s\nTrust: granted\nDashboard: %s (%s)\nAgents ready: %s\nNo active run; orchestration is planned (issue %s).",
+  "command.status.not_implemented": "No active run; orchestration is not implemented."
 }

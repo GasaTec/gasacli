@@ -219,7 +219,8 @@ func builtinHandler(name string, session *Session) CommandHandler {
 		}
 	case "/status":
 		return func(context.Context, CommandContext, []string) (string, error) {
-			return i18n.T("command.status.summary", session.ProjectPath, valueOr(session.Dashboard, "not started"), valueOr(session.DashboardState, "local"), fmt.Sprint(session.ReadyAgents), "#11"), nil
+			status := i18n.T("command.status.summary", session.ProjectPath, valueOr(session.Dashboard, "not started"), valueOr(session.DashboardState, "local"), fmt.Sprint(session.ReadyAgents), "#11")
+			return status + "\n" + i18n.T("command.status.not_implemented"), nil
 		}
 	case "/web":
 		return func(_ context.Context, _ CommandContext, args []string) (string, error) {
@@ -228,7 +229,7 @@ func builtinHandler(name string, session *Session) CommandHandler {
 			}
 			var output strings.Builder
 			if err := session.Web(&output, args); err != nil {
-				return output.String(), err
+				return output.String(), fmt.Errorf("/web: %w", err)
 			}
 			return output.String(), nil
 		}

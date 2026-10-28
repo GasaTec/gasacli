@@ -62,5 +62,6 @@
   "permission.issue_write": "Alterar registros do rastreador",
   "permission.plugin_install": "Instalar plugins ou extensões",
   "permission.secret_access": "Usar provedores de credenciais aprovados",
-  "command.status.summary": "Projeto: %s\nConfiança: concedida\nPainel: %s (%s)\nAgentes prontos: %s\nNenhuma execução ativa; a orquestração está planejada (solicitação %s)."
+  "command.status.summary": "Projeto: %s\nConfiança: concedida\nPainel: %s (%s)\nAgentes prontos: %s\nNenhuma execução ativa; a orquestração está planejada (solicitação %s).",
+  "command.status.not_implemented": "sem run ativo; orquestração não implementada"
 }

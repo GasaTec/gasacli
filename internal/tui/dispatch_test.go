@@ -15,7 +15,7 @@ import (
 
 func TestHandlerDispatchStreamsParsesAndRecovers(t *testing.T) {
 	pinTestLanguage(t, "en")
-	Register(Command{Name: "/test-dispatch-stream", Handler: func(_ context.Context, cc CommandContext, args []string) (string, error) {
+	registerTestCommand(t, Command{Name: "/test-dispatch-stream", Handler: func(_ context.Context, cc CommandContext, args []string) (string, error) {
 		if !reflect.DeepEqual(args, []string{"two words", "three"}) {
 			return "", errors.New("quoted arguments were not parsed")
 		}
@@ -33,7 +33,7 @@ func TestHandlerDispatchStreamsParsesAndRecovers(t *testing.T) {
 	if result, err := command.Handler(context.Background(), fake, []string{"two words", "three"}); err != nil || result != "finished" || !reflect.DeepEqual(fake.emitted, []string{"first", "second"}) {
 		t.Fatalf("fake context result=%q err=%v emitted=%v", result, err, fake.emitted)
 	}
-	Register(Command{Name: "/test-dispatch-panic", Handler: func(context.Context, CommandContext, []string) (string, error) { panic("unexpected") }})
+	registerTestCommand(t, Command{Name: "/test-dispatch-panic", Handler: func(context.Context, CommandContext, []string) (string, error) { panic("unexpected") }})
 	got, err = executeCommand(context.Background(), &Session{}, "/tmp/project", true, "/test-dispatch-panic", nil, nil)
 	if got != "" || err == nil || !strings.Contains(err.Error(), "handler panic") {
 		t.Fatalf("panic result=%q err=%v", got, err)
@@ -54,7 +54,7 @@ func (*fakeHandlerContext) Ask(PermissionRequest) (bool, error) { return false, 
 
 func TestHandlerDispatchCancellationAndPermissionDecisionLog(t *testing.T) {
 	pinTestLanguage(t, "pt-BR")
-	Register(Command{Name: "/test-dispatch-cancel", Handler: func(ctx context.Context, _ CommandContext, _ []string) (string, error) {
+	registerTestCommand(t, Command{Name: "/test-dispatch-cancel", Handler: func(ctx context.Context, _ CommandContext, _ []string) (string, error) {
 		<-ctx.Done()
 		return "", ctx.Err()
 	}})
@@ -70,7 +70,7 @@ func TestHandlerDispatchCancellationAndPermissionDecisionLog(t *testing.T) {
 	if err := store.Grant(project); err != nil {
 		t.Fatal(err)
 	}
-	Register(Command{Name: "/test-dispatch-ask", Handler: func(_ context.Context, cc CommandContext, _ []string) (string, error) {
+	registerTestCommand(t, Command{Name: "/test-dispatch-ask", Handler: func(_ context.Context, cc CommandContext, _ []string) (string, error) {
 		approved, err := cc.Ask(PermissionRequest{Agent: "tester", Action: "write_vault", Target: "vault/item.md", ExactCommand: "write item"})
 		return []string{"denied", "approved"}[boolIndex(approved)], err
 	}})
@@ -91,6 +91,17 @@ func TestHandlerDispatchCancellationAndPermissionDecisionLog(t *testing.T) {
 	if err != nil || strings.Count(string(log), "\"decision\":\"allow\"") != 1 || strings.Count(string(log), "\"decision\":\"deny\"") != 1 {
 		t.Fatalf("approval log=%s err=%v", log, err)
 	}
+}
+
+func registerTestCommand(t *testing.T, command Command) {
+	t.Helper()
+	Register(command)
+	t.Cleanup(func() {
+		delete(commandRegistry, command.Name)
+		for _, alias := range command.Aliases {
+			delete(commandRegistry, alias)
+		}
+	})
 }
 
 func pinTestLanguage(t *testing.T, language string) {
