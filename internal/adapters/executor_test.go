@@ -120,3 +120,20 @@ func has(values []string, want string) bool {
 	}
 	return false
 }
+
+func TestCodexExecArgsAcceptedByNonInteractiveCLI(t *testing.T) {
+	for _, profile := range []string{"restricted", "balanced", "autonomous"} {
+		t.Run(profile, func(t *testing.T) {
+			_, args, err := commandFor(Request{Agent: "codex", Prompt: "do work", Profile: profile, Project: t.TempDir()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !has(args, "--skip-git-repo-check") {
+				t.Fatalf("codex exec must run in non-git trusted folders: %#v", args)
+			}
+			if has(args, "--ask-for-approval") {
+				t.Fatalf("codex exec rejects --ask-for-approval: %#v", args)
+			}
+		})
+	}
+}

@@ -263,7 +263,7 @@ func commandFor(request Request) (string, []string, error) {
 		if request.ReadOnly {
 			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "read-only", "--skip-git-repo-check"}
 		} else if request.Profile == "restricted" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write"}
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--skip-git-repo-check"}
 		} else if request.Profile == "balanced" {
 			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--skip-git-repo-check"}
 		}
