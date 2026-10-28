@@ -3,6 +3,7 @@ set -eu
 root=$(CDPATH='' cd -P "$(dirname "$0")/../.." && pwd -P)
 installer="$root/scripts/install.sh"
 temp=$(mktemp -d "${TMPDIR:-/tmp}/gasa-flow.XXXXXX")
+temp=$(CDPATH='' cd -P "$temp" && pwd -P)
 failed=0
 cleanup() { rm -rf "$temp"; }
 trap cleanup EXIT HUP INT TERM
