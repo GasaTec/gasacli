@@ -146,6 +146,10 @@ func run(ctx context.Context, args []string) error {
 			return diagnostics(ctx, os.Stdout, *doctorJSON)
 		case rest[0] == "permissions":
 			return runPermissions(ctx, rest[1:], os.Stdout)
+		case rest[0] == "skills":
+			return runSkills(ctx, rest[1:], os.Stdout)
+		case rest[0] == "brain":
+			return runBrain(ctx, rest[1:], os.Stdout)
 		case rest[0] == "run":
 			return runOrchestration(ctx, rest[1:])
 		case rest[0] == "runs":
@@ -434,6 +438,8 @@ func help() {
   gasa --version         Show version and build information
   gasa [--no-browser]     Open terminal shell and local dashboard
   gasa doctor            Discover installed coding CLIs
+  gasa skills            Discover and manage local agent skills
+  gasa brain             Connect and search a local Markdown vault
   gasa run <goal>        Start a local orchestration run
   gasa runs              List saved orchestration runs
   gasa resume <run-id>   Resume an interrupted run
@@ -454,5 +460,5 @@ func help() {
   web.mode manual        Open browser only with /web open
   web.mode always        Background service not implemented; uses auto with warning
   /help /exit /quit /agents /doctor /setup /status /goal /web [open|status]
-  /permissions /backup /restore /web stop|restart: planejado (not implemented)`)
+  /permissions /skills /brain /backup /restore /web stop|restart: planejado (not implemented)`)
 }

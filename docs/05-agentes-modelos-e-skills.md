@@ -27,7 +27,8 @@ orchestration:
 Identificadores são ilustrativos e devem ser resolvidos pelos adapters.
 
 ## Skills e microagentes
-Templates padrão para orquestrador, TL, backend, frontend, tester e researcher. Ponytail, Caveman e outras skills entram somente após validar origem, licença, permissões e desempenho. Pedir consentimento de instalação, fixar versão e permitir rollback. Nunca executar instruções de terceiros sem validação.
+`gasa skills` lista manifests `SKILL.md` de fontes locais: `~/.claude/skills`, `~/.claude/plugins`, `~/.codex/skills`, `~/.agents/skills`, skills do projeto e `<gasacli>/skills`. `show` exibe origem, versão, hash e caminho. A instalação de uma pasta local mostra primeiro o hash e a lista exata de arquivos; o usuário confirma em uma segunda chamada com `--confirm <sha256>`. Remoção exige `--yes`; as operações consultam a permissão `plugin_install`. O conteúdo nunca é executado.
 
+URLs Git HTTPS exigem o commit completo no fragmento, aprovação de rede explícita em `--fetch`, prévia do hash e confirmação posterior. `recommendations` lista Ponytail 5 e Caveman como sugestões com motivos; não instala nenhum item. A tabela `skill_run_usage` e `skills.RecordActivation` oferecem um hook idempotente para associar skills a runs quando o engine passar a chamá-lo.
 ## Medição
 Registrar tokens quando fornecidos pelas CLIs, estimativas explicitamente marcadas e custo apenas quando mensurável. Respeitar limites e termos de cada provedor. Se só houver um provedor, não fingir revisão independente.
