@@ -1,0 +1,8 @@
+.project-row{width:100%;min-width:0;border:0;background:transparent;color:var(--secondary);font:inherit;text-align:left}
+.project-row:hover{background:var(--elevated);border-radius:5px}
+.project-row .session-name{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.project-row .count-badge{flex:0 0 auto}
+.state-pill i{width:8px;height:8px;flex:0 0 8px;border-radius:50%}
+.branch-row .dot.working{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;width:auto;height:auto;background:transparent}
+.branch-row .dot.working::before{content:"";width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--warning)}
+.branch-row .dot.working::after{content:"trabalhando";color:var(--warning);font-size:10px;font-weight:500}

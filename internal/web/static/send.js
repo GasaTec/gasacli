@@ -65,6 +65,9 @@ async function sendMessage() {
   const project = (window.gasaProjects || []).find(item => item.id === session.projectId);
   if (!await approvalDialog(session, project, text)) return;
   const chat = byId('chat');
+  const localMessages = session.messages || (session.messages = []);
+  const localUserMessage = { role: 'user', text, ts: new Date().toISOString() };
+  localMessages.push(localUserMessage);
   const userBubble = document.createElement('article'); userBubble.className = 'message user sending';
   userBubble.textContent = text;
   const state = document.createElement('span'); state.className = 'send-state'; state.textContent = 'enviando';
@@ -99,10 +102,15 @@ async function sendMessage() {
         if (event.type === 'done') state.textContent = 'enviado';
       }
     }
+    localUserMessage.pending = false;
+    if (content.textContent) localMessages.push({ role: 'assistant', text: content.textContent, ts: new Date().toISOString() });
+    if (!userBubble.isConnected) chat.append(userBubble);
     if (!content.textContent) assistant.remove();
-    else chat.append(assistant);
+    else if (!assistant.isConnected) chat.append(assistant);
     state.textContent = 'enviado'; userBubble.classList.remove('sending'); byId('send-text').value = '';
   } catch (error) {
+    const messageIndex = localMessages.indexOf(localUserMessage);
+    if (messageIndex >= 0) localMessages.splice(messageIndex, 1);
     assistant.remove();
     state.textContent = controller.signal.aborted ? 'cancelado' : 'falhou';
     byId('send-error').textContent = controller.signal.aborted ? 'Envio cancelado.' : localizeSendError(error.message);
