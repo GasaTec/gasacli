@@ -18,7 +18,13 @@ import (
 )
 
 type Config struct {
-	Web WebConfig `yaml:"web"`
+	Web      WebConfig   `yaml:"web"`
+	Language string      `yaml:"language,omitempty"`
+	Agents   AgentConfig `yaml:"agents,omitempty"`
+}
+
+type AgentConfig struct {
+	Defaults map[string]string `yaml:"defaults,omitempty"`
 }
 
 type WebConfig struct {
@@ -328,7 +334,27 @@ func loadConfigFile(path string) (Config, error) {
 	if cfg.Web.Port < 1 || cfg.Web.Port > 65535 {
 		return Config{}, fmt.Errorf("invalid web.port: expected 1–65535")
 	}
+	if cfg.Language != "" && cfg.Language != "pt-BR" && cfg.Language != "en" {
+		return Config{}, fmt.Errorf("invalid language: expected pt-BR or en")
+	}
+	for role, agent := range cfg.Agents.Defaults {
+		if !validConfigName(role) || !validConfigName(agent) {
+			return Config{}, fmt.Errorf("invalid default agent assignment %q", role)
+		}
+	}
 	return cfg, nil
+}
+
+func validConfigName(value string) bool {
+	if value == "" || value == "." || value == ".." {
+		return false
+	}
+	for _, r := range value {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.') {
+			return false
+		}
+	}
+	return true
 }
 
 func SaveWebMode(home, mode string) error {

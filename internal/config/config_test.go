@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -55,7 +56,7 @@ func TestEnsureDefaultsAndIdempotence(t *testing.T) {
 		t.Fatalf("identity marker=%q err=%v", marker, err)
 	}
 	got, err := Load()
-	if err != nil || got != defaults() {
+	if err != nil || !reflect.DeepEqual(got, defaults()) {
 		t.Fatalf("defaults = %+v, %v", got, err)
 	}
 	for _, dir := range []string{"", "agents", "prompts", "skills", "plugins", "segundo-cerebro", "backups", "logs"} {

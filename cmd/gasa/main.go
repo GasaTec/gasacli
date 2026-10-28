@@ -58,6 +58,16 @@ func run(ctx context.Context, args []string) error {
 		}
 		return runUninstall(ctx, remaining, os.Stdin, os.Stdout, os.Stderr)
 	}
+	if index, command := firstLocalStateCommand(args); index >= 0 {
+		remaining := make([]string, 0, len(args)-1)
+		for i, arg := range args {
+			if i == index || arg == "--no-browser" || arg == "--no-onboarding" || arg == "--plain" {
+				continue
+			}
+			remaining = append(remaining, arg)
+		}
+		return runBackup(ctx, append([]string{command}, remaining...), os.Stdout)
+	}
 	flags := flag.NewFlagSet("gasa", flag.ContinueOnError)
 	noBrowser := flags.Bool("no-browser", false, "Do not open the dashboard automatically")
 	noOnboarding := flags.Bool("no-onboarding", false, "Skip first-run onboarding")
@@ -103,6 +113,8 @@ func run(ctx context.Context, args []string) error {
 	}
 	if len(rest) > 0 {
 		switch {
+		case rest[0] == "config":
+			return runConfig(ctx, rest[1:], os.Stdout)
 		case len(rest) == 1 && rest[0] == "setup":
 			interactive := !*plain && !headless && onboarding.Interactive(os.Stdin, os.Stdout)
 			if interactive {
@@ -286,6 +298,20 @@ func run(ctx context.Context, args []string) error {
 		return nil
 	}
 	return err
+}
+
+func firstLocalStateCommand(args []string) (int, string) {
+	for i, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		switch arg {
+		case "backup", "restore", "backups":
+			return i, arg
+		}
+		return -1, ""
+	}
+	return -1, ""
 }
 
 func loadStartupState(home string, errOut io.Writer) (config.State, bool) {

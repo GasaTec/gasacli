@@ -23,10 +23,14 @@
 ## Comandos fora da TUI
 `gasa doctor`, `gasa agents`, `gasa config`, `gasa goal "objetivo"`, `gasa brain`, `gasa github`.
 
+## Local commands
+
+`gasa config [show|set <key> <value>|path|edit]`, `gasa backup [create]`, `gasa backups` and `gasa restore <file> [--preview|--yes]` manage local state. Backups support `config`, `prompts`, `skills`, `agents`, `segundo-cerebro` and `database`, with a versioned manifest and SHA-256 hashes. Add `--encrypt` to create a passphrase-protected archive; the passphrase is requested without echo. Restore requires reviewing `--preview` and passing `--yes` on the CLI. `/prompts` lists and shows existing override files while the prompt subsystem is unavailable.
+
 ## Estados de interface
 IDLE, TRUST_REQUIRED, PLANNING, EXECUTING, VERIFYING, REVIEWING, NEEDS_APPROVAL, BLOCKED, DONE, CANCELLED. Exibir progresso, agente atual, logs resumidos, consumo real ou estimado devidamente identificado.
 
 ## Requisitos
 Streaming, teclado, histórico, retomada, cancelamento propagado a subprocessos, modo sem cor, mensagens acessíveis e confirmação de ações destrutivas. Erros devem oferecer próximo passo sem inventar sucesso.
 
-Todos os comandos são contratos planejados, não executáveis nesta fase.
+Orchestration, run lifecycle and provider integrations remain planned; local config, backup, restore and prompt file inspection are available.
