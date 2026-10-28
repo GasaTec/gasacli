@@ -9,6 +9,7 @@ type Agent struct {
 	Name        string
 	Binaries    []string
 	VersionFlag string // Empty means --version.
+	RequireText string // If set, a successful probe must contain this text, case-insensitively.
 }
 
 // DefaultCatalog returns a fresh catalog in display order. Claude Code and Codex
@@ -18,9 +19,10 @@ func DefaultCatalog() []Agent {
 		{ID: "claude", Name: "Claude Code", Binaries: []string{"claude"}},
 		{ID: "codex", Name: "Codex", Binaries: []string{"codex"}},
 		{ID: "gemini", Name: "Gemini CLI", Binaries: []string{"gemini"}},
-		{ID: "cursor-agent", Name: "Cursor", Binaries: []string{"cursor-agent", "cursor"}},
+		{ID: "cursor-agent", Name: "Cursor CLI", Binaries: []string{"cursor-agent", "agent"}, RequireText: "cursor"},
 		{ID: "opencode", Name: "OpenCode", Binaries: []string{"opencode"}},
 		{ID: "orca", Name: "Orca", Binaries: []string{"orca"}},
+		{ID: "kimi", Name: "Kimi Code CLI", Binaries: []string{"kimi"}},
 		{ID: "gh", Name: "GitHub CLI", Binaries: []string{"gh"}},
 	}
 }
