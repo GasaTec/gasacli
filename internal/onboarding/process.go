@@ -7,6 +7,9 @@ import (
 )
 
 func runCommandTree(ctx context.Context, cmd *exec.Cmd) error {
+	// Idempotent: callers may already have configured the process group, but the tree kill
+	// must never depend on that (kill(-pgid) on a non-leader reports ESRCH, i.e. "success").
+	configureProcessTree(cmd)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
