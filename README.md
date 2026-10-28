@@ -46,23 +46,23 @@ go build -o gasa ./cmd/gasa
 ./gasa --version
 ```
 
-On Windows build `gasa.exe` instead and run it as `.gasa.exe --version`:
+On Windows build `gasa.exe` instead and run it as `.\gasa.exe --version`:
 
 ```bat
 go build -o gasa.exe ./cmd/gasa
-.gasa.exe --version
+.\gasa.exe --version
 ```
 
 To run `gasa` from any folder, put the binary on your PATH: on Windows add its folder to your user PATH and open a new terminal; on Linux and macOS move it to `~/.local/bin`.
 
-### Windows (cmd or PowerShell, not Git Bash)
-Needs Windows 10 or newer (`curl.exe` and PowerShell 5.1 or 7 ship with it).
+### Windows (PowerShell only; not cmd, not Git Bash)
+Open **PowerShell** (Start menu, type "PowerShell"). The `irm` command does not exist in cmd.exe. Needs Windows 10 or newer (`curl.exe` and PowerShell 5.1 or 7 ship with it).
 
 ```powershell
 irm https://raw.githubusercontent.com/GasaTec/gasacli/main/scripts/install.ps1 | iex
 ```
 
-It installs to `%LOCALAPPDATA%Programsgasacliin` and adds that folder to your **user** PATH, so open a new terminal afterwards. No administrator rights are needed. To remove it: `$env:GASA_UNINSTALL='1'` before running the same command.
+It installs to `%LOCALAPPDATA%\Programs\gasacli\bin` and adds that folder to your **user** PATH, so open a new terminal afterwards. No administrator rights are needed. To remove it: `$env:GASA_UNINSTALL='1'` before running the same command.
 
 ### Linux and macOS (WSL counts as Linux)
 Needs `curl`, `tar` and `sha256sum` (or `shasum` on macOS).
