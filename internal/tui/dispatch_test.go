@@ -3,11 +3,13 @@ package tui
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GasaTec/gasacli/internal/i18n"
 	"github.com/GasaTec/gasacli/internal/trust"
@@ -90,6 +92,41 @@ func TestHandlerDispatchCancellationAndPermissionDecisionLog(t *testing.T) {
 	log, err := os.ReadFile(filepath.Join(home, "approvals", "events.jsonl"))
 	if err != nil || strings.Count(string(log), "\"decision\":\"allow\"") != 1 || strings.Count(string(log), "\"decision\":\"deny\"") != 1 {
 		t.Fatalf("approval log=%s err=%v", log, err)
+	}
+}
+
+func TestBuiltInDiagnosticsReturnCancellation(t *testing.T) {
+	for _, name := range []string{"/agents", "/doctor"} {
+		t.Run(name, func(t *testing.T) {
+			started := make(chan struct{})
+			callback := func(ctx context.Context, _ io.Writer) {
+				close(started)
+				<-ctx.Done()
+			}
+			session := &Session{}
+			if name == "/agents" {
+				session.AgentsContext = callback
+			} else {
+				session.DoctorContext = callback
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			result := make(chan error, 1)
+			go func() {
+				_, err := executeCommand(ctx, session, ".", true, name, nil, nil)
+				result <- err
+			}()
+			<-started
+			cancel()
+			select {
+			case err := <-result:
+				if !errors.Is(err, context.Canceled) {
+					t.Fatalf("diagnostics error = %v, want context.Canceled", err)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("diagnostics handler did not stop after cancellation")
+			}
+		})
 	}
 }
 

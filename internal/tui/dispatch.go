@@ -202,6 +202,9 @@ func builtinHandler(name string, session *Session) CommandHandler {
 			if session.AgentsContext != nil {
 				var output strings.Builder
 				session.AgentsContext(ctx, &output)
+				if err := ctx.Err(); err != nil {
+					return "", err
+				}
 				return strings.TrimRight(output.String(), "\n"), nil
 			}
 			return callbackText(session.Agents, "Agent discovery is not configured."), nil
@@ -211,6 +214,9 @@ func builtinHandler(name string, session *Session) CommandHandler {
 			if session.DoctorContext != nil {
 				var output strings.Builder
 				session.DoctorContext(ctx, &output)
+				if err := ctx.Err(); err != nil {
+					return "", err
+				}
 				return strings.TrimRight(output.String(), "\n"), nil
 			}
 			return callbackText(session.Doctor, "Diagnostics are not configured."), nil
