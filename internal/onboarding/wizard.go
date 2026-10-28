@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/GasaTec/gasacli/internal/config"
 	"github.com/GasaTec/gasacli/internal/discovery"
@@ -218,6 +219,9 @@ func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+	if m.completed {
+		return m, tea.Quit
+	}
 	return m, nil
 }
 
@@ -246,6 +250,7 @@ func (m *wizardModel) complete() {
 	}
 	m.state.Completed = true
 	m.state.CurrentStep = 0
+	m.state.CompletedAt = time.Now().UTC()
 	if err := config.SaveOnboardingProgress(m.options.Home, m.state); err != nil {
 		m.err = err
 		return

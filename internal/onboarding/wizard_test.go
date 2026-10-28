@@ -102,3 +102,26 @@ func TestSaveWebPreference(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestWizardSummaryEnterQuitsAndRecordsCompletion(t *testing.T) {
+	home := t.TempDir()
+	model := wizardModel{options: WizardOptions{Home: home}, state: config.OnboardingState{}, step: 6}
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updated.(wizardModel)
+	if !model.completed {
+		t.Fatal("wizard must be completed after Enter on the summary")
+	}
+	if cmd == nil {
+		t.Fatal("completing the wizard must return a quit command")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Fatalf("completing the wizard must quit the program, got %T", cmd())
+	}
+	state, err := config.LoadState(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !state.Onboarding.Completed || state.Onboarding.CompletedAt.IsZero() {
+		t.Fatalf("completion not recorded: %+v", state.Onboarding)
+	}
+}
