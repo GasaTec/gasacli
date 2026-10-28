@@ -318,7 +318,7 @@ func TestEnsureProjectLayoutRequiresTrust(t *testing.T) {
 	if err := trustStore.Grant(project); err != nil {
 		t.Fatal(err)
 	}
-	path, err := EnsureProjectLayout(project, trustStore)
+	path, err := EnsureProjectLayout(project+string(filepath.Separator)+".", trustStore)
 	canonicalProject, canonicalErr := trust.Canonical(project)
 	if err != nil || canonicalErr != nil || path != filepath.Join(canonicalProject, "gasacli") {
 		t.Fatalf("EnsureProjectLayout()=%q, %v", path, err)
