@@ -52,7 +52,7 @@ func Ensure() error {
 	if err := os.MkdirAll(home, 0700); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
 	}
-	for _, dir := range []string{"agents", "prompts", "skills", "plugins", "segundo-cerebro", "backups", "logs"} {
+	for _, dir := []string{"agents", "prompts", "skills", "plugins", "segundo-cerebro", "backups", "logs", "approvals"} {
 		if err := os.MkdirAll(filepath.Join(home, dir), 0700); err != nil {
 			return fmt.Errorf("create config directory %q: %w", dir, err)
 		}

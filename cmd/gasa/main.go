@@ -128,6 +128,8 @@ func run(ctx context.Context, args []string) error {
 			return nil
 		case len(rest) == 1 && rest[0] == "doctor":
 			return diagnostics(ctx, os.Stdout)
+		case rest[0] == "permissions":
+			return runPermissions(ctx, rest[1:], os.Stdout)
 		case len(rest) == 2 && rest[0] == "web" && rest[1] == "open":
 			server, err := startDashboard(ctx, cfg)
 			if err != nil {
