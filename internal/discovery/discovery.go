@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -23,22 +24,37 @@ const (
 
 type Status string
 
+type AuthStatus string
+
 const (
-	Available      Status = "available"
+	Ready          Status = "ready"
+	NeedsLogin     Status = "needs_login"
+	Installed      Status = "installed"
+	Missing        Status = "missing"
 	VersionUnknown Status = "version_unknown"
-	NotFound       Status = "not_found"
 	Error          Status = "error"
+
+	// Available and NotFound are retained as source-compatible aliases for
+	// consumers that used the previous installation-only status vocabulary.
+	Available Status = Installed
+	NotFound  Status = Missing
+
+	AuthUnknown    AuthStatus = "unknown"
+	AuthReady      AuthStatus = "ready"
+	AuthNeedsLogin AuthStatus = "needs_login"
 )
 
-// Result reports installation/version readiness, never authentication readiness.
+// Result reports installation/version and, when checked by a documented
+// non-interactive command, authentication readiness.
 type Result struct {
-	ID      string
-	Name    string
-	Path    string
-	Status  Status
-	Version string
-	Note    string
-	Err     string
+	ID      string     `json:"id"`
+	Name    string     `json:"name"`
+	Path    string     `json:"path,omitempty"`
+	Status  Status     `json:"status"`
+	Auth    AuthStatus `json:"auth_status"`
+	Version string     `json:"version,omitempty"`
+	Note    string     `json:"-"`
+	Err     string     `json:"-"`
 }
 
 // Deps makes probes testable. Nil functions use the production defaults.
@@ -79,7 +95,7 @@ func Discover(ctx context.Context, catalog []Agent, deps Deps) []Result {
 }
 
 func probe(ctx context.Context, agent Agent, deps Deps) Result {
-	r := Result{ID: agent.ID, Name: agent.Name, Status: NotFound, Note: authNote}
+	r := Result{ID: agent.ID, Name: agent.Name, Status: Missing, Auth: AuthUnknown, Note: authNote}
 	if ctx.Err() != nil {
 		r.Status, r.Err = Error, "discovery canceled"
 		return r
@@ -140,13 +156,56 @@ func probe(ctx context.Context, agent Agent, deps Deps) Result {
 			r.Path, r.Status, r.Version = "", NotFound, ""
 			continue
 		}
-		r.Status = Available
+		r.Status = Installed
 		if r.Version == "" {
 			r.Status, r.Err = VersionUnknown, "version output empty"
+		}
+		if r.Status == Installed && len(agent.ReadyArgs) > 0 {
+			authCtx, authCancel := context.WithTimeout(ctx, probeTimeout)
+			authOutput, authErr := deps.Run(authCtx, path, agent.ReadyArgs...)
+			authCtxErr := authCtx.Err()
+			authCancel()
+			if authCtxErr == nil {
+				r.Auth = authVerdict(agent.ID, authOutput, authErr)
+				if r.Auth == AuthReady {
+					r.Status = Ready
+					r.Note = ""
+				} else if r.Auth == AuthNeedsLogin {
+					r.Status = NeedsLogin
+					r.Note = ""
+				}
+			}
 		}
 		return r
 	}
 	return r
+}
+
+// authVerdict interprets only documented status commands and never returns
+// their output to callers.
+func authVerdict(agentID string, output []byte, err error) AuthStatus {
+	if err != nil {
+		return AuthUnknown
+	}
+	switch agentID {
+	case "codex":
+		status := strings.ToLower(sanitize(string(output), versionLimit))
+		if strings.HasPrefix(status, "logged in") {
+			return AuthReady
+		}
+		if strings.HasPrefix(status, "not logged in") {
+			return AuthNeedsLogin
+		}
+	case "opencode":
+		var providers []json.RawMessage
+		if json.Unmarshal(output, &providers) == nil {
+			if len(providers) > 0 {
+				return AuthReady
+			}
+			return AuthNeedsLogin
+		}
+	}
+	return AuthUnknown
 }
 
 // cappedOutput retains only the first 4 KiB while draining the pipe, so a child
@@ -166,10 +225,11 @@ func (b *cappedOutput) Write(p []byte) (int, error) {
 
 func runVersion(ctx context.Context, path string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, path, args...)
+	configureProcessTree(cmd)
 	cmd.WaitDelay = 100 * time.Millisecond
 	// Keep only runtime/path essentials, never inherited API tokens or credentials.
 	cmd.Env = []string{}
-	for _, key := range []string{"PATH", "HOME", "USERPROFILE", "SystemRoot", "WINDIR", "PATHEXT", "TEMP", "TMP", "TMPDIR", "LOCALAPPDATA", "APPDATA"} {
+	for _, key := range []string{"PATH", "HOME", "USERPROFILE", "SystemRoot", "WINDIR", "PATHEXT", "TEMP", "TMP", "TMPDIR", "LOCALAPPDATA", "APPDATA", "CODEX_HOME"} {
 		if value, ok := os.LookupEnv(key); ok {
 			cmd.Env = append(cmd.Env, key+"="+value)
 		}

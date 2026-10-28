@@ -62,6 +62,7 @@ func run(ctx context.Context, args []string) error {
 	noBrowser := flags.Bool("no-browser", false, "Do not open the dashboard automatically")
 	noOnboarding := flags.Bool("no-onboarding", false, "Skip first-run onboarding")
 	plain := flags.Bool("plain", false, "Use line-oriented mode instead of the interactive terminal UI")
+	doctorJSON := flags.Bool("json", false, "Write doctor results as JSON")
 	flags.Usage = help
 	// Accept the global switch on either side of a subcommand.
 	var positional []string
@@ -72,6 +73,8 @@ func run(ctx context.Context, args []string) error {
 			*noOnboarding = true
 		} else if arg == "--plain" {
 			*plain = true
+		} else if arg == "--json" {
+			*doctorJSON = true
 		} else {
 			positional = append(positional, arg)
 		}
@@ -82,6 +85,7 @@ func run(ctx context.Context, args []string) error {
 		}
 		return err
 	}
+	headless := headlessMode()
 	rest := flags.Args()
 	if len(rest) == 1 && rest[0] == "help" {
 		help()
@@ -100,7 +104,7 @@ func run(ctx context.Context, args []string) error {
 	if len(rest) > 0 {
 		switch {
 		case len(rest) == 1 && rest[0] == "setup":
-			interactive := !*plain && onboarding.Interactive(os.Stdin, os.Stdout)
+			interactive := !*plain && !headless && onboarding.Interactive(os.Stdin, os.Stdout)
 			if interactive {
 				home, err := config.Home()
 				if err != nil {
@@ -127,7 +131,7 @@ func run(ctx context.Context, args []string) error {
 			}
 			return nil
 		case len(rest) == 1 && rest[0] == "doctor":
-			return diagnostics(ctx, os.Stdout)
+			return diagnostics(ctx, os.Stdout, *doctorJSON)
 		case rest[0] == "permissions":
 			return runPermissions(ctx, rest[1:], os.Stdout)
 		case len(rest) == 2 && rest[0] == "web" && rest[1] == "open":
@@ -136,7 +140,7 @@ func run(ctx context.Context, args []string) error {
 				return err
 			}
 			defer shutdown(server)
-			if !*noBrowser {
+			if shouldOpen("auto", *noBrowser || headless) {
 				launchBrowser(server.LaunchURL(), os.Stderr)
 			}
 			fmt.Println("Press Ctrl+C to stop")
@@ -146,7 +150,7 @@ func run(ctx context.Context, args []string) error {
 			return fmt.Errorf("unknown command %q (try gasa --help)", strings.Join(rest, " "))
 		}
 	}
-	interactiveTerminal := !*plain && onboarding.Interactive(os.Stdin, os.Stdout)
+	interactiveTerminal := !*plain && !headless && onboarding.Interactive(os.Stdin, os.Stdout)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -208,19 +212,19 @@ func run(ctx context.Context, args []string) error {
 		DiscoverReady: func() int {
 			ready := 0
 			for _, result := range discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{}) {
-				if result.Status == discovery.Available {
+				if result.Status == discovery.Ready {
 					ready++
 				}
 			}
 			return ready
 		},
 		Agents: func(out io.Writer) {
-			if err := diagnostics(ctx, out); err != nil {
+			if err := diagnostics(ctx, out, false); err != nil {
 				fmt.Fprintln(os.Stderr, "discovery:", err)
 			}
 		},
 		Doctor: func(out io.Writer) {
-			if err := diagnostics(ctx, out); err != nil {
+			if err := diagnostics(ctx, out, false); err != nil {
 				fmt.Fprintln(os.Stderr, "discovery:", err)
 			}
 		},
@@ -238,7 +242,7 @@ func run(ctx context.Context, args []string) error {
 			}
 			session.Dashboard = server.URL()
 			session.DashboardState = "running"
-			if shouldOpen(cfg.Web.Mode, *noBrowser) {
+			if shouldOpen(cfg.Web.Mode, *noBrowser || headless) {
 				launchBrowser(server.LaunchURL(), os.Stderr)
 			}
 			return nil
@@ -258,7 +262,7 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("dashboard unavailable")
 			}
 			fmt.Fprintln(out, "Dashboard:", server.URL())
-			if action == "open" && !*noBrowser {
+			if action == "open" && shouldOpen("auto", *noBrowser || headless) {
 				launchBrowser(server.LaunchURL(), out)
 			}
 			return nil
@@ -312,8 +316,12 @@ func printVersion(out io.Writer) {
 
 func shouldOpen(mode string, noBrowser bool) bool { return !noBrowser && mode != "manual" }
 
-func diagnostics(ctx context.Context, out io.Writer) error {
-	return discovery.Format(out, discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{}))
+func diagnostics(ctx context.Context, out io.Writer, jsonOutput bool) error {
+	results := discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{})
+	if jsonOutput {
+		return discovery.FormatJSON(out, results)
+	}
+	return discovery.Format(out, results)
 }
 
 func startDashboard(ctx context.Context, cfg config.Config) (*web.Server, error) {

@@ -104,6 +104,49 @@ func TestGenericAgentBinaryMustIdentifyAsCursor(t *testing.T) {
 	}
 }
 
+func TestDocumentedReadinessCommands(t *testing.T) {
+	for _, tc := range []struct {
+		name, id, output string
+		err              error
+		want             Status
+		auth             AuthStatus
+	}{
+		{name: "codex logged in", id: "codex", output: "Logged in using ChatGPT\n", want: Ready, auth: AuthReady},
+		{name: "codex logged out", id: "codex", output: "Not logged in\n", want: NeedsLogin, auth: AuthNeedsLogin},
+		{name: "codex unknown", id: "codex", output: "TOKEN=do-not-print\n", want: Installed, auth: AuthUnknown},
+		{name: "opencode has provider", id: "opencode", output: `[{"provider":"anthropic"}]`, want: Ready, auth: AuthReady},
+		{name: "opencode empty", id: "opencode", output: `[]`, want: NeedsLogin, auth: AuthNeedsLogin},
+		{name: "status failed", id: "codex", output: "", err: errors.New("private failure"), want: Installed, auth: AuthUnknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			catalog := []Agent{{ID: tc.id, Name: tc.id, Binaries: []string{tc.id}, ReadyArgs: []string{"login", "status"}}}
+			if tc.id == "opencode" {
+				catalog[0].ReadyArgs = []string{"auth", "list", "--format", "json"}
+			}
+			result := Discover(context.Background(), catalog, Deps{
+				LookPath: func(string) (string, error) { return ".", nil },
+				Run: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+					calls++
+					if calls == 1 && !reflect.DeepEqual(args, []string{"--version"}) {
+						t.Fatalf("version args = %v", args)
+					}
+					if calls == 2 && !reflect.DeepEqual(args, catalog[0].ReadyArgs) {
+						t.Fatalf("readiness args = %v", args)
+					}
+					if calls == 1 {
+						return []byte("tool 1.2.3"), nil
+					}
+					return []byte(tc.output), tc.err
+				},
+			})[0]
+			if result.Status != tc.want || result.Auth != tc.auth || strings.Contains(result.Err, "private") || strings.Contains(result.Version, "TOKEN") {
+				t.Fatalf("unexpected result: %+v", result)
+			}
+		})
+	}
+}
+
 func TestProbeFailuresAreSafe(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -293,6 +336,17 @@ func TestFormat(t *testing.T) {
 	}
 	if err := Format(failingWriter{}, []Result{{Name: "agent"}}); err == nil {
 		t.Fatal("writer error swallowed")
+	}
+}
+
+func TestFormatJSONContainsEnumsAndNoProbeOutput(t *testing.T) {
+	var out bytes.Buffer
+	results := []Result{{ID: "codex", Name: "Codex", Status: Ready, Auth: AuthReady, Version: "Codex 1.0"}}
+	if err := FormatJSON(&out, results); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `"status":"ready"`) || !strings.Contains(out.String(), `"auth_status":"ready"`) || strings.Contains(out.String(), "authentication not checked") {
+		t.Fatalf("unexpected JSON: %s", out.String())
 	}
 }
 
