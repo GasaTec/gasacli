@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -67,7 +68,7 @@ type ApprovalEvent struct {
 	Hash           string     `json:"hash"`
 }
 
-const approvalMaxBytes = 1024 * 1024
+var approvalMaxBytes = 1024 * 1024
 
 var secretPattern = regexp.MustCompile(`(?i)(bearer\s+[^\s"']+|(?:token|password|secret|api[_-]?key|authorization)\s*[:=]\s*[^\s,;"']+)`)
 
@@ -123,22 +124,11 @@ func (e *Engine) RecordApproval(event ApprovalEvent) error {
 	}
 	line = append(line, '\n')
 	info, err := os.Stat(path)
-	if err == nil && info.Size()+int64(len(line)) > approvalMaxBytes {
+	if err == nil && info.Size()+int64(len(line)) > int64(approvalMaxBytes) {
 		rotated := filepath.Join(dir, fmt.Sprintf("events-%s.jsonl", time.Now().UTC().Format("20060102T150405.000000000")))
 		if err = os.Rename(path, rotated); err != nil {
 			return err
 		}
-		previous = ""
-		event.PreviousHash = ""
-		event.Hash = ""
-		raw, _ = json.Marshal(event)
-		sum = sha256.Sum256(raw)
-		event.Hash = hex.EncodeToString(sum[:])
-		line, err = json.Marshal(event)
-		if err != nil {
-			return err
-		}
-		line = append(line, '\n')
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
@@ -156,37 +146,51 @@ func (e *Engine) RecordApproval(event ApprovalEvent) error {
 }
 
 func lastApprovalHash(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	dir := filepath.Dir(path)
+	entries, err := os.ReadDir(dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return "", nil
 	}
 	if err != nil {
 		return "", err
 	}
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	var files []string
+	for _, entry := range entries {
+		if !entry.IsDir() && (entry.Name() == "events.jsonl" || (strings.HasPrefix(entry.Name(), "events-") && strings.HasSuffix(entry.Name(), ".jsonl"))) {
+			files = append(files, filepath.Join(dir, entry.Name()))
+		}
+	}
+	sort.Strings(files)
 	previous := ""
-	for i, line := range lines {
-		if line == "" {
-			continue
-		}
-		var event ApprovalEvent
-		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			return "", fmt.Errorf("decode approval event %d: %w", i+1, err)
-		}
-		if event.PreviousHash != previous {
-			return "", fmt.Errorf("approval event %d has invalid previous hash", i+1)
-		}
-		stored := event.Hash
-		event.Hash = ""
-		raw, err := json.Marshal(event)
+	for _, file := range files {
+		data, err := os.ReadFile(file)
 		if err != nil {
 			return "", err
 		}
-		sum := sha256.Sum256(raw)
-		if stored != hex.EncodeToString(sum[:]) {
-			return "", fmt.Errorf("approval event %d hash mismatch", i+1)
+		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+		for i, line := range lines {
+			if line == "" {
+				continue
+			}
+			var event ApprovalEvent
+			if err := json.Unmarshal([]byte(line), &event); err != nil {
+				return "", fmt.Errorf("decode approval event %d: %w", i+1, err)
+			}
+			if event.PreviousHash != previous {
+				return "", fmt.Errorf("approval event %d has invalid previous hash", i+1)
+			}
+			stored := event.Hash
+			event.Hash = ""
+			raw, err := json.Marshal(event)
+			if err != nil {
+				return "", err
+			}
+			sum := sha256.Sum256(raw)
+			if stored != hex.EncodeToString(sum[:]) {
+				return "", fmt.Errorf("approval event %d hash mismatch", i+1)
+			}
+			previous = stored
 		}
-		previous = stored
 	}
 	return previous, nil
 }

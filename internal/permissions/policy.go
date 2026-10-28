@@ -112,6 +112,10 @@ func (e *Engine) Decide(ctx context.Context, req Request) Decision {
 	if !ValidPermission(req.Action) {
 		return decision
 	}
+	if req.Agent != "" && !validAgentID(req.Agent) {
+		decision.Reason = "invalid agent identifier"
+		return decision
+	}
 	user, err := e.userPolicy()
 	if err != nil {
 		decision.Reason = "invalid user policy: " + err.Error()
@@ -133,7 +137,17 @@ func (e *Engine) Decide(ctx context.Context, req Request) Decision {
 			decision.Scope = ProjectScope
 			return decision
 		}
-		project, err := loadPolicy(filepath.Join(req.Project, ".gasa", "permissions.yaml"))
+		projectRoot, err := trust.Canonical(req.Project)
+		if err != nil {
+			decision.Reason = "project path cannot be canonicalized"
+			return decision
+		}
+		if (req.Action == "read_project" || req.Action == "write_project") && req.Target != "" && !withinProject(projectRoot, req.Target) {
+			decision.Effect, decision.Scope = Deny, ProjectScope
+			decision.Reason = "target is outside the trusted project boundary"
+			return decision
+		}
+		project, err := loadPolicy(filepath.Join(projectRoot, "gasacli", "permissions.yaml"))
 		if err != nil {
 			decision.Reason = "invalid project policy: " + err.Error()
 			return decision
@@ -235,16 +249,32 @@ func (e *Engine) Save(scope Scope, project, agent string, policy Policy) error {
 		if err != nil || !trusted {
 			return errors.New("project policy requires a trusted project")
 		}
-		path = filepath.Join(project, ".gasa", "permissions.yaml")
+		canonical, err := trust.Canonical(project)
+		if err != nil {
+			return errors.New("project policy requires a trusted project")
+		}
+		path = filepath.Join(canonical, "gasacli", "permissions.yaml")
 	case AgentScope:
-		if agent == "" {
-			return errors.New("agent policy requires an agent id")
+		if !validAgentID(agent) {
+			return errors.New("agent policy requires a valid agent id")
 		}
 		path = filepath.Join(e.Home, "agents", agent, "permissions.yaml")
 	default:
 		return fmt.Errorf("invalid policy scope %q", scope)
 	}
 	return writePolicy(path, policy)
+}
+
+func validAgentID(agent string) bool {
+	if agent == "" || agent == "." || agent == ".." {
+		return false
+	}
+	for _, r := range agent {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.') {
+			return false
+		}
+	}
+	return true
 }
 
 func writePolicy(path string, policy Policy) error {
@@ -297,7 +327,11 @@ func (e *Engine) SetRule(scope Scope, project, agent string, permission Permissi
 	var err error
 	path := filepath.Join(e.Home, "permissions.yaml")
 	if scope == ProjectScope {
-		path = filepath.Join(project, ".gasa", "permissions.yaml")
+		canonical, canonicalErr := trust.Canonical(project)
+		if canonicalErr != nil {
+			return canonicalErr
+		}
+		path = filepath.Join(canonical, "gasacli", "permissions.yaml")
 	}
 	if scope == AgentScope {
 		path = filepath.Join(e.Home, "agents", agent, "permissions.yaml")
@@ -308,6 +342,49 @@ func (e *Engine) SetRule(scope Scope, project, agent string, permission Permissi
 	}
 	p.Rules[permission] = effect
 	return e.Save(scope, project, agent, p)
+}
+
+func (e *Engine) Profile() (string, error) {
+	p, err := e.userPolicy()
+	if err != nil {
+		return "", err
+	}
+	return p.Profile, nil
+}
+
+func withinProject(root, target string) bool {
+	path := target
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	current := filepath.Clean(abs)
+	var missing []string
+	for {
+		if _, err := os.Lstat(current); err == nil {
+			break
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return false
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return false
+		}
+		missing = append(missing, filepath.Base(current))
+		current = parent
+	}
+	resolved, err := trust.Canonical(current)
+	if err != nil {
+		return false
+	}
+	for i := len(missing) - 1; i >= 0; i-- {
+		resolved = filepath.Join(resolved, missing[i])
+	}
+	rel, err := filepath.Rel(root, filepath.Clean(resolved))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 func (e *Engine) Reset(scope Scope, project, agent string) error {
 	p := Policy{Rules: map[Permission]Effect{}}

@@ -83,6 +83,56 @@ func TestUntrustedProjectCannotApplyProjectPolicy(t *testing.T) {
 	}
 }
 
+func TestProjectPolicyAndTargetBoundary(t *testing.T) {
+	home, project, outside := t.TempDir(), t.TempDir(), t.TempDir()
+	store := trust.NewStore(home)
+	if err := store.Grant(project); err != nil {
+		t.Fatal(err)
+	}
+	e := New(home, store)
+	if err := e.SetRule(ProjectScope, project, "", "read_project", Deny); err != nil {
+		t.Fatal(err)
+	}
+	policyPath := filepath.Join(project, "gasacli", "permissions.yaml")
+	if _, err := os.Stat(policyPath); err != nil {
+		t.Fatalf("project policy path missing: %v", err)
+	}
+	if got := e.Decide(context.Background(), Request{Action: "read_project", Project: project, Target: "inside.txt"}).Effect; got != Deny {
+		t.Fatalf("project rule ignored: %s", got)
+	}
+	if got := e.Decide(context.Background(), Request{Action: "read_project", Project: project, Target: filepath.Join(outside, "secret.txt")}); got.Effect != Deny || got.Reason != "target is outside the trusted project boundary" {
+		t.Fatalf("outside target decision=%+v", got)
+	}
+}
+
+func TestProjectTargetRejectsSymlinkEscape(t *testing.T) {
+	home, project, outside := t.TempDir(), t.TempDir(), t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(project, "escape")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	store := trust.NewStore(home)
+	if err := store.Grant(project); err != nil {
+		t.Fatal(err)
+	}
+	d := New(home, store).Decide(context.Background(), Request{Action: "write_project", Project: project, Target: filepath.Join("escape", "file.txt")})
+	if d.Effect != Deny {
+		t.Fatalf("symlink escape decision=%+v", d)
+	}
+}
+
+func TestAgentIDCannotEscapePolicyDirectory(t *testing.T) {
+	e := New(t.TempDir(), nil)
+	for _, agent := range []string{"../other", "..", "a\\b"} {
+		if err := e.Save(AgentScope, "", agent, Policy{}); err == nil {
+			t.Errorf("accepted unsafe agent id %q", agent)
+		}
+	}
+	d := e.Decide(context.Background(), Request{Action: "read_project", Agent: "../other"})
+	if d.Effect != Deny || d.Reason != "invalid agent identifier" {
+		t.Fatalf("unsafe agent decision=%+v", d)
+	}
+}
+
 func TestPolicyRejectsUnknownKeys(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "permissions.yaml")
 	if err := os.WriteFile(path, []byte("profile: balanced\nrules:\n  invented: allow\n"), 0600); err != nil {
