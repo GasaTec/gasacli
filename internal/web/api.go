@@ -224,7 +224,7 @@ func gitOutput(path string, args ...string) string {
 }
 
 func safeDiffPath(value string) bool {
-	if value == "" || strings.ContainsRune(value, 0) || strings.HasPrefix(value, "/") || strings.HasPrefix(value, `\`) || filepath.IsAbs(value) || filepath.VolumeName(value) != "" {
+	if value == "" || strings.ContainsRune(value, 0) || strings.HasPrefix(value, "/") || strings.HasPrefix(value, `\`) || filepath.IsAbs(value) || filepath.VolumeName(value) != "" || hasWindowsVolume(value) {
 		return false
 	}
 	for _, part := range strings.FieldsFunc(value, func(r rune) bool { return r == '/' || r == '\\' }) {
@@ -233,6 +233,10 @@ func safeDiffPath(value string) bool {
 		}
 	}
 	return true
+}
+
+func hasWindowsVolume(value string) bool {
+	return len(value) >= 2 && ((value[0] >= 'A' && value[0] <= 'Z') || (value[0] >= 'a' && value[0] <= 'z')) && value[1] == ':'
 }
 
 type cappedOutput struct {
