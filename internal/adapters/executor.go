@@ -259,16 +259,16 @@ func commandFor(request Request) (string, []string, error) {
 		}
 		return "claude", args, nil
 	case "codex":
-		args := []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--ask-for-approval", "on-request", "--skip-git-repo-check"}
+		args := []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--skip-git-repo-check"}
 		if request.ReadOnly {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check"}
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "read-only", "--skip-git-repo-check"}
 		} else if request.Profile == "restricted" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--ask-for-approval", "never"}
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write"}
 		} else if request.Profile == "balanced" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--ask-for-approval", "on-request", "--skip-git-repo-check"}
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--skip-git-repo-check"}
 		}
 		if request.Profile == "autonomous" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "danger-full-access", "--ask-for-approval", "on-request", "--skip-git-repo-check"}
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "danger-full-access", "--skip-git-repo-check"}
 		}
 		args = append(args, request.Prompt)
 		return "codex", args, nil

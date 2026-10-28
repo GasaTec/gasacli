@@ -24,7 +24,7 @@ func TestCommandForMapsSupportedNonInteractiveModes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if codex != "codex" || !has(args, "exec") || !has(args, "--json") || !has(args, "workspace-write") || !has(args, "--skip-git-repo-check") || !has(args, "--ask-for-approval") || !has(args, "on-request") {
+	if codex != "codex" || !has(args, "exec") || !has(args, "--json") || !has(args, "workspace-write") || !has(args, "--skip-git-repo-check") {
 		t.Fatalf("codex args = %#v", args)
 	}
 	if _, _, err = commandFor(Request{Agent: "opencode"}); err == nil {
@@ -39,7 +39,7 @@ func TestCommandForMapsSupportedNonInteractiveModes(t *testing.T) {
 		t.Fatalf("read-only codex args=%#v err=%v", args, err)
 	}
 	codex, args, err = commandFor(Request{Agent: "codex", Prompt: "do work", Project: ".", Profile: "autonomous"})
-	if err != nil || codex != "codex" || !has(args, "danger-full-access") || !has(args, "--ask-for-approval") || !has(args, "on-request") {
+	if err != nil || codex != "codex" || !has(args, "danger-full-access") {
 		t.Fatalf("autonomous codex args=%#v err=%v", args, err)
 	}
 }
