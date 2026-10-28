@@ -15,7 +15,7 @@ import (
 func TestWizardScreenViews(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 	model := wizardModel{
-		options:  WizardOptions{ctx: context.Background(), Project: filepath.Join(t.TempDir(), "project")},
+		options:  WizardOptions{ctx: context.Background(), Home: t.TempDir(), Project: filepath.Join(t.TempDir(), "project")},
 		missing:  []Item{{ID: "cursor", Name: "Cursor CLI", URL: "https://example.com", Methods: map[string][]Method{"windows": {manual("manual", "install manually", "https://example.com")}}}},
 		selected: map[string]bool{"cursor": true},
 		results:  []discovery.Result{{Name: "Codex", Version: "1.2.3", Status: discovery.Available, Path: "C:/tools/codex.exe"}},
@@ -47,7 +47,7 @@ func TestWizardScreenViews(t *testing.T) {
 }
 
 func TestWizardInstallRequiresExplicitConfirmation(t *testing.T) {
-	model := wizardModel{step: 2, missing: []Item{{ID: "cursor"}}, selected: map[string]bool{"cursor": true}}
+	model := wizardModel{options: WizardOptions{Home: t.TempDir()}, step: 2, missing: []Item{{ID: "cursor"}}, selected: map[string]bool{"cursor": true}}
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	model = updated.(wizardModel)
 	if !model.confirmInstall || model.installConfirmed || model.step != 2 {

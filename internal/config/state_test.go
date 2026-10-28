@@ -42,3 +42,14 @@ func TestCorruptStateIsNotCompletedAndNotDeleted(t *testing.T) {
 		t.Fatal("corrupt state was changed")
 	}
 }
+
+func TestSaveStateRefusesEmptyHome(t *testing.T) {
+	cwd := t.TempDir()
+	t.Chdir(cwd)
+	if err := SaveOnboardingProgress("", OnboardingState{CurrentStep: 1}); err == nil {
+		t.Fatal("empty home must be refused")
+	}
+	if _, err := os.Stat(filepath.Join(cwd, "state.json")); !os.IsNotExist(err) {
+		t.Fatalf("state.json was written into the working directory: %v", err)
+	}
+}

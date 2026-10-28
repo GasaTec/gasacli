@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -61,6 +62,9 @@ func SaveOnboardingProgress(home string, onboarding OnboardingState) error {
 }
 
 func saveState(home string, state State) error {
+	if strings.TrimSpace(home) == "" {
+		return errors.New("onboarding state: empty home directory")
+	}
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode onboarding state: %w", err)
