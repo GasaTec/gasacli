@@ -224,7 +224,7 @@ func (b *cappedOutput) Write(p []byte) (int, error) {
 }
 
 func runVersion(ctx context.Context, path string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, path, args...)
+	cmd := exec.Command(path, args...)
 	configureProcessTree(cmd)
 	cmd.WaitDelay = 100 * time.Millisecond
 	// Keep only runtime/path essentials, never inherited API tokens or credentials.
@@ -236,7 +236,7 @@ func runVersion(ctx context.Context, path string, args ...string) ([]byte, error
 	}
 	var output cappedOutput
 	cmd.Stdout, cmd.Stderr = &output, io.Discard
-	err := cmd.Run()
+	err := runProcess(ctx, cmd)
 	return output.data, err
 }
 
