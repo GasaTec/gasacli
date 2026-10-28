@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,11 +24,65 @@ func TestCommandForMapsSupportedNonInteractiveModes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if codex != "codex" || !has(args, "exec") || !has(args, "--json") || !has(args, "workspace-write") {
+	if codex != "codex" || !has(args, "exec") || !has(args, "--json") || !has(args, "workspace-write") || !has(args, "--skip-git-repo-check") || has(args, "--ask-for-approval") {
 		t.Fatalf("codex args = %#v", args)
 	}
 	if _, _, err = commandFor(Request{Agent: "opencode"}); err == nil {
 		t.Fatal("OpenCode without a documented stream mode must fail closed")
+	}
+	claude, args, err = commandFor(Request{Agent: "claude", Prompt: "review", ReadOnly: true})
+	if err != nil || claude != "claude" || !has(args, "plan") || has(args, "acceptEdits") {
+		t.Fatalf("read-only claude args=%#v err=%v", args, err)
+	}
+	codex, args, err = commandFor(Request{Agent: "codex", Prompt: "review", Project: ".", ReadOnly: true})
+	if err != nil || codex != "codex" || !has(args, "read-only") {
+		t.Fatalf("read-only codex args=%#v err=%v", args, err)
+	}
+	codex, args, err = commandFor(Request{Agent: "codex", Prompt: "do work", Project: ".", Profile: "autonomous"})
+	if err != nil || codex != "codex" || !has(args, "danger-full-access") || has(args, "--ask-for-approval") {
+		t.Fatalf("autonomous codex args=%#v err=%v", args, err)
+	}
+}
+
+func TestWriteReviewSchemaCreatesStructuredVerdictSchema(t *testing.T) {
+	args, path, err := addReviewSchema([]string{"exec", "--json", "review prompt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(path)
+	if !has(args, "--output-schema") || args[len(args)-1] != "review prompt" || args[len(args)-2] != path {
+		t.Fatalf("review schema arguments = %#v", args)
+	}
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema map[string]any
+	if err = json.Unmarshal(contents, &schema); err != nil {
+		t.Fatalf("schema is not JSON: %v", err)
+	}
+	if schema["type"] != "object" || schema["additionalProperties"] != false {
+		t.Fatalf("schema does not require a closed object: %#v", schema)
+	}
+}
+
+func TestStructuredTextExtractsReviewResponseWithoutEventData(t *testing.T) {
+	if got := structuredText([]byte(`{"type":"result","result":"{\"verdict\":\"approve\"}"}`), "result"); got != `{"verdict":"approve"}` {
+		t.Fatalf("Claude result = %q", got)
+	}
+	if got := structuredText([]byte(`{"type":"item.completed","item":{"type":"agent_message","text":"{\"verdict\":\"approve\"}"}}`), "item.completed"); got != `{"verdict":"approve"}` {
+		t.Fatalf("Codex result = %q", got)
+	}
+	if got := structuredText([]byte(`{"type":"tool.started","data":"ignore"}`), "tool.started"); got != "" {
+		t.Fatalf("unexpected structured result %q", got)
+	}
+}
+
+func TestCaptureMetricsReadsOnlyNumericUsageFields(t *testing.T) {
+	var result Result
+	captureMetrics([]byte(`{"type":"result","cost_usd":0.0125,"usage":{"input_tokens":42,"output_tokens":7},"result":"secret text"}`), &result)
+	if !result.CostKnown || result.CostUSD != 0.0125 || result.InputTokens != 42 || result.OutputTokens != 7 {
+		t.Fatalf("metrics = %#v", result)
 	}
 }
 

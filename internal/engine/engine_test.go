@@ -183,6 +183,18 @@ func TestDoneRequiresDistinctReviewerAndPassedEvidence(t *testing.T) {
 	if err = e.RunDAG(ctx, run.ID, workerFunc(func(context.Context, Task) error { return nil }), SchedulerOptions{}); err != nil {
 		t.Fatal(err)
 	}
+	if err = e.CompleteRun(ctx, run.ID, CompletionEvidence{ChecksPassed: true, ReviewApproved: true, Developer: "codex", Reviewer: "claude", Commit: "abc"}); err == nil {
+		t.Fatal("DONE accepted missing gate and review events")
+	}
+	if err = e.addEvent(ctx, run.ID, "", "", "gate.cycle.started", map[string]string{"cycle": "verify-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = e.addEvent(ctx, run.ID, "", "", "gate.finished", map[string]any{"cycle": "verify-1", "result": GateResult{Name: "test", Passed: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if err = e.addEvent(ctx, run.ID, "", "", "review.finished", map[string]any{"cycle": "verify-1", "reviewer": "claude", "verdict": ReviewApprove}); err != nil {
+		t.Fatal(err)
+	}
 	if err = e.Transition(ctx, run.ID, Done, ""); err == nil {
 		t.Fatal("generic transition must not set DONE")
 	}

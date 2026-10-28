@@ -7,11 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/GasaTec/gasacli/internal/adapters"
 	"github.com/GasaTec/gasacli/internal/discovery"
 	"github.com/GasaTec/gasacli/internal/engine"
+	"github.com/GasaTec/gasacli/internal/i18n"
+	"github.com/GasaTec/gasacli/internal/orchestration"
 	"github.com/GasaTec/gasacli/internal/permissions"
 	"github.com/GasaTec/gasacli/internal/storage"
 	"github.com/GasaTec/gasacli/internal/trust"
@@ -45,40 +46,45 @@ func goalCommand(ctx context.Context, cc CommandContext, args []string) (string,
 		closeStore()
 		return "", err
 	}
-	run, err := core.CreateRun(ctx, project, goal)
+	run, err := orchestration.CreateRun(ctx, core, project, goal)
 	if err != nil {
 		closeStore()
 		return "", err
 	}
-	if err = core.AddTasks(ctx, run.ID, []engine.Task{{ID: "task-1", RunID: run.ID, Name: "Implement requested goal", Timeout: 30 * time.Minute}}); err != nil {
-		closeStore()
-		return "", err
-	}
-	cc.Emit(fmt.Sprintf("Plan for run %s: implement the goal in one task. Agent: %s.", run.ID, agent))
-	managerCtx, cancel := context.WithCancel(ctx)
+	reviewer := orchestration.SelectReviewer(discoveryResults(cc.DiscoveryResults()), agent)
+	cc.Emit(i18n.T("orchestration.plan", run.ID, agent, reviewer))
+	managerCtx, cancel := context.WithCancel(context.Background())
 	activeRuns.Store(run.ID, activeRun{cancel: cancel, project: project})
 	go func() {
 		defer closeStore()
 		defer activeRuns.Delete(run.ID)
 		defer cancel()
-		runAsync(managerCtx, cc, core, run.ID, project, goal, agent)
+		runAsync(managerCtx, cc, core, run.ID, project, goal, agent, reviewer)
 	}()
-	return fmt.Sprintf("Run %s started. Use /status, /runs, /cancel %s, or /resume %s.", run.ID, run.ID, run.ID), nil
+	return i18n.T("orchestration.started", run.ID, run.ID, run.ID), nil
 }
 
-func runAsync(ctx context.Context, cc CommandContext, core *engine.Engine, runID, project, goal, agent string) {
+func runAsync(ctx context.Context, cc CommandContext, core *engine.Engine, runID, project, goal, agent, reviewer string) {
 	policy := permissions.New(cc.ConfigHome(), trust.NewStore(cc.ConfigHome()))
-	executor := &adapters.Executor{Policy: policy, Approver: engineCommandApprover{cc: cc, agent: agent}, OnEvent: func(event adapters.Event) { cc.Emit(fmt.Sprintf("Run %s: agent event %s", runID, event.Type)) }}
-	worker := adapterWorker{executor: executor, project: project, goal: goal, agent: agent}
-	if err := core.RunDAG(ctx, runID, worker, engine.SchedulerOptions{Workers: 3, MaxRetries: 2}); err != nil {
-		cc.Emit(fmt.Sprintf("Run %s is %s: %s", runID, statusAfter(core, runID), err))
+	err := orchestration.Run(ctx, runID, orchestration.Options{
+		Core: core, Policy: policy, Approver: engineCommandApprover{cc: cc, agent: agent}, Home: cc.ConfigHome(), Project: project,
+		Goal: goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 3, MaxRetries: 2},
+		OnEvent: func(role string, event adapters.Event) {
+			cc.Emit(i18n.T("orchestration.event", runID, role, event.Type))
+		},
+	})
+	if err != nil {
+		cc.Emit(i18n.T("orchestration.blocked", runID, statusAfter(core, runID), err))
 		return
 	}
-	_ = core.Transition(context.Background(), runID, engine.Blocked, "independent review and configured quality gates are required before completion")
-	cc.Emit(fmt.Sprintf("Run %s is BLOCKED pending configured checks and independent review.", runID))
+	cc.Emit(i18n.T("orchestration.done", runID))
 }
 
 func statusCommand(ctx context.Context, cc CommandContext, _ []string) (string, error) {
+	project, err := trust.Canonical(cc.ProjectPath())
+	if err != nil {
+		return "", err
+	}
 	core, closeStore, err := openCommandEngine(cc)
 	if err != nil {
 		return "", err
@@ -89,7 +95,7 @@ func statusCommand(ctx context.Context, cc CommandContext, _ []string) (string, 
 		return "", err
 	}
 	for _, run := range runs {
-		if run.Project == cc.ProjectPath() {
+		if run.Project == project {
 			return fmt.Sprintf("Run %s: %s — %s", run.ID, run.Status, run.Goal), nil
 		}
 	}
@@ -99,6 +105,10 @@ func statusCommand(ctx context.Context, cc CommandContext, _ []string) (string, 
 func resumeCommand(ctx context.Context, cc CommandContext, args []string) (string, error) {
 	if !cc.Trusted() {
 		return "", errors.New("trust this project before resuming a run")
+	}
+	project, err := trust.Canonical(cc.ProjectPath())
+	if err != nil {
+		return "", err
 	}
 	core, closeStore, err := openCommandEngine(cc)
 	if err != nil {
@@ -117,7 +127,7 @@ func resumeCommand(ctx context.Context, cc CommandContext, args []string) (strin
 			return "", listErr
 		}
 		for _, candidate := range runs {
-			if candidate.Project == cc.ProjectPath() && (candidate.Status == engine.Blocked || candidate.Status == engine.Running || candidate.Status == engine.Planning) {
+			if candidate.Project == project && (candidate.Status == engine.Blocked || candidate.Status == engine.Running || candidate.Status == engine.Planning || candidate.Status == engine.Fixing || candidate.Status == engine.Gates || candidate.Status == engine.Review) {
 				run = candidate
 				break
 			}
@@ -131,7 +141,7 @@ func resumeCommand(ctx context.Context, cc CommandContext, args []string) (strin
 		closeStore()
 		return "", err
 	}
-	if run.Project != cc.ProjectPath() {
+	if run.Project != project {
 		closeStore()
 		return "", errors.New("run belongs to another project")
 	}
@@ -144,18 +154,13 @@ func resumeCommand(ctx context.Context, cc CommandContext, args []string) (strin
 		closeStore()
 		return "", errors.New("no supported coding CLI is installed")
 	}
-	project, err := trust.Canonical(cc.ProjectPath())
-	if err != nil {
-		closeStore()
-		return "", err
-	}
-	managerCtx, cancel := context.WithCancel(ctx)
+	managerCtx, cancel := context.WithCancel(context.Background())
 	activeRuns.Store(run.ID, activeRun{cancel: cancel, project: project})
 	go func() {
 		defer closeStore()
 		defer activeRuns.Delete(run.ID)
 		defer cancel()
-		runAsync(managerCtx, cc, core, run.ID, project, run.Goal, agent)
+		runAsync(managerCtx, cc, core, run.ID, project, run.Goal, agent, orchestration.SelectReviewer(discoveryResults(cc.DiscoveryResults()), agent))
 	}()
 	return fmt.Sprintf("Resuming run %s.", run.ID), nil
 }
@@ -163,6 +168,10 @@ func resumeCommand(ctx context.Context, cc CommandContext, args []string) (strin
 func cancelCommand(ctx context.Context, cc CommandContext, args []string) (string, error) {
 	if len(args) > 1 {
 		return "", errors.New("usage: /cancel [run-id]")
+	}
+	project, err := trust.Canonical(cc.ProjectPath())
+	if err != nil {
+		return "", err
 	}
 	core, closeStore, err := openCommandEngine(cc)
 	if err != nil {
@@ -178,7 +187,7 @@ func cancelCommand(ctx context.Context, cc CommandContext, args []string) (strin
 			return "", err
 		}
 		for _, run := range runs {
-			if run.Project == cc.ProjectPath() && (run.Status == engine.Running || run.Status == engine.Planning || run.Status == engine.TrustPending) {
+			if run.Project == project && (run.Status == engine.Running || run.Status == engine.Planning || run.Status == engine.TrustPending || run.Status == engine.Fixing || run.Status == engine.Gates || run.Status == engine.Review) {
 				id = run.ID
 				break
 			}
@@ -191,7 +200,7 @@ func cancelCommand(ctx context.Context, cc CommandContext, args []string) (strin
 	if err != nil {
 		return "", err
 	}
-	if run.Project != cc.ProjectPath() {
+	if run.Project != project {
 		return "", errors.New("run belongs to another project")
 	}
 	if value, ok := activeRuns.Load(id); ok {
@@ -209,6 +218,10 @@ func runsCommand(ctx context.Context, cc CommandContext, args []string) (string,
 	if len(args) > 0 {
 		return "", errors.New("usage: /runs")
 	}
+	project, err := trust.Canonical(cc.ProjectPath())
+	if err != nil {
+		return "", err
+	}
 	core, closeStore, err := openCommandEngine(cc)
 	if err != nil {
 		return "", err
@@ -220,7 +233,7 @@ func runsCommand(ctx context.Context, cc CommandContext, args []string) (string,
 	}
 	lines := []string{}
 	for _, run := range runs {
-		if run.Project == cc.ProjectPath() {
+		if run.Project == project {
 			lines = append(lines, fmt.Sprintf("%s  %-12s  %s", run.ID, run.Status, run.Goal))
 		}
 	}
@@ -287,18 +300,7 @@ func (a engineCommandApprover) Ask(ctx context.Context, request permissions.Requ
 	return permissions.Decision{Effect: effect, Reason: reason, Rule: request.Action, Scope: permissions.ProjectScope}, nil
 }
 
-type adapterWorker struct {
-	executor             *adapters.Executor
-	project, goal, agent string
-}
-
-func (w adapterWorker) Run(ctx context.Context, task engine.Task) error {
-	result, err := w.executor.Execute(ctx, adapters.Request{Agent: w.agent, Project: w.project, Prompt: w.goal, Timeout: task.Timeout})
-	if err != nil {
-		return err
-	}
-	if result.ExitCode != 0 {
-		return fmt.Errorf("agent exited with code %d", result.ExitCode)
-	}
-	return nil
+func discoveryResults(value any) []discovery.Result {
+	results, _ := value.([]discovery.Result)
+	return results
 }

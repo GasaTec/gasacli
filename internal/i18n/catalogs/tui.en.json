@@ -47,5 +47,10 @@
     "tui.trust.granted":  "granted",
     "tui.trust.label":  "Trust",
     "tui.agents.ready":  "Agents ready: %s",
-    "tui.project":  "Project: %s"
+    "tui.project":  "Project: %s",
+  "orchestration.plan": "Run %s plan: implement the goal, run configured gates, and request independent review. Developer: %s; reviewer: %s.",
+  "orchestration.started": "Run %s started. Use /status, /runs, /cancel %s, or /resume %s.",
+  "orchestration.event": "Run %s: %s event %s.",
+  "orchestration.blocked": "Run %s is %s: %s",
+  "orchestration.done": "Run %s is DONE; quality gates passed and independent review approved."
 }

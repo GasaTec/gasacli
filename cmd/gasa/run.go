@@ -8,12 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/GasaTec/gasacli/internal/adapters"
 	"github.com/GasaTec/gasacli/internal/config"
 	"github.com/GasaTec/gasacli/internal/discovery"
 	"github.com/GasaTec/gasacli/internal/engine"
+	"github.com/GasaTec/gasacli/internal/i18n"
+	"github.com/GasaTec/gasacli/internal/orchestration"
 	"github.com/GasaTec/gasacli/internal/permissions"
 	"github.com/GasaTec/gasacli/internal/storage"
 	"github.com/GasaTec/gasacli/internal/trust"
@@ -60,46 +60,16 @@ func runOrchestration(ctx context.Context, args []string) error {
 	}
 	policy := permissions.New(home, trust.NewStore(home))
 	approver := interactiveApprover{in: os.Stdin, out: os.Stderr}
-	return runGoal(ctx, core, policy, approver, project, goal, agent)
+	return runGoal(ctx, core, policy, approver, home, project, goal, agent, orchestration.SelectReviewer(results, agent))
 }
 
-func runGoal(ctx context.Context, core *engine.Engine, policy *permissions.Engine, approver permissions.Approver, project, goal, agent string) error {
-	run, err := core.CreateRun(ctx, project, goal)
+func runGoal(ctx context.Context, core *engine.Engine, policy *permissions.Engine, approver permissions.Approver, home, project, goal, agent, reviewer string) error {
+	run, err := orchestration.CreateRun(ctx, core, project, goal)
 	if err != nil {
 		return err
 	}
-	task := engine.Task{ID: "task-1", RunID: run.ID, Name: "Implement requested goal", Timeout: 30 * time.Minute}
-	if err = core.AddTasks(ctx, run.ID, []engine.Task{task}); err != nil {
-		return err
-	}
-	fmt.Printf("Run %s — plan: implement the goal in one task.\n", run.ID)
-	worker := runWorker{executor: &adapters.Executor{Policy: policy, Approver: approver}, project: project, agent: agent, goal: goal}
-	err = core.RunDAG(ctx, run.ID, worker, engine.SchedulerOptions{Workers: 1, MaxRetries: 1})
-	if err != nil {
-		return fmt.Errorf("run %s blocked: %w", run.ID, err)
-	}
-	// This command intentionally leaves the run blocked until deterministic gates
-	// and an independent review of the resulting diff are available.
-	if err = core.Transition(ctx, run.ID, engine.Blocked, "independent review and configured quality gates are required before completion"); err != nil {
-		return err
-	}
-	return fmt.Errorf("run %s is BLOCKED: independent review and configured quality gates are required", run.ID)
-}
-
-type runWorker struct {
-	executor             *adapters.Executor
-	project, agent, goal string
-}
-
-func (w runWorker) Run(ctx context.Context, task engine.Task) error {
-	result, err := w.executor.Execute(ctx, adapters.Request{Agent: w.agent, Project: w.project, Prompt: w.goal, Profile: "balanced", Timeout: task.Timeout})
-	if err != nil {
-		return err
-	}
-	if result.ExitCode != 0 {
-		return fmt.Errorf("agent exited with %d", result.ExitCode)
-	}
-	return nil
+	fmt.Println(i18n.T("orchestration.cli.plan", run.ID))
+	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: approver, Home: home, Project: project, Goal: goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
 }
 
 func runRuns(args []string) error {
@@ -176,19 +146,13 @@ func runResume(ctx context.Context, args []string) error {
 		fmt.Printf("Run %s is already DONE.\n", run.ID)
 		return nil
 	}
-	agent := selectAgent(discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{}))
+	results := discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{})
+	agent := selectAgent(results)
 	if agent == "" {
 		return errors.New("no supported coding CLI is installed")
 	}
 	policy := permissions.New(home, trust.NewStore(home))
-	worker := runWorker{executor: &adapters.Executor{Policy: policy, Approver: interactiveApprover{in: os.Stdin, out: os.Stderr}}, project: project, agent: agent, goal: run.Goal}
-	if err = core.RunDAG(ctx, run.ID, worker, engine.SchedulerOptions{Workers: 1, MaxRetries: 1}); err != nil {
-		return err
-	}
-	if err = core.Transition(ctx, run.ID, engine.Blocked, "independent review and configured quality gates are required before completion"); err != nil {
-		return err
-	}
-	return fmt.Errorf("run %s resumed through execution and is BLOCKED pending independent review and configured quality gates", run.ID)
+	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: interactiveApprover{in: os.Stdin, out: os.Stderr}, Home: home, Project: project, Goal: run.Goal, Developer: agent, Reviewer: orchestration.SelectReviewer(results, agent), MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
 }
 
 func selectAgent(results []discovery.Result) string {

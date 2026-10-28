@@ -47,5 +47,10 @@
     "tui.trust.granted":  "concedida",
     "tui.trust.label":  "Confiança",
     "tui.agents.ready":  "Agentes prontos: %s",
-    "tui.project":  "Projeto: %s"
+    "tui.project":  "Projeto: %s",
+  "orchestration.plan": "Plano da execução %s: implementar o objetivo, rodar as verificações configuradas e pedir revisão independente. Desenvolvedor: %s; revisor: %s.",
+  "orchestration.started": "Execução %s iniciada. Use /status, /runs, /cancel %s ou /resume %s.",
+  "orchestration.event": "Execução %s: evento de %s: %s.",
+  "orchestration.blocked": "Execução %s está em %s: %s",
+  "orchestration.done": "Execução %s concluída; verificações passaram e a revisão independente aprovou."
 }

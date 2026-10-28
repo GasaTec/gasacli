@@ -38,10 +38,10 @@ func (e *Engine) RunDAG(ctx context.Context, runID string, worker Worker, option
 	if err != nil {
 		return err
 	}
-	if run.Status != Planning && run.Status != Running && run.Status != Blocked {
+	if run.Status != Planning && run.Status != Running && run.Status != Blocked && run.Status != Fixing {
 		return fmt.Errorf("engine: run %s cannot execute from %s", runID, run.Status)
 	}
-	if run.Status == Planning || run.Status == Blocked {
+	if run.Status == Planning || run.Status == Blocked || run.Status == Fixing {
 		if err := e.Transition(ctx, runID, Running, ""); err != nil {
 			return err
 		}

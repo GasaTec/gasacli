@@ -272,7 +272,7 @@ func (e *Engine) LastCheckpoint(ctx context.Context, runID, taskID string) (Chec
 }
 
 func (e *Engine) Transition(ctx context.Context, id string, to RunStatus, reason string) error {
-	allowed := map[RunStatus]map[RunStatus]bool{TrustPending: {Planning: true, Blocked: true, Cancelled: true}, Planning: {Running: true, Blocked: true, Cancelled: true}, Running: {Review: true, Fixing: true, Gates: true, Blocked: true, Cancelled: true}, Review: {Fixing: true, Gates: true, Blocked: true, Cancelled: true}, Fixing: {Running: true, Gates: true, Blocked: true, Cancelled: true}, Gates: {Fixing: true, Blocked: true, Cancelled: true}, Blocked: {Planning: true, Running: true, Cancelled: true}}
+	allowed := map[RunStatus]map[RunStatus]bool{TrustPending: {Planning: true, Blocked: true, Cancelled: true}, Planning: {Running: true, Blocked: true, Cancelled: true}, Running: {Review: true, Fixing: true, Gates: true, Blocked: true, Cancelled: true}, Review: {Fixing: true, Gates: true, Blocked: true, Cancelled: true}, Fixing: {Running: true, Gates: true, Blocked: true, Cancelled: true}, Gates: {Review: true, Fixing: true, Blocked: true, Cancelled: true}, Blocked: {Planning: true, Running: true, Cancelled: true}}
 	r, err := e.GetRun(ctx, id)
 	if err != nil {
 		return err
@@ -314,6 +314,9 @@ func (e *Engine) CompleteRun(ctx context.Context, id string, evidence Completion
 	}
 	if run.Status != Gates {
 		return fmt.Errorf("engine: DONE requires GATES state, got %s", run.Status)
+	}
+	if err := e.requireVerificationEvidence(ctx, id, evidence.Reviewer); err != nil {
+		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	result, err := e.store.DB().ExecContext(ctx, `UPDATE runs SET status=?,reason='',updated_at=? WHERE id=? AND status=?`, Done, now, id, Gates)

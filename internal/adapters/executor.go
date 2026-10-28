@@ -29,15 +29,23 @@ type Request struct {
 	Model       string
 	Timeout     time.Duration
 	Environment map[string]string
+	ReadOnly    bool
 }
 type Event struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data,omitempty"`
 }
 type Result struct {
-	ExitCode    int `json:"exit_code"`
-	Events      int `json:"events"`
-	OutputBytes int `json:"output_bytes"`
+	ExitCode      int           `json:"exit_code"`
+	Events        int           `json:"events"`
+	OutputBytes   int           `json:"output_bytes"`
+	Duration      time.Duration `json:"duration"`
+	CostUSD       float64       `json:"cost_usd,omitempty"`
+	CostKnown     bool          `json:"cost_known"`
+	InputTokens   int64         `json:"input_tokens,omitempty"`
+	OutputTokens  int64         `json:"output_tokens,omitempty"`
+	Text          string        `json:"-"`
+	TextTruncated bool          `json:"-"`
 }
 type Executor struct {
 	Policy      *permissions.Engine
@@ -47,7 +55,9 @@ type Executor struct {
 	LookPath    func(string) (string, error)
 }
 
-func (e *Executor) Execute(ctx context.Context, request Request) (Result, error) {
+func (e *Executor) Execute(ctx context.Context, request Request) (result Result, err error) {
+	startedAt := time.Now()
+	defer func() { result.Duration = time.Since(startedAt) }()
 	if e.Policy == nil {
 		return Result{}, errors.New("adapter: permission engine is required")
 	}
@@ -70,6 +80,14 @@ func (e *Executor) Execute(ctx context.Context, request Request) (Result, error)
 	if err != nil {
 		return Result{}, err
 	}
+	if strings.EqualFold(request.Agent, "codex") && request.ReadOnly {
+		var schemaPath string
+		args, schemaPath, err = addReviewSchema(args)
+		if err != nil {
+			return Result{}, fmt.Errorf("adapter: prepare reviewer output schema: %w", err)
+		}
+		defer os.Remove(schemaPath)
+	}
 	if e.LookPath != nil {
 		path, lookErr := e.LookPath(command)
 		if lookErr != nil {
@@ -77,7 +95,11 @@ func (e *Executor) Execute(ctx context.Context, request Request) (Result, error)
 		}
 		command = path
 	}
-	for _, action := range []permissions.Permission{"write_project", "execute_commands", "network_access"} {
+	actions := []permissions.Permission{"read_project"}
+	if !request.ReadOnly {
+		actions = append(actions, "write_project", "execute_commands", "network_access")
+	}
+	for _, action := range actions {
 		req := permissions.Request{Agent: request.Agent, Action: action, Project: project, Target: "."}
 		decision := e.Policy.Decide(ctx, req)
 		if decision.Effect == permissions.Ask {
@@ -121,7 +143,7 @@ func (e *Executor) Execute(ctx context.Context, request Request) (Result, error)
 	if limit <= 1 || limit > defaultOutputLimit {
 		limit = defaultOutputLimit
 	}
-	result := Result{ExitCode: -1}
+	result = Result{ExitCode: -1}
 	stdoutLimit, stderrLimit := limit/2, limit-limit/2
 	var stderrBytes atomic.Int64
 	stderrDone := make(chan struct{})
@@ -161,6 +183,18 @@ func (e *Executor) Execute(ctx context.Context, request Request) (Result, error)
 				return result, errors.New("adapter: invalid structured event")
 			}
 			result.Events++
+			captureMetrics(line, &result)
+			if text := structuredText(line, event.Type); text != "" {
+				if event.Type == "content_block_delta" {
+					result.Text += text
+				} else {
+					result.Text = text
+				}
+				if len(result.Text) > 64<<10 {
+					result.Text = result.Text[:64<<10]
+					result.TextTruncated = true
+				}
+			}
 			if e.OnEvent != nil {
 				event.Data = nil
 				e.OnEvent(event)
@@ -205,17 +239,21 @@ func commandFor(request Request) (string, []string, error) {
 		if request.Model != "" {
 			args = append(args, "--model", request.Model)
 		}
-		if request.Profile == "restricted" {
+		if request.ReadOnly {
+			args = append(args, "--permission-mode", "plan")
+		} else if request.Profile == "restricted" {
 			args = append(args, "--permission-mode", "acceptEdits")
 		}
 		return "claude", args, nil
 	case "codex":
-		args := []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write"}
-		if request.Profile == "restricted" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--ask-for-approval", "on-request"}
+		args := []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--skip-git-repo-check"}
+		if request.ReadOnly {
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "read-only", "--skip-git-repo-check"}
+		} else if request.Profile == "restricted" {
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write"}
 		}
 		if request.Profile == "autonomous" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "danger-full-access", "--ask-for-approval", "never"}
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "danger-full-access", "--skip-git-repo-check"}
 		}
 		args = append(args, request.Prompt)
 		return "codex", args, nil
@@ -223,6 +261,89 @@ func commandFor(request Request) (string, []string, error) {
 		return "", nil, errors.New("adapter: OpenCode non-interactive event mode is not supported by this build")
 	default:
 		return "", nil, fmt.Errorf("adapter: unsupported CLI %q", request.Agent)
+	}
+}
+
+func writeReviewSchema() (string, error) {
+	file, err := os.CreateTemp("", "gasacli-review-schema-*.json")
+	if err != nil {
+		return "", err
+	}
+	path := file.Name()
+	const schema = `{"type":"object","additionalProperties":false,"required":["verdict","findings"],"properties":{"verdict":{"type":"string","enum":["approve","changes_requested"]},"findings":{"type":"array","items":{"type":"string"}}}}`
+	if _, err = file.WriteString(schema); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return "", err
+	}
+	if err = file.Close(); err != nil {
+		_ = os.Remove(path)
+		return "", err
+	}
+	return path, nil
+}
+
+func addReviewSchema(args []string) ([]string, string, error) {
+	if len(args) == 0 {
+		return nil, "", errors.New("reviewer command is missing its prompt")
+	}
+	path, err := writeReviewSchema()
+	if err != nil {
+		return nil, "", err
+	}
+	prompt := args[len(args)-1]
+	args = append(args[:len(args)-1], "--output-schema", path, prompt)
+	return args, path, nil
+}
+
+func structuredText(line []byte, eventType string) string {
+	var event struct {
+		Result string `json:"result"`
+		Delta  struct {
+			Text string `json:"text"`
+		} `json:"delta"`
+		Item struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"item"`
+	}
+	if err := json.Unmarshal(line, &event); err != nil {
+		return ""
+	}
+	if event.Result != "" {
+		return event.Result
+	}
+	if eventType == "content_block_delta" && event.Delta.Text != "" {
+		return event.Delta.Text
+	}
+	if eventType == "item.completed" && event.Item.Type == "agent_message" {
+		return event.Item.Text
+	}
+	return ""
+}
+
+func captureMetrics(line []byte, result *Result) {
+	var event struct {
+		CostUSD      *float64 `json:"cost_usd"`
+		TotalCostUSD *float64 `json:"total_cost_usd"`
+		Usage        struct {
+			InputTokens  int64 `json:"input_tokens"`
+			OutputTokens int64 `json:"output_tokens"`
+		} `json:"usage"`
+	}
+	if json.Unmarshal(line, &event) != nil {
+		return
+	}
+	if event.CostUSD != nil {
+		result.CostUSD, result.CostKnown = *event.CostUSD, true
+	} else if event.TotalCostUSD != nil {
+		result.CostUSD, result.CostKnown = *event.TotalCostUSD, true
+	}
+	if event.Usage.InputTokens != 0 {
+		result.InputTokens = event.Usage.InputTokens
+	}
+	if event.Usage.OutputTokens != 0 {
+		result.OutputTokens = event.Usage.OutputTokens
 	}
 }
 
