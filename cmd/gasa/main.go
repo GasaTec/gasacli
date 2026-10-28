@@ -216,10 +216,22 @@ func run(ctx context.Context, args []string) error {
 		}()
 		sessionInput = input
 	}
+	language := ""
+	if state, stateErr := config.LoadState(home); stateErr == nil {
+		language = state.Onboarding.Language
+	}
+	if envLanguage := os.Getenv("GASACLI_LANG"); envLanguage != "" {
+		language = envLanguage
+	}
 	var session tui.Session
 	session = tui.Session{
 		Context: ctx, In: sessionInput, Out: os.Stdout, ProjectPath: cwd, TrustStore: trust.NewStore(home),
-		Interactive:    interactiveTerminal,
+		Interactive: interactiveTerminal,
+		Language:    language,
+		ConfigHome:  home,
+		DiscoveryResults: func() any {
+			return discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{})
+		},
 		DashboardState: "starting",
 		DiscoverReady: func() int {
 			ready := 0

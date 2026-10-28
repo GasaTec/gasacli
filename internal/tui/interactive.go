@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -41,10 +42,28 @@ type interactiveModel struct {
 	setupRequested bool
 	trustDenied    bool
 	agentsChecking bool
+	commandCancel  context.CancelFunc
+	lastCtrlC      time.Time
+	lastCtrlCValid bool
+	approval       *approvalPrompt
 }
 
 type commandResult struct{ text string }
 type readyAgentsResult struct{ count int }
+type handlerChunk struct{ text string }
+type handlerDone struct {
+	text string
+	err  error
+}
+type approvalAskMsg struct {
+	request PermissionRequest
+	answer  chan bool
+}
+type approvalPrompt struct {
+	request PermissionRequest
+	answer  chan bool
+	yes     bool
+}
 
 func newInteractiveModel(s *Session, project string, trusted bool) interactiveModel {
 	input := textarea.New()
@@ -62,7 +81,7 @@ func newInteractiveModel(s *Session, project string, trusted bool) interactiveMo
 	return interactiveModel{
 		session: s, project: project, trusted: trusted, trustYes: false,
 		chat: input, view: viewport.New(80, 12), spinner: spin,
-		status:         "Enter envia | Alt+Enter/Ctrl+J quebra linha | Ctrl+D sai",
+		status:         i18n.T("tui.status.ready"),
 		agentsChecking: s.DiscoverReady != nil,
 	}
 }
@@ -94,7 +113,9 @@ func (s *Session) runInteractive() error {
 		// /setup currently suspends this chat and runs the onboarding program in sequence.
 		// Keep chat state intact until the wizard can be embedded as a mode in this model.
 		program := tea.NewProgram(m, tea.WithInput(s.In), tea.WithOutput(s.Out), tea.WithAltScreen(), tea.WithContext(programContext))
+		s.sendMessage = func(message any) { program.Send(message) }
 		final, err := program.Run()
+		s.sendMessage = nil
 		if err != nil {
 			return fmt.Errorf("run terminal UI: %w", err)
 		}
@@ -140,7 +161,40 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.text != "" {
 			m.append("GasaCLI\n" + msg.text)
 		}
-		m.status = "Enter envia | Alt+Enter/Ctrl+J quebra linha | Ctrl+D sai"
+		m.status = i18n.T("tui.status.ready")
+		return m, nil
+	case handlerChunk:
+		if msg.text != "" {
+			m.append(msg.text)
+		}
+		return m, nil
+	case handlerDone:
+		m.busy = false
+		if m.commandCancel != nil {
+			m.commandCancel()
+			m.commandCancel = nil
+		}
+		if msg.text != "" {
+			m.append("GasaCLI\n" + msg.text)
+		}
+		if errors.Is(msg.err, context.Canceled) {
+			m.append("GasaCLI\ncancelado")
+		}
+		if msg.err != nil && !errors.Is(msg.err, context.Canceled) && !errors.Is(msg.err, errExitCommand) && !errors.Is(msg.err, errSetupCommand) {
+			m.append("GasaCLI\n" + msg.err.Error())
+		}
+		if errors.Is(msg.err, errExitCommand) {
+			m.closed = true
+			return m, tea.Quit
+		}
+		if errors.Is(msg.err, errSetupCommand) {
+			m.setupRequested = true
+			return m, tea.Quit
+		}
+		m.status = i18n.T("tui.status.ready")
+		return m, nil
+	case approvalAskMsg:
+		m.approval = &approvalPrompt{request: msg.request, answer: msg.answer}
 		return m, nil
 	case readyAgentsResult:
 		m.agentsChecking = false
@@ -159,6 +213,23 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.chat.SetWidth(max(20, msg.Width-9))
 		return m, nil
 	case tea.KeyMsg:
+		if m.approval != nil {
+			switch msg.String() {
+			case "y", "Y":
+				m.approval.yes = true
+			case "n", "N":
+				m.approval.yes = false
+			case "left", "right", "h", "l":
+				m.approval.yes = !m.approval.yes
+			case "enter":
+				m.approval.answer <- m.approval.yes
+				m.approval = nil
+			case "esc", "ctrl+c":
+				m.approval.answer <- false
+				m.approval = nil
+			}
+			return m, nil
+		}
 		if !m.trusted {
 			if m.trustDenied {
 				return m, nil
@@ -221,37 +292,28 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch msg.String() {
 		case "ctrl+c":
-			m.status = "Draft preserved. Use Ctrl+D to exit."
+			if m.busy && m.commandCancel != nil {
+				if m.lastCtrlCValid && time.Since(m.lastCtrlC) <= time.Second {
+					return m, tea.Quit
+				}
+				m.lastCtrlC, m.lastCtrlCValid = time.Now(), true
+				m.commandCancel()
+				m.status = "cancelado"
+				return m, nil
+			}
+			m.status = i18n.T("tui.status.draft")
 			return m, nil
 		case "ctrl+d":
 			return m, tea.Quit
 		case "esc":
 			if strings.HasPrefix(strings.TrimSpace(m.chat.Value()), "/") {
-				m.chat.SetValue("")
 				m.palette = false
 				return m, nil
 			}
-			m.status = "Session state is preserved."
+			m.status = i18n.T("tui.status.preserved")
 			return m, nil
 		case "enter", "ctrl+s":
 			input := strings.TrimSpace(m.chat.Value())
-			if input == "/setup" {
-				m.history = append(m.history, input)
-				m.append("You  > " + input)
-				m.chat.SetValue("")
-				m.palette = false
-				m.setupRequested = true
-				return m, tea.Quit
-			}
-			if input == "/doctor" || input == "/agents" {
-				m.history = append(m.history, input)
-				m.append("You  > " + input)
-				m.chat.SetValue("")
-				m.palette = false
-				m.busy = true
-				m.status = "Discovering installed tools..."
-				return m, tea.Batch(m.runDiagnostic(input), m.spinner.Tick)
-			}
 			return m.send(input)
 		case "ctrl+up":
 			if len(m.history) > 0 {
@@ -273,13 +335,17 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m interactiveModel) send(input string) (tea.Model, tea.Cmd) {
+	var command tea.Cmd
 	if input != "" {
-		m.submit(input)
+		command = m.submit(input)
 	}
 	m.chat.SetValue("")
 	m.palette = false
 	if m.closed || m.setupRequested {
 		return m, tea.Quit
+	}
+	if command != nil {
+		return m, tea.Batch(command, m.spinner.Tick)
 	}
 	return m, nil
 }
@@ -298,65 +364,72 @@ func (m interactiveModel) runDiagnostic(command string) tea.Cmd {
 	}
 }
 
-func (m *interactiveModel) submit(input string) {
+func (m *interactiveModel) submit(input string) tea.Cmd {
 	m.history = append(m.history, input)
-	m.append("You  › " + strings.ReplaceAll(input, "\n", "\n     "))
-	if strings.HasPrefix(input, "/") {
-		fields := strings.Fields(input)
-		if len(fields) > 0 && (fields[0] == "/exit" || fields[0] == "/quit") {
-			m.closed = true
-			return
-		}
-		var output strings.Builder
-		switch fields[0] {
-		case "/help":
-			output.WriteString(helpText())
-		case "/agents":
-			if m.session.Agents != nil {
-				m.session.Agents(&output)
-			} else {
-				output.WriteString("Agent discovery is not configured.")
-			}
-		case "/doctor":
-			if m.session.Doctor != nil {
-				m.session.Doctor(&output)
-			} else {
-				output.WriteString("Diagnostics are not configured.")
-			}
-		case "/setup":
-			m.setupRequested = true
-		case "/status":
-			fmt.Fprintf(&output, "Project: %s\nTrust: granted\nDashboard: %s (%s)\nAgents ready: %s\nNo active run; orchestration is planned (issue #11).", m.project, valueOr(m.session.Dashboard, "not started"), valueOr(m.session.DashboardState, "local"), m.agentsReadyLabel())
-		case "/web":
-			if m.session.Web != nil {
-				if err := m.session.Web(&output, fields[1:]); err != nil {
-					fmt.Fprintf(&output, "/web: %v", err)
-				}
-			} else {
-				output.WriteString("Dashboard is not configured.")
-			}
-		default:
-			if command, ok := lookupCommand(fields[0]); ok && command.Planned {
-				if command.Handler != nil {
-					result, err := command.Handler(context.Background(), nil, fields[1:])
-					if err != nil {
-						output.WriteString(err.Error())
-					} else {
-						output.WriteString(result)
-					}
-				}
-			} else {
-				output.WriteString(unknownCommandMessage(fields[0]))
-			}
-		}
-		if output.Len() > 0 {
-			m.append("GasaCLI\n" + output.String())
-		}
-		return
+	m.append("You  > " + strings.ReplaceAll(input, "\n", "\n     "))
+	if !strings.HasPrefix(input, "/") {
+		m.append(i18n.T("command.model_unavailable"))
+		return nil
 	}
-	m.append(i18n.T("command.model_unavailable"))
+	_, _, err := splitCommand(input)
+	if err != nil {
+		m.append("GasaCLI\n" + err.Error())
+		return nil
+	}
+	return m.startCommand(input)
 }
 
+func (m *interactiveModel) startCommand(input string) tea.Cmd {
+	parent := m.session.Context
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
+	m.commandCancel = cancel
+	m.lastCtrlCValid = false
+	m.busy = true
+	m.status = i18n.T("tui.running")
+	if name, _, err := splitCommand(input); err == nil && (normalizeCommandName(name) == "/agents" || normalizeCommandName(name) == "/doctor") {
+		m.status = i18n.T("tui.discovering")
+	}
+	sendMessage := m.session.sendMessage
+	if sendMessage != nil {
+		go func() {
+			result, err := executeCommand(ctx, m.session, m.project, m.trusted, input, func(chunk string) {
+				sendMessage(handlerChunk{text: chunk})
+			}, func(askContext context.Context, request PermissionRequest) (bool, error) {
+				answer := make(chan bool, 1)
+				sendMessage(approvalAskMsg{request: request, answer: answer})
+				select {
+				case approved := <-answer:
+					return approved, nil
+				case <-askContext.Done():
+					return false, askContext.Err()
+				}
+			})
+			sendMessage(handlerDone{text: result, err: err})
+		}()
+	} else {
+		result, err := executeCommand(ctx, m.session, m.project, m.trusted, input, nil, nil)
+		m.busy = false
+		cancel()
+		if errors.Is(err, errSetupCommand) {
+			m.setupRequested = true
+			return nil
+		}
+		if errors.Is(err, errExitCommand) {
+			m.closed = true
+			return nil
+		}
+		if result != "" {
+			m.append("GasaCLI\n" + result)
+		}
+		if err != nil && !errors.Is(err, errExitCommand) {
+			m.append("GasaCLI\n" + err.Error())
+		}
+	}
+	return m.spinner.Tick
+}
 func valueOr(value, fallback string) string {
 	if value == "" {
 		return fallback
@@ -386,7 +459,7 @@ func (m interactiveModel) View() string {
 		border = lipgloss.Border{Top: "-", Bottom: "-", Left: "|", Right: "|", TopLeft: "+", TopRight: "+", BottomLeft: "+", BottomRight: "+"}
 	}
 	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#087E68", Dark: "#1ECFA5"}).Render(m.brandMark() + " gasacli")
-	meta := fmt.Sprintf("  Projeto: %s  |  Confiança: concedida  |  Dashboard: %s (%s)  |  Agentes prontos: %s", filepath.Base(m.project), valueOr(m.session.Dashboard, "não iniciado"), valueOr(m.session.DashboardState, "ocioso"), m.agentsReadyLabel())
+	meta := fmt.Sprintf("  %s  |  %s: %s  |  Dashboard: %s (%s)  |  %s", i18n.T("tui.project", filepath.Base(m.project)), i18n.T("tui.trust.label"), i18n.T("tui.trust.granted"), valueOr(m.session.Dashboard, "não iniciado"), valueOr(m.session.DashboardState, "ocioso"), i18n.T("tui.agents.ready", m.agentsReadyLabel()))
 	box := lipgloss.NewStyle().Border(border).Foreground(lipgloss.AdaptiveColor{Light: "#172A46", Dark: "#F4F7FB"}).Padding(0, 1).Width(max(20, m.width-2)).Render(header + meta)
 	conversationContent := m.view.View()
 	if len(m.lines) == 0 {
@@ -410,9 +483,24 @@ func (m interactiveModel) View() string {
 			rows = append(rows, truncateLine(marker+command.name+"  "+command.description, max(16, m.width-10)))
 		}
 		input += "\n" + lipgloss.NewStyle().Border(border).Padding(0, 1).Render(strings.Join(rows, "\n"))
-		footer = "Tab completa | ↑/↓ seleciona | Enter envia | Esc fecha sugestões"
+		footer = i18n.T("tui.status.palette")
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, box, conversation, input, footer)
+	view := lipgloss.JoinVertical(lipgloss.Left, box, conversation, input, footer)
+	if m.approval != nil {
+		request := m.approval.request
+		yes, no := "  "+i18n.T("tui.approval.yes"), "> "+i18n.T("tui.approval.no")
+		if m.approval.yes {
+			yes, no = "> "+i18n.T("tui.approval.yes"), "  "+i18n.T("tui.approval.no")
+		}
+		content := fmt.Sprintf("%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n\n%s    %s\n\n%s", i18n.T("tui.approval.title"), i18n.T("tui.approval.agent"), valueOr(request.Agent, "GasaCLI"), i18n.T("tui.approval.action"), i18n.T("permission."+request.Action), i18n.T("tui.approval.target"), request.Target, i18n.T("tui.approval.command"), request.ExactCommand, yes, no, i18n.T("tui.approval.help"))
+		border := lipgloss.RoundedBorder()
+		if os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != "" {
+			border = lipgloss.Border{Top: "-", Bottom: "-", Left: "|", Right: "|", TopLeft: "+", TopRight: "+", BottomLeft: "+", BottomRight: "+"}
+		}
+		dialog := lipgloss.NewStyle().Border(border).Padding(1, 2).Width(max(40, min(76, m.width-4))).Render(content)
+		return lipgloss.Place(max(40, m.width), max(12, m.height), lipgloss.Center, lipgloss.Center, dialog)
+	}
+	return view
 }
 
 func (m interactiveModel) trustView() string {
@@ -444,7 +532,7 @@ func (m interactiveModel) brandMark() string {
 
 func (m interactiveModel) agentsReadyLabel() string {
 	if m.agentsChecking {
-		return "checking..."
+		return i18n.T("tui.agents.checking")
 	}
 	return fmt.Sprint(m.session.ReadyAgents)
 }
@@ -452,8 +540,8 @@ func (m interactiveModel) agentsReadyLabel() string {
 func (m interactiveModel) welcomeCard() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s gasacli\n", m.brandMark())
-	fmt.Fprintf(&b, "Projeto: %s  |  Confiança: concedida\n", filepath.Base(m.project))
-	fmt.Fprintf(&b, "Agentes prontos: %s\n\n", m.agentsReadyLabel())
+	fmt.Fprintf(&b, "%s  |  %s: %s\n", i18n.T("tui.project", filepath.Base(m.project)), i18n.T("tui.trust.label"), i18n.T("tui.trust.granted"))
+	fmt.Fprintf(&b, "%s\n\n", i18n.T("tui.agents.ready", m.agentsReadyLabel()))
 	b.WriteString("Comece por aqui\n")
 	b.WriteString("/help       ver comandos e atalhos\n")
 	b.WriteString("/agents     conferir ferramentas instaladas\n")

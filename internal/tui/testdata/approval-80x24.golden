@@ -1,0 +1,19 @@
+
+
+
+
+
+ +----------------------------------------------------------------------------+
+ |                                                                            |
+ |  Solicitação de permissão                                                  |
+ |                                                                            |
+ |  Agente: tester                                                            |
+ |  Ação: Alterar conteúdo selecionado do cofre                               |
+ |  Alvo: vault/note.md                                                       |
+ |  Comando: write note                                                       |
+ |                                                                            |
+ |    Sim    > Não                                                            |
+ |                                                                            |
+ |  Use ←/→ ou y/n e pressione Enter. Padrão: Não.                            |
+ |                                                                            |
+ +----------------------------------------------------------------------------+

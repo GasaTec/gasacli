@@ -135,7 +135,7 @@ func TestHelpCatalogGoldens(t *testing.T) {
 }
 
 func TestSetupCommandStillSuspendsChatBeforeSequentialWizard(t *testing.T) {
-	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model := newInteractiveModel(&Session{Interactive: true}, t.TempDir(), true)
 	model.submit("/setup")
 	if !model.setupRequested || model.closed {
 		t.Fatalf("setup state=%+v", model)
@@ -155,6 +155,33 @@ func TestInteractiveCtrlCAndCtrlDKeepDraftAndExit(t *testing.T) {
 	model = updated.(interactiveModel)
 	if model.chat.Value() != "unsent draft" || command == nil {
 		t.Fatal("Ctrl+D must exit while retaining the in-memory draft")
+	}
+}
+
+func TestEscClosesCommandSuggestionsWithoutClearingInput(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.chat.SetValue("/status")
+	model.palette = true
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model = updated.(interactiveModel)
+	if model.palette || model.chat.Value() != "/status" {
+		t.Fatalf("Esc changed the command input or left suggestions open: palette=%v value=%q", model.palette, model.chat.Value())
+	}
+}
+
+func TestCtrlCCancelsCurrentCommandAndSecondPressExits(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.busy = true
+	canceled := false
+	model.commandCancel = func() { canceled = true }
+	updated, command := model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	model = updated.(interactiveModel)
+	if !canceled || command != nil || model.status != "cancelado" {
+		t.Fatalf("first Ctrl+C: canceled=%v command=%v status=%q", canceled, command, model.status)
+	}
+	updated, command = model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if _, ok := updated.(interactiveModel); !ok || command == nil {
+		t.Fatal("second Ctrl+C within one second did not request exit")
 	}
 }
 
@@ -212,7 +239,7 @@ func normalizeInteractiveGolden(view string) string {
 	for i := range lines {
 		lines[i] = strings.TrimRight(lines[i], " \t")
 	}
-	return strings.Join(lines, "\n")
+	return strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
 }
 
 func TestInteractiveAgentsStayCheckingUntilDiscoveryResult(t *testing.T) {
@@ -228,7 +255,8 @@ func TestInteractiveAgentsStayCheckingUntilDiscoveryResult(t *testing.T) {
 }
 
 func TestAsyncDiscoveryShowsSpinnerAndReturnsResult(t *testing.T) {
-	session := &Session{Agents: func(w io.Writer) { _, _ = io.WriteString(w, "Codex available") }}
+	results := make(chan any, 2)
+	session := &Session{Agents: func(w io.Writer) { _, _ = io.WriteString(w, "Codex available") }, sendMessage: func(message any) { results <- message }}
 	model := newInteractiveModel(session, t.TempDir(), true)
 	model.chat.SetValue("/agents")
 	updated, command := model.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
@@ -237,11 +265,14 @@ func TestAsyncDiscoveryShowsSpinnerAndReturnsResult(t *testing.T) {
 		t.Fatal("diagnostic did not start asynchronously")
 	}
 	view := model.View()
-	if !strings.Contains(view, "Discovering installed tools") {
+	if !strings.Contains(view, i18n.T("tui.discovering")) {
 		t.Fatal("busy status was not rendered")
 	}
-	result := model.runDiagnostic("/agents")()
-	updated, _ = model.Update(result)
+	first := <-results
+	if _, ok := first.(handlerDone); !ok {
+		t.Fatalf("first async event = %T, want completion", first)
+	}
+	updated, _ = model.Update(first.(tea.Msg))
 	model = updated.(interactiveModel)
 	if model.busy || !strings.Contains(strings.Join(model.lines, "\n"), "Codex available") {
 		t.Fatal("diagnostic result did not update the conversation")

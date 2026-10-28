@@ -23,8 +23,10 @@ type CommandContext interface {
 }
 
 type PermissionRequest struct {
-	Action string
-	Target string
+	Agent        string
+	Action       string
+	Target       string
+	ExactCommand string
 }
 
 // CommandHandler returns the user-visible result for a command.

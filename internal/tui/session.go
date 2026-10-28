@@ -14,22 +14,27 @@ import (
 )
 
 type Session struct {
-	Context        context.Context
-	In             io.Reader
-	Out            io.Writer
-	ProjectPath    string
-	TrustStore     *trust.Store
-	Agents         func(io.Writer)
-	Doctor         func(io.Writer)
-	OnTrusted      func() error
-	Web            func(io.Writer, []string) error
-	Setup          func(out io.Writer) error
-	Interactive    bool
-	Dashboard      string
-	DashboardState string
-	ReadyAgents    int
-	DiscoverReady  func() int
-	Language       string
+	Context          context.Context
+	In               io.Reader
+	Out              io.Writer
+	ProjectPath      string
+	TrustStore       *trust.Store
+	Agents           func(io.Writer)
+	Doctor           func(io.Writer)
+	OnTrusted        func() error
+	Web              func(io.Writer, []string) error
+	Setup            func(out io.Writer) error
+	Interactive      bool
+	Dashboard        string
+	DashboardState   string
+	ReadyAgents      int
+	DiscoverReady    func() int
+	Language         string
+	ConfigHome       string
+	Storage          any
+	DiscoveryResults func() any
+	Notify           func(string)
+	sendMessage      func(any)
 }
 
 func (s *Session) Run() error {
@@ -86,55 +91,36 @@ func (s *Session) Run() error {
 		if input == "" {
 			continue
 		}
-		fields := strings.Fields(input)
 		var response string
-		switch fields[0] {
-		case "/exit", "/quit":
-			return nil
-		case "/help":
-			response = helpText()
-		case "/agents":
-			if s.Agents != nil {
-				s.Agents(s.Out)
-			} else {
-				response = "Agent discovery callback is not configured."
+		if strings.HasPrefix(input, "/") {
+			parent := s.Context
+			if parent == nil {
+				parent = context.Background()
 			}
-		case "/doctor":
-			if s.Doctor != nil {
-				s.Doctor(s.Out)
-			} else {
-				response = "Doctor callback is not configured."
-			}
-		case "/setup":
-			if s.Setup != nil {
-				if err := s.Setup(s.Out); err != nil {
-					response = fmt.Sprintf("/setup: %v", err)
+			commandCtx, cancel := context.WithCancel(parent)
+			response, err = executeCommand(commandCtx, s, project, true, input, func(chunk string) {
+				_, _ = fmt.Fprintln(s.Out, chunk)
+			}, func(ctx context.Context, request PermissionRequest) (bool, error) {
+				if _, writeErr := fmt.Fprintf(s.Out, "Authorize %s on %s? [y/N]: ", request.Action, request.Target); writeErr != nil {
+					return false, writeErr
 				}
-			} else {
-				response = "Setup callback is not configured."
-			}
-		case "/status":
-			response = "sem run ativo; orquestração não implementada"
-		case "/goal", "/config", "/skills", "/prompts", "/brain", "/resume", "/github", "/permissions", "/backup", "/restore":
-			if command, ok := lookupCommand(fields[0]); ok && command.Planned {
-				if command.Handler != nil {
-					response, _ = command.Handler(context.Background(), nil, fields[1:])
+				if !scanner.Scan() {
+					if scanErr := scanner.Err(); scanErr != nil {
+						return false, scanErr
+					}
+					return false, nil
 				}
+				return strings.EqualFold(strings.TrimSpace(scanner.Text()), "y"), nil
+			})
+			cancel()
+			if errors.Is(err, errExitCommand) {
+				return nil
 			}
-		case "/web":
-			if s.Web != nil {
-				if err := s.Web(s.Out, fields[1:]); err != nil {
-					response = fmt.Sprintf("/web: %v", err)
-				}
-			} else {
-				response = "Dashboard callback is not configured."
+			if err != nil {
+				response = err.Error()
 			}
-		default:
-			if strings.HasPrefix(input, "/") {
-				response = unknownCommandMessage(fields[0])
-			} else {
-				response = i18n.T("command.model_unavailable")
-			}
+		} else {
+			response = i18n.T("command.model_unavailable")
 		}
 		if response != "" {
 			if _, err := fmt.Fprintln(s.Out, response); err != nil {
