@@ -46,6 +46,7 @@ type Message struct {
 type Session struct {
 	Agent         string    `json:"agent"`
 	ID            string    `json:"id"`
+	ProviderID    string    `json:"-"`
 	Title         string    `json:"title"`
 	CWD           string    `json:"cwd"`
 	Branch        string    `json:"branch,omitempty"`
@@ -68,15 +69,26 @@ type Worktree struct {
 // Roots overrides the conventional agent data roots, primarily for tests.
 type Roots struct{ Claude, Codex string }
 
-// Sender is an optional agent-specific transport for the dashboard composer.
-// This task only defines the capability boundary; no transcript reader sends.
+// Sender resumes an existing provider conversation with one bounded message.
 type Sender interface {
-	Send(ctx context.Context, sessionID, text string) error
+	Send(ctx context.Context, request SendRequest) (<-chan Event, error)
 	Capabilities() Capabilities
 }
 
+type SendRequest struct {
+	SessionID string `json:"sessionId"`
+	Text      string `json:"text"`
+}
+
+type Event struct {
+	Type string `json:"type"`
+	Text string `json:"text,omitempty"`
+	Err  string `json:"error,omitempty"`
+}
+
 type Capabilities struct {
-	Send bool `json:"send"`
+	Send   bool     `json:"send"`
+	Agents []string `json:"agents,omitempty"`
 }
 
 func DefaultRoots() Roots {
@@ -318,6 +330,7 @@ func parseClaude(s *Session, r map[string]any) {
 	}
 	if v := str(r["sessionId"]); v != "" {
 		s.ID = "claude-" + safeID(v)
+		s.ProviderID = v
 	}
 	if v := str(r["timestamp"]); v != "" {
 		if t, e := time.Parse(time.RFC3339Nano, v); e == nil {
@@ -368,6 +381,7 @@ func parseCodex(s *Session, r map[string]any) {
 		}
 		if v := str(payload["id"]); v != "" {
 			s.ID = "codex-" + safeID(v)
+			s.ProviderID = v
 		}
 		if v := str(payload["model"]); v != "" {
 			s.Model = v

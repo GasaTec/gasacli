@@ -38,6 +38,8 @@
   "command.backup": "Cria um backup local",
   "command.backups": "Lista backups locais",
   "command.restore": "Restaura dados locais",
+  "command.send": "Envia mensagem para uma sessão confiável",
+  "command.sessions": "Lista sessões do projeto confiável",
   "command.exit": "Encerra o GasaCLI",
   "command.planned": "planejado; consulte a solicitação %s",
   "command.unknown": "Comando desconhecido. Digite /help ou / para sugestões.",

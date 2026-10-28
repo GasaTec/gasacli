@@ -10,8 +10,10 @@
   <link rel="stylesheet" href="/static/layout.css">
   <link rel="stylesheet" href="/static/interactions.css">
   <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/send.css">
   <script type="module" src="/static/bootstrap.js"></script>
   <script type="module" src="/static/app.js"></script>
+  <script type="module" src="/static/send.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -30,7 +32,7 @@
       <div class="session-head"><div><div id="crumb" class="crumb">Sessões</div><h1 id="session-title">Selecione uma sessão</h1></div><div id="session-state" class="state-pill"><i></i><span>Ocioso</span></div></div>
       <section id="chat" class="chat" aria-live="polite" aria-busy="false"><div class="empty-state"><div class="empty-orbit">◉</div><h2>Seu workspace</h2><p>Selecione um projeto confiável para consultar sessões e atividade.</p></div></section>
       <div id="working" class="working hidden"><i></i> Working…</div>
-      <section class="composer hidden" id="composer" aria-label="Compositor somente leitura"><div class="composer-placeholder">Envio para um agente ativo está planejado</div><div class="composer-footer"><div class="chips"><span class="chip">Modelo <b id="model-chip">Indisponível</b></span><span class="chip">Acesso <b>Somente leitura</b></span></div><button class="send-button" id="send-message" disabled title="Envio para um agente ativo está planejado" aria-label="Enviar indisponível">↑</button></div></section>
+      <section class="composer hidden" id="composer" aria-label="Enviar mensagem"><textarea id="send-text" rows="2" placeholder="Enviar uma mensagem para esta conversa" aria-label="Mensagem para o agente"></textarea><p id="send-error" class="send-error" role="alert"></p><div class="composer-footer"><div class="chips"><span class="chip">Modelo <b id="model-chip">Indisponível</b></span><span class="chip" id="send-capability">Somente leitura</span></div><button class="secondary-button hidden" id="cancel-send" type="button">Cancelar</button><button class="send-button" id="send-message" type="button" disabled title="Agente sem suporte para envio" aria-label="Enviar mensagem">Enviar</button></div></section>
       <footer class="statusbar"><span><i class="connection-dot"></i><span id="connection">Conectando</span></span><span id="status-projects">0 projetos</span><span>GasaCLI pre-alpha</span></footer>
     </main>
     <div class="splitter detail-splitter" data-split="1" role="separator" aria-label="Resize details panel" aria-orientation="vertical" tabindex="0"></div>

@@ -112,7 +112,7 @@ func TestPreferredPortAndEmbeddedDashboard(t *testing.T) {
 		t.Fatalf("endpoint = %s, want %s", endpoint, want)
 	}
 	body := get(t, s.URL())
-	for _, text := range []string{"GasaCLI", "Seu workspace", "Mudanças", "Envio para um agente ativo está planejado"} {
+	for _, text := range []string{"GasaCLI", "Seu workspace", "Mudanças", "send-text"} {
 		if !strings.Contains(body, text) {
 			t.Errorf("dashboard missing %q", text)
 		}
@@ -736,7 +736,7 @@ func TestLaunchCodeAuthenticatesProjectsAndSSE(t *testing.T) {
 		t.Fatal(err)
 	}
 	response.Body.Close()
-	if response.StatusCode != http.StatusOK || capabilities.Send {
+	if response.StatusCode != http.StatusOK || !capabilities.Send || len(capabilities.Agents) != 2 {
 		t.Fatalf("default sender capabilities = %#v, status=%d", capabilities, response.StatusCode)
 	}
 	configText := "web:\n  mode: auto\n  host: 127.0.0.1\n  port: 3199\n  fallback_port: true\n"

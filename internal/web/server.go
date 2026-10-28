@@ -19,7 +19,9 @@ import (
 	"time"
 
 	"github.com/GasaTec/gasacli/internal/config"
+	"github.com/GasaTec/gasacli/internal/permissions"
 	"github.com/GasaTec/gasacli/internal/sessions"
+	"github.com/GasaTec/gasacli/internal/trust"
 )
 
 //go:embed static/*
@@ -277,6 +279,12 @@ func handler(origin string, port int, token string, session *launchSession, opti
 		currentProject, webMode = options[0].CurrentProject, options[0].WebMode
 		sender = options[0].Sender
 	}
+	if roots.Claude == "" && roots.Codex == "" {
+		roots = sessions.DefaultRoots()
+	}
+	if sender == nil && home != "" {
+		sender = sessions.NewCLISender(roots, permissions.New(home, trust.NewStore(home)), nil)
+	}
 	if webMode == "" {
 		if saved, err := config.Load(); err == nil {
 			webMode = saved.Web.Mode
@@ -303,6 +311,9 @@ func handler(origin string, port int, token string, session *launchSession, opti
 			return
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			if sendAPI(home, sender, getSnapshot, w, r) {
+				return
+			}
 			if r.URL.Path == "/api/settings" && r.Method == http.MethodPost {
 				var payload struct {
 					WebMode string `json:"webMode"`
