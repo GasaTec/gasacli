@@ -46,7 +46,7 @@ canonical_dir() {
 safe_install_dir() {
     unsafe_reason=''
     case "$1" in *[[:cntrl:]]*|*"$newline"*) unsafe_reason='install directory contains a prohibited character'; return 1 ;; esac
-    case "$1" in *';'*|*'%'*|*'*'*|*'?'*|*'"'*|*'<'*|*'>'*|*'|'*|*'$'*|*'`'*|*'\'*|*':'*) unsafe_reason='install directory contains a prohibited character'; return 1 ;; esac
+    case "$1" in *';'*|*'%'*|*'*'*|*'?'*|*'"'*|*'<'*|*'>'*|*'|'*|*'$'*|*'`'*|*\\*|*':'*) unsafe_reason='install directory contains a prohibited character'; return 1 ;; esac
     if printf '%s' "$1" | LC_ALL=C grep -q '[[:cntrl:]]'; then unsafe_reason='install directory contains a prohibited character'; return 1; fi
     if printf '%s' "$1" | LC_ALL=C grep -Eq '(\302[\200-\237]|\342\200[\216\217\250-\256]|\342\201[\246-\251])'; then unsafe_reason='install directory contains a prohibited Unicode control'; return 1; fi
     candidate=$(canonical_dir "$1") || { unsafe_reason='path must be absolute and contain no symlink or reparse point'; return 1; }
@@ -83,6 +83,7 @@ recover_install_state() {
     find "$dir" -maxdepth 1 -type f -name '.gasa.*' -delete 2>/dev/null || :
     target="$dir/gasa"
     if [ ! -e "$target" ]; then
+        # shellcheck disable=SC2012 # mtime ordering is the point; names are created by this installer
         backup=$(ls -t "$dir"/gasa.old* 2>/dev/null | head -n 1 || :)
         [ -z "$backup" ] || mv "$backup" "$target" || return 1
     fi
@@ -104,7 +105,8 @@ acquire_install_lock() {
         write_install_lock_owner || return 1
         return 0
     fi
-    owner_pid= owner_time=; [ -f "$lock/owner" ] && read owner_pid owner_time < "$lock/owner" || :
+    owner_pid=''; owner_time=''
+    if [ -f "$lock/owner" ]; then read -r owner_pid owner_time < "$lock/owner" || :; fi
     now=$(date +%s); age=999999
     case "$owner_time" in ''|*[!0-9]*) ;; *) age=$((now - owner_time)) ;; esac
     if [ "$age" -gt 1800 ] || { case "$owner_pid" in ''|*[!0-9]*) true ;; *) ! kill -0 "$owner_pid" 2>/dev/null ;; esac; }; then
@@ -119,7 +121,7 @@ acquire_install_lock() {
 msg() { printf '%s / %s\n' "$1" "$2"; }
 fail() { msg "Erro: $1" "Error: $2" >&2; exit 1; }
 checksum_for_archive() {
-    LC_ALL=C awk -v name="$2" 'NR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, ""); line=$0; sub(/^[ \t\v\f]*/, "", line); hash=line; sub(/[ \t\v\f].*$/, "", hash); rest=substr(line,length(hash)+1); if (length(hash) == 64 && hash ~ /^[[:xdigit:]]+$/ && rest ~ /^[ \t\v\f]+/) { sub(/^[ \t\v\f]+/, "", rest); sub(/^\*/, "", rest); sub(/[ \t\v\f]*$/, "", rest); if (rest !~ /[ \t\v\f\r]/ && rest == name) { h=tolower(hash); if (found && h != expected) conflict=1; expected=h; found=1 } } } END { if (conflict) print "CONFLICT"; else if (found) print expected; else print "MISSING" }' "$1"
+    LC_ALL=C tr '\000' '\001' < "$1" | LC_ALL=C awk -v name="$2" 'NR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, ""); line=$0; sub(/^[ \t\v\f]*/, "", line); hash=line; sub(/[ \t\v\f].*$/, "", hash); rest=substr(line,length(hash)+1); if (length(hash) == 64 && hash ~ /^[[:xdigit:]]+$/ && rest ~ /^[ \t\v\f]+/) { sub(/^[ \t\v\f]+/, "", rest); sub(/^\*/, "", rest); sub(/[ \t\v\f]*$/, "", rest); if (rest !~ /[ \t\v\f\r]/ && rest == name) { h=tolower(hash); if (found && h != expected) conflict=1; expected=h; found=1 } } } END { if (conflict) print "CONFLICT"; else if (found) print expected; else print "MISSING" }'
 }
 download() {
     current=$1; dest=$2; hop=0
@@ -137,8 +139,8 @@ download() {
                 http://*) rm -f "$dest" "$headers" "$body"; return 1 ;;
                 https://*) current="https:$location_tail" ;;
                 /*) authority=${current#https://}; authority=${authority%%/*}; current="https://$authority$location" ;;
-                \?*) authority=${current#https://}; authority=${authority%%/*}; current_path=${current#https://$authority}; current_path=${current_path%%\?*}; current="https://$authority$current_path$location" ;;
-                *) authority=${current#https://}; authority=${authority%%/*}; current_path=${current#https://$authority}; current_path=${current_path%%\?*}; current_dir=${current_path%/*}; [ -n "$current_dir" ] || current_dir=/; current="https://$authority$current_dir/$location" ;;
+                \?*) authority=${current#https://}; authority=${authority%%/*}; current_path=${current#"https://$authority"}; current_path=${current_path%%\?*}; current="https://$authority$current_path$location" ;;
+                *) authority=${current#https://}; authority=${authority%%/*}; current_path=${current#"https://$authority"}; current_path=${current_path%%\?*}; current_dir=${current_path%/*}; [ -n "$current_dir" ] || current_dir=/; current="https://$authority$current_dir/$location" ;;
             esac
             validate_effective_url "$current" || { rm -f "$dest" "$headers" "$body"; return 1; }
             rm -f "$headers" "$body"; hop=$((hop + 1)) ;;
@@ -256,7 +258,7 @@ exec 3< "$tmp/archive.types"
 while IFS= read -r entry_name; do
     [ -n "$entry_name" ] || continue
     IFS= read -r entry <&3 || fail "Listagem de archive inconsistente." "Inconsistent archive listing."
-    entry_type=${entry%${entry#?}}
+    entry_type=${entry%"${entry#?}"}
     case "$entry_type:$entry_name" in
         -:gasa) gasa_count=$((gasa_count + 1)) ;;
         -:LICENSE|-:README.md) ;;
