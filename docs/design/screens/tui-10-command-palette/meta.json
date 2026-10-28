@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-10-command-palette.md",
+  "stitchScreenId": "d107317f12334fac9798fefb2e3136dc",
+  "generatedAt": "2026-10-28 06:44:54 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 2,
+    "reviewed": true,
+    "defectsResolved": [
+      "corrected /goal detail to show planned and not implemented without promising execution",
+      "removed unsupported integrity-check wording from /doctor"
+    ]
+  }
+}

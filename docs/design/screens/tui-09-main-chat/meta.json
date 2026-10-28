@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-09-main-chat.md",
+  "stitchScreenId": "a1b372ba7ec24cc9840be08120bc7e24",
+  "generatedAt": "2026-10-28 06:39:34 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed invented session ID, timestamp, buffer, agent counts and unsupported run status",
+      "corrected slash suggestions to documented commands and shortcuts"
+    ]
+  }
+}

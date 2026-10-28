@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TUI — Command Palette e Autocomplete Slash</title>
+<style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #070B12;
+      color: #F4F7FB;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.25;
+      letter-spacing: 0px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Terminal 120x36 container window */
+    .terminal-window {
+      width: 1060px;
+      height: 720px;
+      background-color: #0B1220;
+      border: 1px solid #596982;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      user-select: none;
+    }
+
+    /* Terminal Titlebar */
+    .terminal-titlebar {
+      height: 28px;
+      background-color: #111C2E;
+      border-bottom: 1px solid #596982;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 12px;
+      color: #C3CFDF;
+    }
+
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .titlebar-left .title-strong {
+      color: #F4F7FB;
+      font-weight: 600;
+    }
+
+    .titlebar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: #9AAAC0;
+      font-size: 11px;
+    }
+
+    /* Status Ribbon Bar */
+    .status-ribbon {
+      height: 26px;
+      background-color: #0D1626;
+      border-bottom: 1px solid #1B2A40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-size: 11px;
+      color: #9AAAC0;
+    }
+
+    .ribbon-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ribbon-item .label {
+      color: #9AAAC0;
+    }
+
+    .ribbon-item .val {
+      font-weight: 600;
+    }
+
+    .val-teal { color: #1ECFA5; }
+    .val-amber { color: #F2B84B; }
+    .val-gray { color: #9AA3B2; }
+
+    /* Wordmark & Privacy Banner */
+    .brand-section {
+      padding: 10px 14px 8px 14px;
+      border-bottom: 1px solid #1B2A40;
+    }
+
+    .wordmark {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1ECFA5;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .wordmark .cli-name {
+      color: #1ECFA5;
+    }
+
+    .privacy-notice {
+      font-size: 11px;
+      color: #9AAAC0;
+      border-left: 2px solid #1ECFA5;
+      padding-left: 8px;
+    }
+
+    .privacy-notice .tag {
+      color: #1ECFA5;
+    }
+
+    /* Terminal Main Workspace */
+    .terminal-body {
+      flex: 1;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+      background-color: #0B1220;
+    }
+
+    /* Transcript Section (context) */
+    .transcript-box {
+      border: 1px solid #1B2A40;
+      background-color: #111C2E;
+      padding: 10px 12px;
+      height: 90px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .transcript-header {
+      font-size: 11px;
+      color: #9AAAC0;
+      border-bottom: 1px dashed #1B2A40;
+      padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .transcript-content {
+      font-size: 12px;
+      color: #C3CFDF;
+      padding: 4px 0;
+    }
+
+    .user-msg {
+      color: #F4F7FB;
+      font-weight: 500;
+    }
+
+    .system-reply {
+      color: #F2B84B;
+      font-size: 12px;
+    }
+
+    /* Command Palette Overlay / Popup Anchor */
+    .palette-container {
+      border: 1px solid #596982;
+      background-color: #111C2E;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+
+    .palette-header {
+      background-color: #1B2A40;
+      padding: 6px 12px;
+      border-bottom: 1px solid #596982;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: #F4F7FB;
+    }
+
+    .palette-header .filter-hint {
+      color: #9AAAC0;
+      font-weight: 400;
+    }
+
+    /* Command Rows */
+    .command-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .command-row {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      font-size: 12px;
+      border-bottom: 1px solid #1B2A40;
+      gap: 12px;
+      background-color: #111C2E;
+    }
+
+    .command-row:last-child {
+      border-bottom: none;
+    }
+
+    .command-row.is-selected {
+      background-color: #172A46;
+      border-left: 3px solid #1ECFA5;
+      padding-left: 9px;
+    }
+
+    .row-selector {
+      width: 14px;
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+
+    .row-cmd {
+      width: 110px;
+      font-weight: 700;
+      color: #1ECFA5;
+    }
+
+    .command-row:not(.is-selected) .row-cmd {
+      color: #79B8FF;
+    }
+
+    .row-desc {
+      flex: 1;
+      color: #C3CFDF;
+    }
+
+    .command-row.is-selected .row-desc {
+      color: #F4F7FB;
+    }
+
+    .row-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 2px;
+      border: 1px solid transparent;
+      text-align: right;
+    }
+
+    .badge-available {
+      color: #1ECFA5;
+      border-color: #1ECFA5;
+      background-color: rgba(30, 207, 165, 0.1);
+    }
+
+    .badge-partial {
+      color: #F2B84B;
+      border-color: #F2B84B;
+      background-color: rgba(242, 184, 75, 0.1);
+    }
+
+    .badge-planned {
+      color: #9AAAC0;
+      border-color: #596982;
+      background-color: rgba(154, 170, 192, 0.1);
+    }
+
+    /* Selected Details Inspector / Card inside Palette */
+    .palette-detail-box {
+      background-color: #0D1626;
+      border-top: 1px solid #596982;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #C3CFDF;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .palette-detail-title {
+      color: #1ECFA5;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .palette-detail-text {
+      color: #C3CFDF;
+      line-height: 1.4;
+    }
+
+    .palette-detail-warning {
+      color: #9AAAC0;
+      font-size: 10px;
+    }
+
+    /* Terminal Composer Input */
+    .composer-container {
+      border: 1px solid #1ECFA5;
+      background-color: #111C2E;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .composer-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #9AAAC0;
+      border-bottom: 1px solid #1B2A40;
+      padding-bottom: 4px;
+    }
+
+    .composer-line {
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #F4F7FB;
+      gap: 6px;
+    }
+
+    .composer-prompt {
+      color: #1ECFA5;
+    }
+
+    .composer-input-text {
+      color: #F4F7FB;
+      letter-spacing: 0.5px;
+    }
+
+    .terminal-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 15px;
+      background-color: #1ECFA5;
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* Terminal Footer / Keyboard Hint Bar */
+    .terminal-footer {
+      height: 32px;
+      background-color: #111C2E;
+      border-top: 1px solid #596982;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+    }
+
+    .keys-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #C3CFDF;
+    }
+
+    .key-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .k-btn {
+      color: #172A46;
+      background-color: #1ECFA5;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 2px;
+      font-size: 10px;
+    }
+
+    .k-btn-sec {
+      color: #F4F7FB;
+      background-color: #1B2A40;
+      border: 1px solid #596982;
+      padding: 1px 5px;
+      border-radius: 2px;
+      font-size: 10px;
+    }
+
+    .k-btn-danger {
+      color: #FF7272;
+      border: 1px solid #FF7272;
+      background-color: transparent;
+      padding: 1px 5px;
+      border-radius: 2px;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    .keys-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #1ECFA5;
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background-color: #1ECFA5;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+<!-- Terminal Window Frame (120x36 character cell ratio) -->
+<div class="terminal-window">
+<!-- Titlebar -->
+<div class="terminal-titlebar">
+<div class="titlebar-left">
+<span class="title-strong">Terminal 120x36</span>
+<span>•</span>
+<span>gasacli — paleta de comandos e autocomplete</span>
+<span>•</span>
+<span>projeto: vitrine-api</span>
+</div>
+<div class="titlebar-right">
+<span>UTF-8</span>
+<span>|</span>
+<span>NO_COLOR: DESATIVADO</span>
+</div>
+</div>
+<!-- Status Ribbon Bar -->
+<div class="status-ribbon">
+<div class="ribbon-item">
+<span class="label">PROJETO:</span>
+<span class="val val-teal">VITRINE-API</span>
+</div>
+<div class="ribbon-item">
+<span class="label">CONFIANÇA:</span>
+<span class="val val-teal">CONCEDIDA</span>
+</div>
+<div class="ribbon-item">
+<span class="label">DASHBOARD:</span>
+<span class="val val-teal">AUTOMÁTICO</span>
+</div>
+<div class="ribbon-item">
+<span class="label">RUNS:</span>
+<span class="val val-gray">0 RUNS</span>
+</div>
+<div class="ribbon-item">
+<span class="label">STATUS DO CHAT:</span>
+<span class="val val-amber">CHAT NÃO CONECTADO</span>
+</div>
+</div>
+<!-- Wordmark & Privacy Banner -->
+<div class="brand-section">
+<div class="wordmark">
+<span>G&gt;</span>
+<span class="cli-name">gasacli</span>
+</div>
+<div class="privacy-notice">
+<span class="tag">garantia de privacidade:</span> O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+      </div>
+</div>
+<!-- Terminal Body Workspace -->
+<div class="terminal-body">
+<!-- Historical Context Box -->
+<div class="transcript-box">
+<div class="transcript-header">
+<span>HISTÓRICO DO TERMINAL (/chat)</span>
+<span>CONTEXTO LOCAL</span>
+</div>
+<div class="transcript-content">
+<div class="user-msg">&gt; Mostre o fluxo de cadastro</div>
+<div class="system-reply">[!] Chat não conectado. Digite /help para ver ações locais disponíveis.</div>
+</div>
+</div>
+<!-- Command Palette and Slash Autocomplete Menu (Anchored to Composer) -->
+<div class="palette-container">
+<div class="palette-header">
+<span>SUGESTÕES DE COMANDOS SLASH [use ↑ / ↓ para navegar, Tab para autocompletar]</span>
+<span class="filter-hint">FILTRO: /</span>
+</div>
+<div class="command-list">
+<!-- Item 1: /doctor (disponível) -->
+<div class="command-row">
+<span class="row-selector"> </span>
+<span class="row-cmd">/doctor</span>
+<span class="row-desc">Diagnósticos locais</span>
+<span class="row-badge badge-available">[DISPONÍVEL]</span>
+</div>
+<!-- Item 2: /setup (disponível) -->
+<div class="command-row">
+<span class="row-selector"> </span>
+<span class="row-cmd">/setup</span>
+<span class="row-desc">Rever configuração e orientação de instalação</span>
+<span class="row-badge badge-available">[DISPONÍVEL]</span>
+</div>
+<!-- Item 3: /web (parcial) -->
+<div class="command-row">
+<span class="row-selector"> </span>
+<span class="row-cmd">/web</span>
+<span class="row-desc">Abrir ou consultar o dashboard local</span>
+<span class="row-badge badge-partial">[PARCIAL]</span>
+</div>
+<!-- Item 4: /goal (planejado - selecionado/focado) -->
+<div class="command-row is-selected">
+<span class="row-selector">&gt;</span>
+<span class="row-cmd">/goal</span>
+<span class="row-desc">Planejar e despachar tarefas (não inicia tarefa)</span>
+<span class="row-badge badge-planned">[PLANEJADO]</span>
+</div>
+</div>
+<!-- Selected Command Inspector Card -->
+<div class="palette-detail-box">
+<div class="palette-detail-title">
+<span>DETALHE DO COMANDO SELECIONADO: /goal</span>
+<span style="color: #9AAAC0;">ESTADO: PLANEJADO</span>
+</div>
+<div class="palette-detail-text">
+            Planejamento e despacho de tarefas: planejado, ainda não implementado.
+          </div>
+<div class="palette-detail-warning">
+            [i] Pressione [Tab] para autocompletar o comando no compositor, ou [Enter] para consultar ajuda.
+          </div>
+</div>
+</div>
+<!-- Terminal Composer Input Bar -->
+<div class="composer-container">
+<div class="composer-meta">
+<span>COMPOSITOR • ENTRADA DO TERMINAL (QUERY ATIVA)</span>
+<span>[Enter] Quebra de linha | [Ctrl+S] Enviar</span>
+</div>
+<div class="composer-line">
+<span class="composer-prompt">&gt;</span>
+<span class="composer-input-text">/</span><span class="terminal-cursor"></span>
+</div>
+</div>
+</div>
+<!-- Terminal Footer: Keyboard Hint Bar -->
+<div class="terminal-footer">
+<div class="keys-left">
+<div class="key-badge"><span class="k-btn">Tab</span> Completar</div>
+<div class="key-badge"><span class="k-btn-sec">↑ / ↓</span> Navegar</div>
+<div class="key-badge"><span class="k-btn-sec">Enter</span> Inserir linha</div>
+<div class="key-badge"><span class="k-btn">Ctrl+S</span> Enviar</div>
+<div class="key-badge"><span class="k-btn-sec">Esc</span> Fechar sugestões</div>
+<div class="key-badge"><span class="k-btn-danger">Ctrl+D</span> Sair com segurança</div>
+</div>
+<div class="keys-right">
+<span class="status-dot"></span>
+<span>STATUS: PRONTO (paleta ativa)</span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Chat Principal (Main Chat)</title>
+<style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #06090e;
+      color: #F4F7FB;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.25;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Terminal container 120x36 character aspect */
+    .terminal-window {
+      width: 1100px;
+      height: 720px;
+      background-color: #0B1220;
+      border: 1px solid #596982;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+      user-select: none;
+      position: relative;
+    }
+
+    /* Top terminal title bar */
+    .term-titlebar {
+      height: 28px;
+      background-color: #111C2E;
+      border-bottom: 1px solid #596982;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      color: #9AAAC0;
+      font-size: 12px;
+    }
+
+    .term-titlebar .left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .term-titlebar .title-active {
+      color: #F4F7FB;
+    }
+
+    .term-titlebar .right {
+      color: #9AAAC0;
+      display: flex;
+      gap: 16px;
+    }
+
+    /* Sub-header info bar */
+    .term-meta-strip {
+      height: 26px;
+      background-color: #0B1220;
+      border-bottom: 1px solid #1B2A40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-size: 11px;
+      color: #C3CFDF;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .term-meta-strip .item {
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .term-meta-strip .val-dim {
+      color: #9AAAC0;
+    }
+
+    .term-meta-strip .val-highlight {
+      color: #1ECFA5;
+    }
+
+    /* Brand and Context Header (Project / Trust / Dashboard) */
+    .term-brand-panel {
+      padding: 10px 14px;
+      border-bottom: 1px solid #596982;
+      background-color: #111C2E;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-left {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+
+    .brand-wordmark {
+      font-weight: 700;
+      font-size: 14px;
+      color: #1ECFA5;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-context-summary {
+      font-size: 12px;
+      color: #C3CFDF;
+      display: flex;
+      gap: 12px;
+    }
+
+    .context-tag {
+      color: #9AAAC0;
+    }
+    .context-val {
+      color: #F4F7FB;
+    }
+    .context-tag-green {
+      color: #1ECFA5;
+    }
+
+    .brand-status-capsule {
+      font-size: 11px;
+      border: 1px solid #596982;
+      padding: 3px 8px;
+      background-color: #0B1220;
+      color: #C3CFDF;
+      display: flex;
+      gap: 8px;
+    }
+
+    .status-badge-offline {
+      color: #FF7272;
+    }
+
+    .status-badge-runs {
+      color: #9AAAC0;
+    }
+
+    /* Privacy banner */
+    .privacy-notice {
+      padding: 4px 14px;
+      background-color: #0B1220;
+      border-bottom: 1px dashed #596982;
+      color: #9AAAC0;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .privacy-label {
+      color: #1ECFA5;
+    }
+
+    /* Main chat area layout */
+    .term-main-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 14px;
+      overflow: hidden;
+      gap: 10px;
+      background-color: #0B1220;
+    }
+
+    /* Transcript section */
+    .transcript-container {
+      flex: 1;
+      border: 1px solid #1B2A40;
+      background-color: #111C2E;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .transcript-header {
+      height: 24px;
+      background-color: #1B2A40;
+      border-bottom: 1px solid #596982;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #C3CFDF;
+    }
+
+    .transcript-body {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Chat message bubble / terminal transcript row */
+    .msg-user-row {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .msg-user-card {
+      background-color: #172A46;
+      border: 1px solid #1ECFA5;
+      padding: 8px 12px;
+      max-width: 75%;
+      color: #F4F7FB;
+      font-size: 13px;
+    }
+
+    .msg-user-meta {
+      font-size: 11px;
+      color: #9AAAC0;
+      display: flex;
+      gap: 8px;
+    }
+
+    /* State indicator: chat not connected, 0 runs */
+    .system-status-box {
+      border: 1px dashed #596982;
+      background-color: #0B1220;
+      padding: 10px 12px;
+      margin-top: 4px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .status-row-title {
+      color: #F2B84B;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-desc {
+      color: #9AAAC0;
+      line-height: 1.4;
+    }
+
+    /* Slash Suggestions Box */
+    .slash-palette {
+      border: 1px solid #596982;
+      background-color: #111C2E;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slash-palette-header {
+      background-color: #1B2A40;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: #C3CFDF;
+      border-bottom: 1px solid #596982;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .slash-list {
+      display: flex;
+      flex-direction: column;
+      list-style: none;
+    }
+
+    .slash-item {
+      padding: 4px 10px;
+      display: grid;
+      grid-template-columns: 140px 1fr 140px;
+      align-items: center;
+      font-size: 12px;
+      border-bottom: 1px solid #1B2A40;
+    }
+
+    .slash-item:last-child {
+      border-bottom: none;
+    }
+
+    .slash-item.selected {
+      background-color: #172A46;
+      border-left: 3px solid #1ECFA5;
+    }
+
+    .cmd-name {
+      font-weight: bold;
+      color: #1ECFA5;
+    }
+
+    .cmd-desc {
+      color: #F4F7FB;
+    }
+
+    .cmd-badge {
+      font-size: 10px;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    .badge-ready {
+      color: #43D19E;
+    }
+
+    .badge-partial {
+      color: #F2B84B;
+    }
+
+    .badge-planned {
+      color: #9AAAC0;
+    }
+
+    /* Composer Input Area */
+    .composer-panel {
+      border: 1px solid #1ECFA5;
+      background-color: #111C2E;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .composer-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #9AAAC0;
+    }
+
+    .composer-label-row .active-prompt-tag {
+      color: #1ECFA5;
+    }
+
+    .composer-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .composer-caret-prompt {
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+
+    .composer-text {
+      color: #F4F7FB;
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+
+    .cursor-block {
+      display: inline-block;
+      width: 8px;
+      height: 15px;
+      background-color: #1ECFA5;
+      vertical-align: middle;
+      margin-left: 2px;
+      animation: blink 1s step-start infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    /* Shortcut footer */
+    .term-footer-bar {
+      height: 32px;
+      background-color: #111C2E;
+      border-top: 1px solid #596982;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+    }
+
+    .shortcuts-cluster {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: nowrap;
+    }
+
+    .key-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .key-badge {
+      background-color: #1B2A40;
+      border: 1px solid #596982;
+      color: #1ECFA5;
+      padding: 1px 5px;
+      font-weight: bold;
+    }
+
+    .key-badge.accent {
+      background-color: #1ECFA5;
+      border-color: #1ECFA5;
+      color: #0B1220;
+    }
+
+    .key-badge.warn {
+      border-color: #FF7272;
+      color: #FF7272;
+    }
+
+    .key-action {
+      color: #C3CFDF;
+    }
+
+    .footer-right-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #9AAAC0;
+    }
+
+    .status-terminal-ready {
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+<div class="terminal-window">
+<!-- 1. Top Titlebar -->
+<header class="term-titlebar">
+<div class="left">
+<span class="title-active">Terminal 120x36</span>
+<span>•</span>
+<span>gasacli — chat principal</span>
+<span>•</span>
+<span>projeto: vitrine-api</span>
+</div>
+<div class="right">
+<span>UTF-8</span>
+<span>|</span>
+<span>NO_COLOR: DESATIVADO</span>
+</div>
+</header>
+<!-- 2. Project / Trust / Dashboard Sub-header -->
+<div class="term-meta-strip"><div class="item"><span class="val-dim">PROJETO:</span> <span class="val-highlight">vitrine-api</span></div><div class="item"><span class="val-dim">CONFIANÇA:</span> <span class="val-highlight">CONCEDIDA</span></div><div class="item"><span class="val-dim">DASHBOARD:</span> <span>AUTOMÁTICO</span></div><div class="item"><span class="val-dim">RUNS:</span> <span class="val-highlight">0 runs</span></div><div class="item"><span class="val-dim">STATUS DO CHAT:</span> <span class="status-badge-offline">Chat não conectado</span></div></div>
+<!-- 3. Brand & Context Header -->
+<div class="term-brand-panel"><div class="brand-left"><div class="brand-wordmark">G&gt; gasacli</div></div></div>
+<!-- 4. Mandatory Privacy Guarantee (literal pt-BR) -->
+<div class="privacy-notice">
+<span class="privacy-label">garantia de privacidade:</span>
+<span>O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.</span>
+</div>
+<!-- 5. Main Area (Transcript + Suggestions + Composer) -->
+<main class="term-main-body">
+<!-- Transcript Pane -->
+<section aria-label="Histórico da conversa" class="transcript-container">
+<div class="transcript-header"><span>HISTÓRICO DO TERMINAL (/chat)</span></div>
+<div class="transcript-body">
+<!-- User Sample Message verbatim from specification -->
+<div class="msg-user-row">
+<div class="msg-user-card">
+              Mostre o fluxo de cadastro
+            </div>
+</div>
+<!-- Realistic Terminal Status Box (Chat not connected, 0 runs) -->
+<div class="system-status-box"><div class="status-row-title"><span>[!] Chat não conectado. Digite /help para ver ações locais disponíveis.</span></div></div>
+</div>
+</section>
+<!-- Slash Command Autocomplete Box (Anchored above composer) -->
+<section aria-label="Sugestões de comandos slash" class="slash-palette">
+<div class="slash-palette-header"><span>SUGESTÕES DE COMANDOS SLASH [use ↑ / ↓ para navegar, Tab para autocompletar]</span></div>
+<ul class="slash-list"><li class="slash-item selected"><span class="cmd-name">&gt; /doctor</span><span class="cmd-desc">Diagnósticos locais</span><span class="cmd-badge badge-ready">[DISPONÍVEL]</span></li><li class="slash-item"><span class="cmd-name">  /setup</span><span class="cmd-desc">Rever configuração e orientação de instalação</span><span class="cmd-badge badge-ready">[DISPONÍVEL]</span></li><li class="slash-item"><span class="cmd-name">  /web</span><span class="cmd-desc">Abrir ou consultar o dashboard local</span><span class="cmd-badge badge-partial">[PARCIAL]</span></li><li class="slash-item"><span class="cmd-name">  /goal</span><span class="cmd-desc">Planejar e despachar tarefas (não inicia tarefa)</span><span class="cmd-badge badge-planned">[PLANEJADO]</span></li></ul>
+</section>
+<!-- Composer Pane -->
+<section aria-label="Compositor de mensagens" class="composer-panel">
+<div class="composer-label-row"><span class="active-prompt-tag">COMPOSITOR • ENTRADA DO TERMINAL</span><span>[Enter] Quebra de linha | [Ctrl+S] Enviar</span></div>
+<div class="composer-input-row">
+<span class="composer-caret-prompt">&gt;</span>
+<div class="composer-text">
+<span>/</span><span class="cursor-block"></span>
+</div>
+</div>
+</section>
+</main>
+<!-- 6. Bottom Shortcut Bar (Footer) -->
+<footer class="term-footer-bar">
+<div class="shortcuts-cluster"><div class="key-group"><span class="key-badge">Enter</span><span class="key-action">Inserir linha</span></div><div class="key-group"><span class="key-badge accent">Ctrl+S</span><span class="key-action">Enviar</span></div><div class="key-group"><span class="key-badge">Ctrl+↑</span><span class="key-action">Histórico</span></div><div class="key-group"><span class="key-badge">Esc</span><span class="key-action">Fechar sugestões</span></div><div class="key-group"><span class="key-badge warn">Ctrl+D</span><span class="key-action">Sair com segurança</span></div></div>
+<div class="footer-right-status">
+<span>STATUS: <span class="status-terminal-ready">PRONTO (aguardando entrada)</span></span>
+</div>
+</footer>
+</div>
+</body>
+</html>

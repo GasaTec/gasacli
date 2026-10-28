@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-06-onboarding-permission-profile.md",
+  "stitchScreenId": "bea8742bc2004f9690c08f1920b3493d",
+  "generatedAt": "2026-10-28 06:20:50 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 2,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed invented execution semantics, credentials restrictions, hard-policy promises and local persistence claims; retained only matrix sample values",
+      "clarified selected instead of active profile and removed save/policy persistence copy"
+    ]
+  }
+}

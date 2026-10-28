@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Onboarding Perfil de Permissões (Passo 4 de 6)</title>
+<style>
+  :root {
+    --bg: #0B1220;
+    --surface: #111C2E;
+    --elevated: #1B2A40;
+    --border: #596982;
+    --text-primary: #F4F7FB;
+    --text-secondary: #C3CFDF;
+    --text-muted: #9AAAC0;
+    --accent: #1ECFA5;
+    --success: #43D19E;
+    --warning: #F2B84B;
+    --danger: #FF7272;
+    --info: #79B8FF;
+    --brand-navy: #172A46;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #070b13;
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.25;
+    letter-spacing: 0px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 120x36 Character-Cell Terminal Frame */
+  .terminal-frame {
+    width: 1060px;
+    background-color: var(--bg);
+    border: 1px solid var(--border);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+  }
+
+  /* Title bar / TTY Status */
+  .term-header {
+    border-bottom: 1px solid var(--border);
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-secondary);
+    font-size: 12px;
+    background-color: #0d1627;
+  }
+
+  .term-header-tag {
+    color: var(--accent);
+    font-weight: bold;
+  }
+
+  .term-subbar {
+    border-bottom: 1px solid var(--border);
+    padding: 4px 12px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+    background-color: var(--bg);
+  }
+
+  /* Brand / Step Banner */
+  .brand-bar {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .brand-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .brand-logo {
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+  }
+
+  .step-info-title {
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .step-info-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .badge-step {
+    border: 1px solid var(--accent);
+    padding: 4px 10px;
+    text-align: right;
+    background-color: rgba(30, 207, 165, 0.05);
+  }
+
+  .badge-step-num {
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 11px;
+  }
+
+  .badge-step-name {
+    color: var(--text-secondary);
+    font-size: 10px;
+  }
+
+  /* Privacy Notice */
+  .privacy-strip {
+    border-bottom: 1px dashed var(--border);
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    background-color: #0c1524;
+  }
+
+  .privacy-strip strong {
+    color: var(--accent);
+  }
+
+  /* Main Workspace: Left Column (Content) + Right Column (Flow Sidebar) */
+  .term-body {
+    display: grid;
+    grid-template-columns: 1fr 290px;
+    min-height: 520px;
+  }
+
+  .main-column {
+    padding: 12px 14px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .side-column {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background-color: #0d1525;
+  }
+
+  /* Section Title Bar */
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+  }
+
+  .nav-hint {
+    color: var(--accent);
+    font-weight: normal;
+  }
+
+  /* Profiles 3 Cards Grid */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+
+  .profile-card {
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: default;
+  }
+
+  .profile-card.active {
+    border: 1px solid var(--accent);
+    background-color: #122338;
+  }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .profile-card.active .card-top {
+    color: var(--accent);
+  }
+
+  .profile-tag {
+    font-size: 10px;
+    padding: 1px 4px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+
+  .profile-card.active .profile-tag {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .card-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.25;
+  }
+
+  /* Matrix Panel */
+  .matrix-box {
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .matrix-title {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--text-primary);
+    border-bottom: 1px dashed var(--border);
+    padding-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .matrix-table th {
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: normal;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .matrix-table td {
+    padding: 5px 6px;
+    border-bottom: 1px dotted rgba(89, 105, 130, 0.4);
+    color: var(--text-primary);
+  }
+
+  .matrix-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .perm-value {
+    font-weight: bold;
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 0;
+  }
+
+  .perm-allow {
+    color: var(--brand-navy);
+    background-color: var(--accent);
+  }
+
+  .perm-ask {
+    color: #211500;
+    background-color: var(--warning);
+  }
+
+  .perm-deny {
+    color: #fff;
+    background-color: var(--danger);
+  }
+
+  /* Hard Policy Box */
+  .hard-policy-box {
+    border: 1px solid var(--border);
+    background-color: #0e1726;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .hard-policy-header {
+    color: var(--warning);
+    font-weight: bold;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hard-policy-content {
+    color: var(--text-secondary);
+  }
+
+  /* Action Box */
+  .action-box {
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    padding: 8px 12px;
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .action-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--text-secondary);
+  }
+
+  .key-badge {
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 0 4px;
+    font-weight: bold;
+    font-size: 10px;
+  }
+
+  .key-badge-esc {
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0 4px;
+    font-weight: bold;
+    font-size: 10px;
+  }
+
+  /* Sidebar Step Items */
+  .sidebar-title {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .step-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 11px;
+  }
+
+  .step-item {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-muted);
+  }
+
+  .step-item.done {
+    color: var(--text-secondary);
+  }
+
+  .step-item.done .step-tag {
+    color: var(--accent);
+    font-weight: bold;
+  }
+
+  .step-item.active {
+    color: var(--accent);
+    font-weight: bold;
+    background-color: rgba(30, 207, 165, 0.08);
+    padding: 2px 4px;
+    margin: 0 -4px;
+    border-left: 2px solid var(--accent);
+  }
+
+  .interstitial-item {
+    margin: 3px 0;
+    padding: 4px 6px;
+    border: 1px dashed var(--border);
+    font-size: 10px;
+    color: var(--text-muted);
+    background-color: rgba(17, 28, 46, 0.5);
+  }
+
+  .interstitial-item.passed {
+    color: var(--text-secondary);
+    border-color: rgba(89, 105, 130, 0.8);
+  }
+
+  .sidebar-project-state {
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+    font-size: 11px;
+  }
+
+  .sidebar-project-state-title {
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .sidebar-project-state-val {
+    color: var(--text-primary);
+  }
+
+  /* Bottom status and keyboard command line */
+  .term-footer {
+    border-top: 1px solid var(--border);
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    background-color: #0d1627;
+  }
+
+  .footer-keys {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .footer-key-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+  }
+
+  .btn-k {
+    background-color: var(--accent);
+    color: var(--brand-navy);
+    font-weight: bold;
+    padding: 1px 6px;
+  }
+
+  .btn-k-ghost {
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 0 4px;
+  }
+
+  .btn-k-danger {
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 0 4px;
+  }
+
+  .footer-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent);
+    font-weight: bold;
+  }
+
+  .footer-status-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--accent);
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+<div class="terminal-frame">
+<!-- Header Terminal 120x36 -->
+<div class="term-header">
+<div>Terminal 120x36 • <span class="term-header-tag">gasacli</span> — assistente de configuração • projeto: vitrine-api</div>
+<div>UTF-8 | NO_COLOR: DESATIVADO</div>
+</div>
+<div class="term-subbar">
+<div>PROJETO: vitrine-api | ETAPA DE ONBOARDING: 4 de 6 (Permissões) | ORQUESTRADOR: GasaCLI</div>
+<div>MODO: LOCAL</div>
+</div>
+<!-- Header Banner -->
+<div class="brand-bar">
+<div class="brand-left">
+<div class="brand-logo">G&gt; gasacli</div>
+<div>
+<div class="step-info-title">CONFIGURAÇÃO INICIAL — PASSO 4 DE 6</div>
+<div class="step-info-sub">Seleção do perfil de execução e matriz de segurança de permissões</div>
+</div>
+</div>
+<div class="badge-step">
+<div class="badge-step-num">ETAPA [4 / 6]</div>
+<div class="badge-step-name">PERFIL DE PERMISSÕES</div>
+</div>
+</div>
+<!-- Faixa de Privacidade Literal -->
+<div class="privacy-strip">
+<strong>garantia de privacidade:</strong> O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+  </div>
+<!-- Main Body (Columns) -->
+<div class="term-body">
+<!-- Left: Cards, Matriz e Políticas -->
+<div class="main-column">
+<div class="panel-header">
+<span>PERFIS DE PERMISSÃO DISPONÍVEIS</span>
+<span class="nav-hint">[use ←/→ ou números 1-3 para selecionar]</span>
+</div>
+<!-- 3 Cards: restricted / balanced / autonomous -->
+<div class="cards-grid"><div class="profile-card"><div class="card-top"><span>[1] Restrito</span></div></div><div class="profile-card active"><div class="card-top"><span>&gt; [2] Balanceado</span><span class="profile-tag">[SELECIONADO]</span></div></div><div class="profile-card"><div class="card-top"><span>[3] Autônomo</span></div></div></div>
+<!-- Permission Matrix Box (Sample values strictly: write_project allow, execute_commands ask, secret_access deny) -->
+<div class="matrix-box">
+<div class="matrix-title"><span>MATRIZ DE PERMISSÕES — PERFIL SELECIONADO: BALANCEADO</span></div>
+<table class="matrix-table">
+<thead>
+<tr>
+<th style="width: 32%;">ESCOPO / CAPACIDADE</th>
+<th style="width: 22%;">ESTADO</th>
+<th>DESCRIÇÃO DO COMPORTAMENTO</th>
+</tr>
+</thead>
+<tbody><tr><td><code>write_project</code></td><td><span class="perm-value perm-allow">allow</span></td><td>Valor do perfil selecionado: allow</td></tr><tr><td><code>execute_commands</code></td><td><span class="perm-value perm-ask">ask</span></td><td>Valor do perfil selecionado: ask</td></tr><tr><td><code>secret_access</code></td><td><span class="perm-value perm-deny">deny</span></td><td>Valor do perfil selecionado: deny</td></tr></tbody>
+</table>
+</div>
+<!-- Hard-policy Note -->
+<!-- Action Box -->
+<div class="action-box">
+<div class="action-row"><span class="key-badge">[Enter]</span>
+<span>Confirmar perfil e continuar para Passo 5 (Modo de Inicialização)</span></div>
+<div class="action-row">
+<span class="key-badge-esc">[Esc]</span>
+<span>Voltar — Retornar para confirmação de pasta confiável</span>
+</div>
+</div>
+</div>
+<!-- Right: Sidebar com os 6 passos numerados e o interstício sem numeração -->
+<div class="side-column">
+<div>
+<div class="sidebar-title">
+<span>FLUXO DE CONFIGURAÇÃO</span>
+<span style="color: var(--text-muted); font-size: 10px;">6 PASSOS NUMERADOS</span>
+</div>
+<ul class="step-list">
+<li class="step-item done">
+<span>■ Passo 1/6: Idioma do Ambiente</span>
+<span class="step-tag">[OK]</span>
+</li>
+<li class="step-item done">
+<span>■ Passo 2/6: Agentes Detectados</span>
+<span class="step-tag">[OK]</span>
+</li>
+<li class="step-item done">
+<span>■ Passo 3/6: Instalação de Ferramentas</span>
+<span class="step-tag">[OK]</span>
+</li>
+<!-- Interstício de segurança sem numeração -->
+<li class="interstitial-item passed">
+            [Segurança]: Confirmação de Pasta (sem numeração)
+          </li>
+<li class="step-item active">
+<span>■ Passo 4/6 (Atual): Perfil de Permissões</span>
+<span style="color: var(--accent);">• ATIVO</span>
+</li>
+<li class="step-item">
+<span>■ Passo 5/6: Modo de Inicialização</span>
+<span style="color: var(--text-muted);">pendente</span>
+</li>
+<li class="step-item">
+<span>■ Passo 6/6: Resumo e Finalização</span>
+<span style="color: var(--text-muted);">pendente</span>
+</li>
+</ul>
+</div>
+<div class="sidebar-project-state">
+<div class="sidebar-project-state-title">ESTADO DO PROJETO</div>
+<div class="sidebar-project-state-val">Workspace: vitrine-api</div>
+</div>
+</div>
+</div>
+<!-- Bottom Command Bar -->
+<div class="term-footer">
+<div class="footer-keys">
+<div class="footer-key-item">
+<span class="btn-k">Enter</span>
+<span>Confirmar perfil</span>
+</div>
+<div class="footer-key-item">
+<span class="btn-k-ghost">← / →</span>
+<span>Alternar perfil</span>
+</div>
+<div class="footer-key-item">
+<span class="btn-k-ghost">Esc</span>
+<span>Voltar</span>
+</div>
+<div class="footer-key-item">
+<span class="btn-k-danger">Ctrl+C</span>
+<span>Sair com segurança</span>
+</div>
+</div>
+<div class="footer-status">
+<span class="footer-status-dot"></span>
+<span>PRONTO</span>
+</div>
+</div>
+</div>
+</body>
+</html>

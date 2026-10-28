@@ -1,0 +1,20 @@
+{
+    "promptFile":  "docs/design/prompts/tui-08-onboarding-summary.md",
+    "stitchScreenId":  "55e8e4b9515449519f89403acb894739",
+    "generatedAt":  "2026-10-28 06:35:03 UTC",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "aligned selected web-startup mode to Auto sample",
+                                                  "removed unsupported installation state, commands, save claims, confirmation claims and chat destination",
+                                                  "restored an explicit finish action after removing empty notes section"
+                                              ]
+                      },
+    "remainingDefects":  [
+                             "The empty Notes and next steps heading remains in the screenshot.",
+                             "Tool-specific choices are not detailed in this configuration summary."
+                         ]
+}

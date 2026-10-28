@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-07-onboarding-dashboard-community-pro.md",
+  "stitchScreenId": "ce7fc303f48449559efcce69f5e317d2",
+  "generatedAt": "2026-10-28 06:30:49 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 2,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed unsupported local execution, pricing, cloud sync and Community feature claims",
+      "aligned selected startup mode with authorized Auto example"
+    ]
+  }
+}
