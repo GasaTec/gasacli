@@ -228,6 +228,9 @@ func run(ctx context.Context, args []string) error {
 	if state, stateErr := config.LoadState(home); stateErr == nil {
 		language = state.Onboarding.Language
 	}
+	if cfg.Language != "" {
+		language = cfg.Language
+	}
 	if envLanguage := os.Getenv("GASACLI_LANG"); envLanguage != "" {
 		language = envLanguage
 	}
