@@ -18,7 +18,7 @@ func TestScriptedSession(t *testing.T) {
 	store := trust.NewStore(t.TempDir())
 	project := t.TempDir()
 	agents, doctor := 0, 0
-	s := Session{In: strings.NewReader("y\n\n/help\n/agents\n/doctor\n/status\n/goal implement\nhello\n/unknown\n/exit\nignored\n"), Out: &out, ProjectPath: project, TrustStore: store,
+	s := Session{In: strings.NewReader("y\n\n/help\n/agents\n/doctor\n/status\n/goal implement\nhello\n/unknown\n/exit\nignored\n"), Out: &out, Language: "pt-BR", ProjectPath: project, TrustStore: store,
 		Agents: func(w io.Writer) { agents++; fmt.Fprintln(w, "agents callback") },
 		Doctor: func(w io.Writer) { doctor++; fmt.Fprintln(w, "doctor callback") },
 	}
