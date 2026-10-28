@@ -1,0 +1,9 @@
+# Web shared design-system prompt
+
+Read and follow [`../DESIGN.md`](../DESIGN.md) as the visual source of truth before using any screen prompt. Its logo, dark/light tokens, contrast pairs, typography, spacing, components, iconography, state semantics, motion and accessibility rules override generic generator defaults. Do not duplicate or invent token values.
+
+Build a responsive browser workspace for GasaCLI, a local-first coding-agent orchestrator. Use an Orca-like three-pane desktop shell. Left sidebar: search and navigation, then expandable projects, worktrees and agent sessions; each session row includes a status dot plus readable status, model and relative age. Center: persistent workspace tabs, current project/session context and the main screen. Right: collapsible tabs named Changes, Checks and Info. At medium widths move the right panel into a drawer; at narrow/mobile widths use one pane with clear back navigation and a navigation drawer.
+
+Keep identity and project trust visible across navigation. Distinguish local functionality from optional Cloud services. Show planned, unavailable, disabled and read-only actions honestly. Never imply a sync succeeded offline, treat unknown usage as zero, expose hidden model reasoning, or put private content/secrets in telemetry. Every metric needs measured, provider-reported, estimated or unavailable provenance.
+
+Use semantic landmarks, visible keyboard focus, logical heading order, accessible names, keyboard-only operation, live announcements, reduced motion, 200% zoom and responsive reflow. A selected row uses shape or weight as well as color. Screen-specific prompts supply pt-BR sample strings and realistic fictional data; render them literally, without introducing real emails, secrets or invented commercial claims.

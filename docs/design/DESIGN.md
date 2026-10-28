@@ -1,4 +1,4 @@
-﻿# GasaCLI Design System
+# GasaCLI Design System
 
 Status: visual source of truth for product prompts. Product features in these screens are not evidence of implementation.
 
@@ -15,7 +15,7 @@ Brand anchors: navy `#172A46`, teal `#1ECFA5`. Navy is the primary brand ground;
 | background | `#0B1220` | `#F4F7FB` | App canvas |
 | surface | `#111C2E` | `#FFFFFF` | Cards, panes |
 | elevated | `#1B2A40` | `#FFFFFF` | Menus, dialogs, hover surfaces |
-| border | `#596982` | `#8996A8` | Visible dividers and component edges |
+| border | `#596982` | `#7F8CA0` | Visible dividers and component edges |
 | text-primary | `#F4F7FB` | `#172A46` | Main text |
 | text-secondary | `#C3CFDF` | `#44546A` | Supporting text |
 | text-muted | `#9AAAC0` | `#5B6B80` | Hints and metadata; never disabled-only information |
@@ -48,7 +48,20 @@ Ratios below use WCAG 2.2 relative luminance, rounded to two decimals. Text and 
 | info text / background | 9.02:1 | 6.05:1 | AA |
 | idle text / background | 7.36:1 | 4.63:1 | AA |
 | navy text / brand teal fill | 7.23:1 | 7.23:1 | AA |
-| border / background | 3.55:1 | 3.06:1 | non-text AA |
+| border / background | 3.36:1 | 3.17:1 | non-text AA |
+Card and pane text pairs also meet AA. Values use the same foreground tokens on dark surface #111C2E and light surface #FFFFFF.
+
+| Foreground / surface | Dark ratio | Light ratio | Result |
+|---|---:|---:|---|
+| primary text | 15.90:1 | 14.42:1 | AA |
+| secondary text | 10.83:1 | 7.71:1 | AA |
+| muted text | 7.23:1 | 5.44:1 | AA |
+| accent text | 8.56:1 | 5.01:1 | AA |
+| success text | 8.83:1 | 5.33:1 | AA |
+| warning text | 9.54:1 | 6.16:1 | AA |
+| danger text | 6.43:1 | 6.52:1 | AA |
+| info text | 8.23:1 | 6.50:1 | AA |
+| idle text | 6.72:1 | 4.97:1 | AA |
 
 Use token foregrounds on their corresponding canvas/panel colors; recompute contrast if a token is changed or a new pair is introduced. Disabled controls may be muted, but their label and reason remain perceivable.
 
@@ -75,7 +88,7 @@ Prefer truecolor, then ANSI-256 nearest color, then semantic 16-color foreground
 | background | `#0B1220` / `#F4F7FB` | 17 / 255 | black / white |
 | surface | `#111C2E` / `#FFFFFF` | 17 / 15 | black / white |
 | elevated | `#1B2A40` / `#FFFFFF` | 23 / 15 | bright-black / bright-white |
-| border | `#596982` / `#8996A8` | 60 / 102 | bright-black / bright-black |
+| border | `#596982` / `#7F8CA0` | 60 / 102 | bright-black / bright-black |
 | text-primary | `#F4F7FB` / `#172A46` | 255 / 17 | bright-white / blue |
 | text-secondary | `#C3CFDF` / `#44546A` | 188 / 60 | white / bright-black |
 | text-muted | `#9AAAC0` / `#5B6B80` | 146 / 60 | bright-black / bright-black |
@@ -89,6 +102,9 @@ Prefer truecolor, then ANSI-256 nearest color, then semantic 16-color foreground
 
 For 16-color terminals, use semantic foregrounds on the terminal's default background; do not force a dark background that can make light-terminal themes unreadable. For background/surface fills, use default background and visible borders when truecolor/256-color is unavailable.
 
+## Iconography
+
+Use a consistent, small set of familiar line icons: search, project/folder, worktree/branch, session/chat, agent, task/check, settings, history, memory, cloud/sync and warning/error. Icons support visible text and never replace labels. Prefer the supplied logo for brand identity; use ASCII symbols in TUI fallback mode, not emoji as status indicators. Use a check mark only for verified success, a spinner only for active work, and an exclamation only for a user-visible warning or error. Keep stroke and weight consistent within each surface.
 ## Motion and accessibility
 
 Motion is brief (120–180 ms) and functional: focus, panel reveal, state change. No continuous decorative animation; respect reduced motion. Keyboard focus is always visible. Web targets WCAG 2.2 AA, semantic landmarks, logical heading order, accessible names, live announcements for state changes, keyboard-only operation, 200% zoom and reflow. TUI supports Tab/Shift+Tab, arrows, Enter, Escape, Ctrl+C cancellation when safe, and printable labels for screen readers; do not bind essential actions only to mouse or color. Confirm destructive actions with a readable target summary.
@@ -123,7 +139,7 @@ tokens:
       background: "#F4F7FB"
       surface: "#FFFFFF"
       elevated: "#FFFFFF"
-      border: "#8996A8"
+      border: "#7F8CA0"
       text_primary: "#172A46"
       text_secondary: "#44546A"
       text_muted: "#5B6B80"

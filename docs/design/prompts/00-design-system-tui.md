@@ -1,0 +1,9 @@
+# TUI shared design-system prompt
+
+Read and follow [`../DESIGN.md`](../DESIGN.md) as the visual source of truth before using any screen prompt. Its brand rules, dark/light tokens, contrast pairs, typography, spacing, components, iconography, states, accessibility, keyboard conventions and terminal fallbacks override any generic generator defaults. Do not duplicate or invent token values.
+
+Draw a coherent native terminal workspace for GasaCLI, a local-first coding-agent orchestrator. The navy G and teal chevron prompt identify the product. Keep a compact header, readable transcript/content, obvious current selection and useful input. Respect every screen’s declared implementation status: design planned features as proposals and label unavailable actions; do not make them look shipped. Preserve project trust boundaries and keep the user’s current project/session visible.
+
+Use Run, Task, Dispatch and Worker vocabulary accurately. Distinguish verified completion from model output. Show only supported evidence; usage and cost must carry measured, provider-reported, estimated or unavailable provenance. Never invent progress, gate success, token usage or cost. Never expose credentials, raw environment values, private model reasoning or unbounded tool output.
+
+Each screen prompt requires exact 80x24 and 120x36 frames. At 80x24, collapse secondary details before clipping the status, selection, or primary input. At 120x36, reveal details without changing navigation. Show default, focus, selected, disabled, loading, empty, error and offline states. Terminals have no hover; use a visible keyboard marker instead. Follow DESIGN.md for NO_COLOR, 16-color and ASCII border behavior. Ensure status has both a readable label and a non-color cue.
