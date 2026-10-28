@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GasaTec/gasacli/internal/lifecycle"
 	_ "modernc.org/sqlite"
 )
 
@@ -352,7 +353,7 @@ func Restore(ctx context.Context, home, archive, passphrase, version string) ([]
 		}
 	}
 	for name, data := range files {
-		if err = atomicWrite(filepath.Join(home, filepath.FromSlash(name)), data); err != nil {
+		if err = atomicWriteWithin(home, filepath.Join(home, filepath.FromSlash(name)), data); err != nil {
 			var rollbackErr error
 			for restored := range files {
 				target := filepath.Join(home, filepath.FromSlash(restored))
@@ -361,7 +362,7 @@ func Restore(ctx context.Context, home, archive, passphrase, version string) ([]
 						rollbackErr = errors.Join(rollbackErr, removeErr)
 					}
 				} else if old, ok := previous[restored]; ok {
-					if restoreErr := atomicWrite(target, old); restoreErr != nil {
+					if restoreErr := atomicWriteWithin(home, target, old); restoreErr != nil {
 						rollbackErr = errors.Join(rollbackErr, restoreErr)
 					}
 				}
@@ -414,7 +415,7 @@ func walkScope(home, scope string, out map[string][]byte) error {
 		if err != nil {
 			return err
 		}
-		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() && !info.Mode().IsRegular() {
+		if info.Mode()&os.ModeSymlink != 0 || lifecycle.IsReparsePoint(info) || !info.IsDir() && !info.Mode().IsRegular() {
 			return fmt.Errorf("refusing non-regular backup path %s", rel)
 		}
 		if info.IsDir() {
@@ -498,17 +499,24 @@ func allowedPath(name string) bool {
 	return false
 }
 func atomicWrite(path string, data []byte) error {
+	return atomicWriteWithin(filepath.Dir(path), path, data)
+}
+
+func atomicWriteWithin(root, path string, data []byte) error {
 	dir := filepath.Dir(path)
-	if err := ensureNoLinks(dir); err != nil {
+	if err := os.MkdirAll(root, 0700); err != nil {
+		return err
+	}
+	if err := ensureNoLinks(root, dir); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	if err := ensureNoLinks(dir); err != nil {
+	if err := ensureNoLinks(root, dir); err != nil {
 		return err
 	}
-	if info, err := os.Lstat(path); err == nil && (info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular()) {
+	if info, err := os.Lstat(path); err == nil && (info.Mode()&os.ModeSymlink != 0 || lifecycle.IsReparsePoint(info) || !info.Mode().IsRegular()) {
 		return fmt.Errorf("refusing to replace non-regular restore target")
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -532,18 +540,25 @@ func atomicWrite(path string, data []byte) error {
 	}
 	return os.Rename(f.Name(), path)
 }
-func ensureNoLinks(dir string) error {
-	abs, err := filepath.Abs(dir)
+func ensureNoLinks(root, dir string) error {
+	rootAbs, err := filepath.Abs(root)
 	if err != nil {
 		return err
 	}
-	for p := abs; ; p = filepath.Dir(p) {
+	dirAbs, err := filepath.Abs(dir)
+	if err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(rootAbs, dirAbs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("restore path escapes allowed root")
+	}
+	for p := dirAbs; ; p = filepath.Dir(p) {
 		i, e := os.Lstat(p)
-		if e == nil && i.Mode()&os.ModeSymlink != 0 {
+		if e == nil && (i.Mode()&os.ModeSymlink != 0 || lifecycle.IsReparsePoint(i)) {
 			return fmt.Errorf("refusing symlink in restore path")
 		}
-		next := filepath.Dir(p)
-		if next == p {
+		if p == rootAbs {
 			break
 		}
 	}
