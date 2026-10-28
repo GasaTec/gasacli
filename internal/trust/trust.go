@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 )
@@ -64,6 +65,24 @@ func (s *Store) IsTrusted(path string) (bool, error) {
 		return false, err
 	}
 	return entries[key], nil
+}
+
+// TrustedProjects returns the canonical paths approved by the user.
+func (s *Store) TrustedProjects() ([]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entries, err := s.read()
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0, len(entries))
+	for path, trusted := range entries {
+		if trusted {
+			paths = append(paths, path)
+		}
+	}
+	sort.Strings(paths)
+	return paths, nil
 }
 
 func (s *Store) Grant(path string) error  { return s.update(path, true) }

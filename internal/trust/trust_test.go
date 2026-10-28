@@ -48,6 +48,50 @@ func TestTrustRelativePersistenceAndRevoke(t *testing.T) {
 	}
 }
 
+func TestTrustedProjects(t *testing.T) {
+	home := t.TempDir()
+	store := NewStore(home)
+	first, second := t.TempDir(), t.TempDir()
+	if err := store.Grant(second); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Grant(first); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.TrustedProjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0] != first && got[0] != second || got[1] != first && got[1] != second || got[0] >= got[1] {
+		t.Fatalf("TrustedProjects() = %#v, want sorted canonical paths", got)
+	}
+}
+
+func TestTrustedProjectsFailsClosed(t *testing.T) {
+	t.Run("empty store", func(t *testing.T) {
+		got, err := NewStore(t.TempDir()).TrustedProjects()
+		if err != nil || len(got) != 0 {
+			t.Fatalf("TrustedProjects() = %#v, %v; want empty, nil", got, err)
+		}
+	})
+	t.Run("missing store", func(t *testing.T) {
+		got, err := NewStore(filepath.Join(t.TempDir(), "missing")).TrustedProjects()
+		if err != nil || len(got) != 0 {
+			t.Fatalf("TrustedProjects() = %#v, %v; want empty, nil", got, err)
+		}
+	})
+	t.Run("corrupt store", func(t *testing.T) {
+		home := t.TempDir()
+		if err := os.WriteFile(filepath.Join(home, "trust.json"), []byte("{"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := NewStore(home).TrustedProjects()
+		if err == nil || len(got) != 0 {
+			t.Fatalf("TrustedProjects() = %#v, %v; want error and no projects", got, err)
+		}
+	})
+}
+
 func TestConcurrentStoresPreserveGrantAndRevoke(t *testing.T) {
 	home, projects := prepareConcurrentTrust(t)
 	start := make(chan struct{})
