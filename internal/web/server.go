@@ -36,6 +36,7 @@ type Options struct {
 	SessionRoots   sessions.Roots
 	CurrentProject string
 	WebMode        string
+	Sender         sessions.Sender
 }
 
 // Server owns a loopback listener and its in-memory session secret.
@@ -270,9 +271,11 @@ func handler(origin string, port int, token string, session *launchSession, opti
 	home := ""
 	var roots sessions.Roots
 	currentProject, webMode := "", "auto"
+	var sender sessions.Sender
 	if len(options) > 0 {
 		home, roots = options[0].Home, options[0].SessionRoots
 		currentProject, webMode = options[0].CurrentProject, options[0].WebMode
+		sender = options[0].Sender
 	}
 	if webMode == "" {
 		if saved, err := config.Load(); err == nil {
@@ -328,6 +331,12 @@ func handler(origin string, port int, token string, session *launchSession, opti
 			}
 		case "/api/settings":
 			jsonResponse(w, map[string]string{"webMode": loadMode()})
+		case "/api/capabilities":
+			capabilities := sessions.Capabilities{}
+			if sender != nil {
+				capabilities = sender.Capabilities()
+			}
+			jsonResponse(w, capabilities)
 		case "/":
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			if r.Method != http.MethodHead {

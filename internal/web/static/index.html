@@ -17,19 +17,20 @@
   <div class="app-shell">
     <aside class="sidebar" aria-label="Workspace navigation">
       <header class="brand"><img class="brand-mark" src="/static/mark.svg" alt="Marca GasaCLI"><span>gasacli</span><button class="icon-button" id="collapse-sidebar" aria-label="Recolher navegação">‹</button></header>
+      <label class="mobile-project-label" for="mobile-projects">Projeto</label><select id="mobile-projects" aria-label="Selecionar projeto"><option value="">Selecione um projeto</option></select>
       <label class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar sessões" aria-label="Buscar sessões"><kbd>Ctrl/⌘ K</kbd></label>
       <nav class="primary-nav" aria-label="Navegação principal"><button class="nav-item selected" data-view="workspace">▦ <span>Sessões</span></button><button class="nav-item" data-view="analytics">▤ <span>Analytics</span></button><button class="nav-item" data-view="settings">⚙ <span>Configurações</span></button></nav>
       <div class="section-head"><span>Projetos</span><span id="project-count" class="count-badge">0</span></div>
       <div id="projects" class="project-list" role="tree" aria-label="Projects"></div>
-      <div class="sidebar-bottom"><button class="nav-item">⚙ <span>Preferences</span></button><div id="usage" class="usage"></div></div>
+      <div class="sidebar-bottom"><div id="usage" class="usage"></div></div>
     </aside>
     <div class="splitter" data-split="0" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" tabindex="0"></div>
     <main class="main-pane">
       <div class="tabs" id="tabs" role="tablist" aria-label="Sessões abertas"><span class="empty-tab">Workspace</span><button class="icon-button add-tab" aria-label="Nova aba">＋</button></div>
       <div class="session-head"><div><div id="crumb" class="crumb">Sessões</div><h1 id="session-title">Selecione uma sessão</h1></div><div id="session-state" class="state-pill"><i></i><span>Ocioso</span></div></div>
-      <section id="chat" class="chat" aria-live="polite"><div class="empty-state"><div class="empty-orbit">◉</div><h2>Seu workspace</h2><p>Selecione um projeto confiável para consultar sessões e atividade.</p></div></section>
+      <section id="chat" class="chat" aria-live="polite" aria-busy="false"><div class="empty-state"><div class="empty-orbit">◉</div><h2>Seu workspace</h2><p>Selecione um projeto confiável para consultar sessões e atividade.</p></div></section>
       <div id="working" class="working hidden"><i></i> Working…</div>
-      <section class="composer" id="composer" aria-label="Compositor somente leitura"><div class="composer-placeholder">Envio para um agente ativo está planejado</div><div class="composer-footer"><div class="chips"><span class="chip">Modelo <b id="model-chip">Indisponível</b></span><span class="chip">Acesso <b>Somente leitura</b></span></div><button class="send-button" disabled title="Envio para um agente ativo está planejado" aria-label="Enviar indisponível">↑</button></div></section>
+      <section class="composer hidden" id="composer" aria-label="Compositor somente leitura"><div class="composer-placeholder">Envio para um agente ativo está planejado</div><div class="composer-footer"><div class="chips"><span class="chip">Modelo <b id="model-chip">Indisponível</b></span><span class="chip">Acesso <b>Somente leitura</b></span></div><button class="send-button" id="send-message" disabled title="Envio para um agente ativo está planejado" aria-label="Enviar indisponível">↑</button></div></section>
       <footer class="statusbar"><span><i class="connection-dot"></i><span id="connection">Conectando</span></span><span id="status-projects">0 projetos</span><span>GasaCLI pre-alpha</span></footer>
     </main>
     <div class="splitter detail-splitter" data-split="1" role="separator" aria-label="Resize details panel" aria-orientation="vertical" tabindex="0"></div>

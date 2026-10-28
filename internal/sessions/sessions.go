@@ -3,6 +3,7 @@ package sessions
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -65,6 +67,17 @@ type Worktree struct {
 
 // Roots overrides the conventional agent data roots, primarily for tests.
 type Roots struct{ Claude, Codex string }
+
+// Sender is an optional agent-specific transport for the dashboard composer.
+// This task only defines the capability boundary; no transcript reader sends.
+type Sender interface {
+	Send(ctx context.Context, sessionID, text string) error
+	Capabilities() Capabilities
+}
+
+type Capabilities struct {
+	Send bool `json:"send"`
+}
 
 func DefaultRoots() Roots {
 	home, _ := os.UserHomeDir()
@@ -195,9 +208,7 @@ func parseLines(agent, path string, info os.FileInfo, reader *bufio.Reader) (Ses
 	if s.UpdatedAt.IsZero() {
 		s.UpdatedAt = info.ModTime()
 	}
-	if time.Since(info.ModTime()) <= 10*time.Second {
-		s.Status = "working"
-	}
+	s.Status = classifyStatus(info.ModTime(), time.Now(), false)
 	if len(s.Messages) > maxMessages {
 		s.Messages = s.Messages[len(s.Messages)-maxMessages:]
 	}
@@ -416,6 +427,20 @@ func boundedText(value string) string {
 	}
 	return value[:limit] + "\n[truncated]"
 }
+
+func classifyStatus(updatedAt, now time.Time, processAlive bool) string {
+	if processAlive || (!updatedAt.IsZero() && now.Sub(updatedAt) >= 0 && now.Sub(updatedAt) <= 10*time.Second) {
+		return "working"
+	}
+	return "done"
+}
+
+var (
+	secretTokenPattern   = regexp.MustCompile(`(?i)(?:\bsk-[a-z0-9_-]{8,}|\b(?:gh[pousr]|github_pat)_[a-z0-9_]{20,}|\bxox[baprs]-[a-z0-9-]{10,}|\bAKIA[0-9A-Z]{16}\b)`)
+	authorizationPattern = regexp.MustCompile(`(?i)(\bauthorization\s*:\s*(?:bearer\s+)?|\bbearer\s+)([^\s,;]+)`)
+	envSecretPattern     = regexp.MustCompile(`(?i)^\s*([A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|PASSWD|API_KEY|PRIVATE_KEY|ACCESS_KEY)[A-Z0-9_]*)\s*=\s*(.+?)\s*$`)
+)
+
 func redact(s string) string {
 	lines := strings.Split(s, "\n")
 	privateKey := false
@@ -433,20 +458,12 @@ func redact(s string) string {
 			lines[i] = "[redacted]"
 			continue
 		}
-		if strings.Contains(l, "authorization:") || strings.Contains(l, ".env") {
-			lines[i] = "[redacted]"
+		if match := envSecretPattern.FindStringSubmatch(line); match != nil {
+			lines[i] = match[1] + "=[redacted]"
 			continue
 		}
-		for _, prefix := range []string{"sk-", "ghp_", "github_pat_", "gho_", "ghs_", "ghu_"} {
-			if at := strings.Index(line, prefix); at >= 0 {
-				end := at
-				for end < len(line) && !strings.ContainsRune(" \t\r\n\"'", rune(line[end])) {
-					end++
-				}
-				line = line[:at] + "[redacted]" + line[end:]
-			}
-		}
-		lines[i] = line
+		line = authorizationPattern.ReplaceAllString(line, "$1[redacted]")
+		lines[i] = secretTokenPattern.ReplaceAllString(line, "[redacted]")
 	}
 	return strings.Join(lines, "\n")
 }

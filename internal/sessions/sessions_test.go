@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestScanClaudeDefensiveParsingAndRedaction(t *testing.T) {
@@ -137,5 +138,50 @@ func TestRedactPrivateKeyBlock(t *testing.T) {
 	got := redact("before\n-----BEGIN PRIVATE KEY-----\nSECRET MATERIAL\n-----END PRIVATE KEY-----\nafter")
 	if strings.Contains(got, "SECRET MATERIAL") || !strings.Contains(got, "[redacted]") || !strings.Contains(got, "after") {
 		t.Fatalf("redaction failed: %q", got)
+	}
+}
+
+func TestRedactCredentialShapesWithoutChangingBenignText(t *testing.T) {
+	input := "<task-id> 0123456789abcdef0123456789abcdef 550e8400-e29b-41d4-a716-446655440000\n" +
+		"Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature\n" +
+		"AWS AKIA1234567890ABCDEF\n" +
+		"XOX xoxb-1234567890-abcdef123456\n" +
+		"GITHUB ghp_abcdefghijklmnopqrstuvwxyz1234567890\n" +
+		"SERVICE_URL=https://example.test/.env/path\n" +
+		"OPENAI_API_KEY=sk-1234567890abcdefghijklmnop"
+	got := redact(input)
+	for _, benign := range []string{"<task-id>", "0123456789abcdef0123456789abcdef", "550e8400-e29b-41d4-a716-446655440000", "SERVICE_URL=https://example.test/.env/path"} {
+		if !strings.Contains(got, benign) {
+			t.Errorf("benign text %q was changed: %q", benign, got)
+		}
+	}
+	for _, secret := range []string{"eyJhbGciOiJIUzI1NiJ9", "AKIA1234567890ABCDEF", "xoxb-1234567890-abcdef123456", "ghp_abcdefghijklmnopqrstuvwxyz1234567890", "sk-1234567890abcdefghijklmnop"} {
+		if strings.Contains(got, secret) {
+			t.Errorf("secret %q was not removed: %q", secret, got)
+		}
+	}
+	if !strings.Contains(got, "OPENAI_API_KEY=[redacted]") {
+		t.Fatalf("secret-looking environment assignment was not redacted: %q", got)
+	}
+}
+
+func TestClassifyStatusUsesRecentTranscriptOrLiveProcess(t *testing.T) {
+	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name         string
+		updatedAt    time.Time
+		processAlive bool
+		want         string
+	}{
+		{name: "recent transcript", updatedAt: now.Add(-9 * time.Second), want: "working"},
+		{name: "old transcript", updatedAt: now.Add(-11 * time.Second), want: "done"},
+		{name: "live process", updatedAt: now.Add(-time.Hour), processAlive: true, want: "working"},
+		{name: "future timestamp", updatedAt: now.Add(time.Second), want: "done"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := classifyStatus(tc.updatedAt, now, tc.processAlive); got != tc.want {
+				t.Fatalf("classifyStatus() = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

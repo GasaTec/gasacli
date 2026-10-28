@@ -726,6 +726,19 @@ func TestLaunchCodeAuthenticatesProjectsAndSSE(t *testing.T) {
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("login status=%d", response.StatusCode)
 	}
+	response, err = client.Get(server.URL + "/api/capabilities")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var capabilities sessions.Capabilities
+	if err := json.NewDecoder(response.Body).Decode(&capabilities); err != nil {
+		response.Body.Close()
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK || capabilities.Send {
+		t.Fatalf("default sender capabilities = %#v, status=%d", capabilities, response.StatusCode)
+	}
 	configText := "web:\n  mode: auto\n  host: 127.0.0.1\n  port: 3199\n  fallback_port: true\n"
 	if err := os.WriteFile(filepath.Join(home, "config.yaml"), []byte(configText), 0600); err != nil {
 		t.Fatal(err)
