@@ -102,6 +102,7 @@ func TestInteractiveWelcomeAndEnterSends(t *testing.T) {
 
 func TestInteractiveWelcomeGoldenTerminalSizes(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
+	t.Setenv("TERM", "dumb")
 	for _, size := range []struct{ width, height int }{{80, 24}, {120, 36}} {
 		name := fmt.Sprintf("welcome-%dx%d.golden", size.width, size.height)
 		t.Run(name, func(t *testing.T) {

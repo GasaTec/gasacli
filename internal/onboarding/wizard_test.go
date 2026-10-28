@@ -52,6 +52,7 @@ func TestWizardScreenViews(t *testing.T) {
 
 func TestWizardGoldenTerminalSizes(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
+	t.Setenv("TERM", "dumb")
 	for _, size := range []struct{ width, height int }{{80, 24}, {120, 36}} {
 		for _, screen := range []struct {
 			name string
