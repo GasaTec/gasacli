@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI � Workspace Shell: Barra Lateral e Abas</title>
+<style>
+    /* Reset & Design System Tokens according to DESIGN.md */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0B1220;
+      --surface: #111C2E;
+      --elevated: #1B2A40;
+      --border: #596982;
+      --text-primary: #F4F7FB;
+      --text-secondary: #C3CFDF;
+      --text-muted: #9AAAC0;
+      --accent: #1ECFA5;
+      --accent-ink: #172A46;
+      --success: #43D19E;
+      --warning: #F2B84B;
+      --danger: #FF7272;
+      --info: #79B8FF;
+      --status-working: #F2B84B;
+      --status-done: #43D19E;
+      --status-idle: #9AA3B2;
+      --status-error: #FF7272;
+      --status-ready: #1ECFA5;
+      --navy-brand: #172A46;
+      --teal-brand: #1ECFA5;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    .font-code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    /* Focus styling */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Top Application Bar */
+    header.app-header {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 30;
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* Canonical G + chevron logo mark representation */
+    .logo-mark {
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--navy-brand);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .logo-mark svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    .brand-chevron {
+      color: var(--teal-brand);
+      margin-left: 2px;
+    }
+
+    .header-context {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background-color: var(--elevated);
+      border: 1px solid var(--border);
+      font-size: 11px;
+    }
+
+    .drawer-toggles {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-icon:hover {
+      background-color: var(--elevated);
+      color: var(--text-primary);
+    }
+
+    /* Layout Shell: 3-pane Orca-like */
+    main.workspace-shell {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      position: relative;
+    }
+
+    /* Left Drawer: Navigation & Sessions */
+    aside.sidebar-left {
+      width: 300px;
+      background-color: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.15s ease;
+      z-index: 20;
+    }
+
+    .search-box {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .input-field {
+      width: 100%;
+      background-color: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .input-field::placeholder {
+      color: var(--text-muted);
+    }
+
+    .sidebar-section {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-header {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    .tree-item:hover {
+      background-color: var(--elevated);
+      color: var(--text-primary);
+    }
+
+    .tree-item.selected {
+      background-color: var(--elevated);
+      border-color: var(--accent);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .tree-item.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .item-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .dot-ready { background-color: var(--status-ready); }
+    .dot-working { background-color: var(--status-working); }
+    .dot-idle { background-color: var(--status-idle); }
+    .dot-error { background-color: var(--status-error); }
+
+    /* Center Content & Tabs */
+    section.center-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background-color: var(--bg);
+    }
+
+    .tabs-bar {
+      display: flex;
+      align-items: center;
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 8px;
+      gap: 2px;
+      overflow-x: auto;
+    }
+
+    .tab-button {
+      background-color: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .tab-button:hover {
+      color: var(--text-primary);
+      background-color: var(--elevated);
+    }
+
+    .tab-button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background-color: var(--elevated);
+    }
+
+    .tab-close {
+      color: var(--text-muted);
+      font-size: 12px;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    .tab-close:hover {
+      color: var(--danger);
+      background-color: rgba(255, 114, 114, 0.1);
+    }
+
+    .workspace-content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Content Cards */
+    .card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .session-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 12px 16px;
+      background-color: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .session-info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      width: 100%;
+      margin-top: 8px;
+      font-size: 12px;
+    }
+
+    .info-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .info-label {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .info-value {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: var(--accent-ink);
+      border: 1px solid var(--accent);
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary:hover {
+      background-color: #26e0b4;
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--elevated);
+    }
+
+    .btn-disabled {
+      background-color: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    /* States Section Grid */
+    .states-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .state-box {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      background-color: var(--surface);
+      font-size: 12px;
+    }
+
+    .state-header {
+      font-weight: 600;
+      font-size: 12px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Right Collapsible Pane: Changes / Checks / Info */
+    aside.sidebar-right {
+      width: 310px;
+      background-color: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.15s ease;
+      z-index: 20;
+    }
+
+    .inspector-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--surface);
+    }
+
+    .inspector-tab {
+      flex: 1;
+      padding: 8px 4px;
+      text-align: center;
+      background-color: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .inspector-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background-color: var(--elevated);
+    }
+
+    .inspector-tab:hover {
+      color: var(--text-primary);
+    }
+
+    .inspector-body {
+      padding: 14px;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.2);
+      padding-bottom: 6px;
+    }
+
+    /* Bottom Status / Privacy Bar */
+    footer.app-footer {
+      background-color: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+      gap: 8px;
+      z-index: 30;
+    }
+
+    .shortcuts-strip {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .shortcut-tag {
+      background-color: var(--elevated);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-primary);
+    }
+
+    .privacy-text {
+      color: var(--text-muted);
+    }
+
+    /* Responsive / Mobile Drawer collapsing */
+    @media (max-width: 900px) {
+      aside.sidebar-left,
+      aside.sidebar-right {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        height: 100%;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      }
+
+      aside.sidebar-left {
+        left: 0;
+        transform: translateX(-100%);
+      }
+
+      aside.sidebar-left.open {
+        transform: translateX(0);
+      }
+
+      aside.sidebar-right {
+        right: 0;
+        transform: translateX(100%);
+      }
+
+      aside.sidebar-right.open {
+        transform: translateX(0);
+      }
+    }
+  </style>
+</head>
+<body>
+<!-- 1. Top Navigation / Application Header -->
+<header aria-label="Cabe�alho do workspace GasaCLI" class="app-header" role="banner">
+<div style="display: flex; align-items: center; gap: 14px;">
+<button aria-label="Alternar barra lateral esquerda" class="btn-icon" id="toggle-left" title="Alternar navega��o">[1] Painel</button>
+<!-- Canonical Brand Wordmark -->
+<a class="brand-lockup font-code" href="#workspace">
+<div aria-hidden="true" class="logo-mark">
+<!-- Navy & Teal SVG chevron prompt mark -->
+<svg fill="none" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 4C7.58 4 4 7.58 4 12C4 16.42 7.58 20 12 20C15.6 20 18.63 17.65 19.63 14.4H12V11H20C20 11 20 11.5 20 12C20 16.42 16.42 20 12 20" stroke="#172A46" stroke-linecap="round" stroke-width="2"></path>
+<path d="M10 9L13 12L10 15" stroke="#1ECFA5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+</svg>
+</div>
+<span class="brand-title">G<span class="brand-chevron">&gt;</span> gasacli</span>
+</a>
+</div>
+<!-- Center Context (Project / Dispatch) -->
+<div class="header-context font-code">
+<span>Projeto: <strong>vitrine-api</strong></span>
+<span>�</span>
+<span>Worktree: <strong>feature/catalogo</strong></span>
+</div>
+<!-- Right Utility Actions -->
+<div class="drawer-toggles">
+<button aria-label="Alternar inspetor lateral direito" class="btn-icon font-code" id="toggle-right">[2] Inspetor</button>
+</div>
+</header>
+<!-- 2. Workspace Shell (Three-Pane Layout) -->
+<main class="workspace-shell" id="workspace" role="main">
+<!-- LEFT DRAWER: Search, Projects, Worktrees, Sessions -->
+<aside aria-label="Navega��o do Workspace" class="sidebar-left" id="sidebar-left" role="navigation">
+<!-- Search Input -->
+<div class="search-box">
+<label class="font-code" for="search-projects" style="display: block; font-size: 11px; margin-bottom: 4px; color: var(--text-muted);">BUSCA NO WORKSPACE</label>
+<input class="input-field font-code" id="search-projects" placeholder="Filtrar projetos, worktrees ou sess�es..." type="search" value=""/>
+</div>
+<!-- Navigation & Projects Section -->
+<div class="sidebar-section">
+<div class="section-header">
+<span>Projetos Registrados</span>
+<span class="font-code" style="color: var(--text-muted);">2 itens</span>
+</div>
+<ul class="item-list font-code" role="list">
+<li>
+<a aria-current="page" class="tree-item selected" href="#vitrine-api">
+<div style="display: flex; align-items: center; gap: 8px;">
+<span aria-hidden="true" class="status-dot dot-ready"></span>
+<span>vitrine-api</span>
+</div>
+<span class="item-meta">ativo</span>
+</a>
+</li>
+<li>
+<a class="tree-item" href="#loja-aurora">
+<div style="display: flex; align-items: center; gap: 8px;">
+<span aria-hidden="true" class="status-dot dot-idle"></span>
+<span>loja-aurora</span>
+</div>
+<span class="item-meta">ocioso</span>
+</a>
+</li>
+</ul>
+</div>
+<!-- Worktrees Section -->
+<div class="sidebar-section">
+<div class="section-header">
+<span>Worktrees (vitrine-api)</span>
+</div>
+<ul class="item-list font-code" role="list"><li><div class="tree-item selected"><span style="color: var(--accent);">feature/catalogo</span><span class="item-meta">atual</span></div></li></ul>
+</div>
+<!-- Sessions with Model / Status / Age -->
+<div class="sidebar-section" style="flex: 1; overflow-y: auto;">
+<div class="section-header">
+<span>Sess�es &amp; Execu��es (Runs)</span>
+</div>
+<ul class="item-list font-code" role="list"><li><div class="tree-item selected"><div style="display: flex; flex-direction: column; gap: 2px;"><div style="display: flex; align-items: center; gap: 6px;"><span style="font-weight: 600; color: var(--text-primary);">Claude</span></div><span style="font-size: 11px; color: var(--text-secondary);">gpt-6-luna</span></div><span class="item-meta" style="align-self: flex-start;">8 min</span></div></li></ul>
+</div>
+</aside>
+<!-- CENTER PANE: Workspace Tabs & Content -->
+<section aria-label="�rea de trabalho principal" class="center-pane">
+<!-- Workspace Tabs -->
+<nav aria-label="Abas do Workspace" class="tabs-bar" role="tablist"><button aria-controls="panel-workspace" aria-selected="true" class="tab-button active font-code" role="tab"><span>Workspace</span></button><button aria-controls="panel-terminal" aria-selected="false" class="tab-button font-code" role="tab"><span>Terminal TUI</span></button></nav>
+<!-- Workspace Body Content -->
+<div class="workspace-content" id="panel-task" role="tabpanel"><article class="card"><div class="card-title"><div style="display: flex; align-items: center; gap: 8px;"><span>Sess�o: Claude</span></div><span class="font-code" style="font-size: 12px; color: var(--text-muted);">8 min</span></div><div class="session-banner font-code"><div class="info-cell"><span class="info-label">PROJETO</span><span class="info-value">vitrine-api</span></div><div class="info-cell"><span class="info-label">WORKTREE</span><span class="info-value">feature/catalogo</span></div><div class="info-cell"><span class="info-label">AGENTE</span><span class="info-value">Claude</span></div><div class="info-cell"><span class="info-label">MODELO</span><span class="info-value">gpt-6-luna</span></div></div><div class="session-info-grid font-code"><div class="info-cell"><span class="info-label">DISPATCH</span><span class="info-value">N/D</span></div><div class="info-cell"><span class="info-label">TENTATIVA</span><span class="info-value">N/D</span></div><div class="info-cell"><span class="info-label">TOKENS</span><span class="info-value">N/D</span></div><div class="info-cell"><span class="info-label">CUSTO</span><span class="info-value">N/D</span></div></div></article><div class="card font-code" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; border-style: dashed;"><span style="font-size: 20px; color: var(--text-muted); margin-bottom: 8px;">�</span><span style="font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 4px;">�rea de Trabalho</span><span style="font-size: 12px; color: var(--text-muted);">Nenhum item em execu��o no momento. Selecione uma a��o ou abra o terminal.</span></div></div>
+</section>
+<!-- RIGHT COLLAPSIBLE DRAWER: Changes / Checks / Info -->
+<aside aria-label="Painel de Modifica��es e Verifica��es" class="sidebar-right" id="sidebar-right" role="complementary">
+<!-- Drawer Navigation Tabs -->
+<div class="inspector-tabs font-code">
+<button aria-selected="true" class="inspector-tab active" type="button">Mudan�as</button>
+<button aria-selected="false" class="inspector-tab" type="button">Verifica��es</button>
+<button aria-selected="false" class="inspector-tab" type="button">Info</button>
+</div>
+<!-- Inspector Body -->
+<div class="inspector-body font-code"><div><span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 8px;">MUDAN�AS</span><div style="background-color: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 12px; font-size: 12px; color: var(--text-muted); text-align: center;">Nenhum item registrado</div></div><div><span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 8px;">VERIFICA��ES</span><div class="info-list"><div class="info-row"><span style="color: var(--text-secondary);">Status de valida��o:</span><span style="color: var(--text-muted);">N/D</span></div><div class="info-row"><span style="color: var(--text-secondary);">Inspe��o:</span><span style="color: var(--text-muted);">N/D</span></div></div></div><div><span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 8px;">INFORMA��ES</span><div class="info-list"><div class="info-row"><span style="color: var(--text-secondary);">Contexto ativo:</span><span style="color: var(--text-primary);">vitrine-api</span></div><div class="info-row"><span style="color: var(--text-secondary);">Worktree:</span><span style="color: var(--text-primary);">feature/catalogo</span></div><div class="info-row"><span style="color: var(--text-secondary);">Agente:</span><span style="color: var(--text-primary);">Claude (gpt-6-luna)</span></div><div class="info-row"><span style="color: var(--text-secondary);">Tempo:</span><span style="color: var(--text-muted);">8 min</span></div></div></div></div>
+</aside>
+</main>
+<!-- 3. Bottom Status / Privacy Bar -->
+<footer class="app-footer font-code" role="contentinfo">
+<div class="shortcuts-strip">
+<span><span class="shortcut-tag">[1]</span> Barra Lateral</span>
+<span><span class="shortcut-tag">[2]</span> Inspetor</span>
+<span><span class="shortcut-tag">[Tab]</span> Alternar Painel</span>
+<span><span class="shortcut-tag">[Enter]</span> A��o Segura</span>
+<span><span class="shortcut-tag">[Esc]</span> Voltar</span>
+</div>
+<!-- Mandatory verbatim Brazilian Portuguese privacy sentence -->
+<div class="privacy-text">
+      O GasaCLI n�o coleta telemetria; cada agente segue a pol�tica do seu provedor.
+    </div>
+</footer>
+<!-- Script for accessible panel collapsing & drawer toggling -->
+<script>
+    const btnLeft = document.getElementById('toggle-left');
+    const btnRight = document.getElementById('toggle-right');
+    const sideLeft = document.getElementById('sidebar-left');
+    const sideRight = document.getElementById('sidebar-right');
+
+    if (btnLeft && sideLeft) {
+      btnLeft.addEventListener('click', () => {
+        sideLeft.classList.toggle('open');
+        const isCollapsed = sideLeft.style.display === 'none';
+        sideLeft.style.display = isCollapsed ? 'flex' : 'none';
+      });
+    }
+
+    if (btnRight && sideRight) {
+      btnRight.addEventListener('click', () => {
+        sideRight.classList.toggle('open');
+        const isCollapsed = sideRight.style.display === 'none';
+        sideRight.style.display = isCollapsed ? 'flex' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

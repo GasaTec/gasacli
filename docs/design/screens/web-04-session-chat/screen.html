@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI — Visualização de Chat da Sessão</title>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-background": "#e4e2e5",
+            "on-secondary-fixed": "#002117",
+            "tertiary": "#e7c08b",
+            "surface-light": "#FFFFFF",
+            "secondary-container": "#00c59c",
+            "outline-variant": "#596982",
+            "on-tertiary-fixed": "#291800",
+            "inverse-surface": "#e4e2e5",
+            "elevated-light": "#FFFFFF",
+            "tertiary-fixed": "#ffddb1",
+            "surface-container": "#1B2A40",
+            "surface": "#111C2E",
+            "on-primary-fixed": "#061c37",
+            "success-light": "#137A54",
+            "danger-light": "#B4232F",
+            "success-dark": "#43D19E",
+            "surface-container-low": "#111C2E",
+            "text-primary-light": "#172A46",
+            "background-light": "#F4F7FB",
+            "on-secondary": "#00382a",
+            "on-primary": "#1e314d",
+            "secondary-fixed": "#61fbcf",
+            "on-tertiary-container": "#ad8b5b",
+            "surface-dim": "#0B1220",
+            "info-dark": "#79B8FF",
+            "on-primary-container": "#7f92b3",
+            "on-surface-variant": "#c4c6ce",
+            "danger-dark": "#FF7272",
+            "surface-container-highest": "#343537",
+            "background": "#0B1220",
+            "warning-light": "#8A5600",
+            "info-light": "#145FA8",
+            "error-container": "#93000a",
+            "on-error": "#690005",
+            "surface-dark": "#111C2E",
+            "surface-container-lowest": "#0B1220",
+            "text-primary-dark": "#F4F7FB",
+            "error": "#ffb4ab",
+            "primary-fixed": "#d6e3ff",
+            "on-tertiary": "#432c04",
+            "warning-dark": "#F2B84B",
+            "secondary": "#1ECFA5",
+            "border-light": "#8996A8",
+            "primary-container": "#172a46",
+            "elevated-dark": "#1B2A40",
+            "background-dark": "#0B1220",
+            "text-secondary-dark": "#C3CFDF",
+            "text-muted-light": "#5B6B80",
+            "surface-tint": "#b5c7eb",
+            "surface-bright": "#39393b",
+            "outline": "#8996A8",
+            "surface-variant": "#1B2A40",
+            "text-secondary-light": "#44546A",
+            "tertiary-fixed-dim": "#e7c08b",
+            "on-tertiary-fixed-variant": "#5c4218",
+            "inverse-primary": "#4d5f7e",
+            "on-secondary-container": "#004b3a",
+            "text-muted-dark": "#9AAAC0",
+            "inverse-on-surface": "#303033",
+            "on-primary-fixed-variant": "#354765",
+            "primary": "#b5c7eb",
+            "on-error-container": "#ffdad6",
+            "border-dark": "#596982",
+            "on-secondary-fixed-variant": "#00513f",
+            "primary-fixed-dim": "#b5c7eb",
+            "secondary-fixed-dim": "#3bdeb3",
+            "on-surface": "#F4F7FB",
+            "surface-container-high": "#1B2A40",
+            "tertiary-container": "#3b2500"
+          },
+          borderRadius: {
+            DEFAULT: "0.125rem",
+            lg: "0.25rem",
+            xl: "0.5rem",
+            full: "0.75rem"
+          },
+          spacing: {
+            "space-3xl": "40px",
+            "space-sm": "8px",
+            "space-2xl": "32px",
+            "space-xl": "24px",
+            "space-md": "12px",
+            "space-lg": "16px",
+            "space-4xl": "48px",
+            "space-xs": "4px",
+            margin: "24px",
+            gutter: "24px"
+          },
+          fontFamily: {
+            "section-title": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "page-title": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "body": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "metadata": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "hero": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],
+            "code": ["\"ui-monospace, SFMono-Regular, Consolas, monospace\""],
+            "body-emphasized": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""]
+          },
+          fontSize: {
+            "section-title": ["16px", { lineHeight: "24px", fontWeight: "600" }],
+            "page-title": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+            "body": ["13px", { lineHeight: "19px", fontWeight: "400" }],
+            "metadata": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+            "hero": ["28px", { lineHeight: "34px", fontWeight: "600" }],
+            "code": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+            "body-emphasized": ["14px", { lineHeight: "21px", fontWeight: "500" }]
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-background-dark text-on-surface font-body text-body min-h-screen flex flex-col antialiased select-none overflow-hidden">
+<!-- TOP SHELL HEADER -->
+<header class="w-full h-10 bg-surface-container-lowest border-b border-border-dark flex items-center justify-between px-space-md z-40 shrink-0">
+<div class="flex items-center gap-space-md">
+<!-- Plain Bold Wordmark -->
+<span class="font-code text-body-emphasized font-bold text-secondary tracking-tight select-none">G&gt; gasacli</span>
+<div class="h-4 w-px bg-border-dark"></div>
+<!-- Scope Context Indicators -->
+<div class="flex items-center gap-space-sm font-code text-metadata">
+<span class="text-text-muted-dark">PROJETO:</span>
+<span class="text-on-surface bg-surface px-space-xs py-0.5 border border-border-dark rounded-DEFAULT">vitrine-api</span>
+<span class="text-text-muted-dark">WORKTREE:</span>
+<span class="text-on-surface bg-surface px-space-xs py-0.5 border border-border-dark rounded-DEFAULT">feature/catalogo</span>
+</div>
+</div>
+<!-- Center Session Tabs -->
+<nav aria-label="Abas da Sessão" class="flex items-center h-full">
+<button class="h-full px-space-md font-code text-metadata text-text-muted-dark hover:text-on-surface border-b-2 border-transparent transition-none">
+        Workspace
+      </button>
+<button class="h-full px-space-md font-code text-metadata text-secondary font-bold border-b-2 border-secondary bg-surface-container-low transition-none">
+        Chat da Sessão
+      </button>
+<button class="h-full px-space-md font-code text-metadata text-text-muted-dark hover:text-on-surface border-b-2 border-transparent transition-none">
+        Terminal TUI
+      </button>
+</nav>
+<!-- Header Actions & Shortcuts -->
+<div class="flex items-center gap-space-sm font-code text-metadata">
+<button class="px-space-xs py-0.5 border border-border-dark text-text-muted-dark hover:text-on-surface hover:border-secondary transition-none" id="toggle-sidebar-btn">
+        [1] Painel
+      </button>
+<button class="px-space-xs py-0.5 border border-border-dark text-text-muted-dark hover:text-on-surface hover:border-secondary transition-none" id="toggle-inspector-btn">
+        [2] Inspetor
+      </button>
+</div>
+</header>
+<!-- 3-PANE WORKSPACE BODY -->
+<main class="flex-1 flex overflow-hidden w-full relative">
+<!-- LEFT PANE: SESSIONS LIST -->
+<aside class="w-64 md:w-72 bg-surface border-r border-border-dark flex flex-col shrink-0 z-20" id="sidebar-pane">
+<!-- Search Input -->
+<div class="p-space-sm border-b border-border-dark">
+<label class="sr-only" for="session-filter">Filtrar sessões</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2 text-text-muted-dark text-[16px] pointer-events-none" data-icon="search">search</span>
+<input class="w-full bg-background border border-border-dark rounded-DEFAULT py-1 pl-7 pr-2 font-code text-metadata text-on-surface placeholder:text-text-muted-dark focus:border-secondary focus:ring-1 focus:ring-secondary outline-none" id="session-filter" placeholder="Filtrar sessões..." type="text"/>
+</div>
+</div>
+<!-- Session Section Label -->
+<div class="px-space-sm py-1.5 bg-surface-container-low border-b border-border-dark flex items-center justify-between font-code text-metadata"><span class="text-text-muted-dark font-bold">SESSÕES DETECTADAS [N/D]</span><span class="text-text-muted-dark text-[10px]">N/D</span></div>
+<!-- Sessions List (Exactly 1 Active Session) -->
+<div class="flex-1 overflow-y-auto p-space-xs space-y-1">
+<div class="p-space-sm bg-surface-container border rounded-DEFAULT cursor-pointer flex flex-col gap-1 border-border-dark"><div class="flex items-center justify-between font-code text-metadata"><span class="font-bold text-on-surface flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-border-dark"></span>Codex CLI</span><span class="text-text-muted-dark">ID: N/D</span></div><div class="font-body text-metadata text-text-muted-dark truncate">Ajustar busca do catálogo</div><div class="flex items-center justify-between font-code text-[11px] text-text-muted-dark pt-1 border-t border-border-dark"><span>MODELO: N/D</span><span>REGISTRO: N/D</span></div></div>
+</div>
+<!-- Left Pane Footnote -->
+<div class="p-space-sm border-t border-border-dark bg-surface-container-lowest font-code text-metadata text-text-muted-dark flex items-center justify-between"><span>STATUS: N/D</span><span>CONEXÃO: N/D</span></div>
+</aside>
+<!-- CENTER PANE: SESSION CHAT VIEW -->
+<section class="flex-1 bg-background flex flex-col min-w-0 z-10 overflow-hidden">
+<!-- Session Header Bar -->
+<header class="h-10 bg-surface border-b border-border-dark px-space-md flex items-center justify-between shrink-0">
+<div class="flex items-center gap-space-md font-code text-metadata truncate">
+<div class="flex items-center gap-1.5">
+<span class="text-text-muted-dark font-bold">WORKER:</span>
+<span class="text-secondary font-bold">Codex CLI</span>
+</div>
+<div class="h-3 w-px bg-border-dark"></div>
+<div class="flex items-center gap-1.5 truncate">
+<span class="text-text-muted-dark font-bold">TAREFA:</span>
+<span class="text-on-surface truncate">Ajustar busca do catálogo</span>
+</div>
+</div>
+<div class="flex items-center gap-space-md font-code text-metadata text-text-muted-dark shrink-0">
+<span>DESPACHO: N/D</span>
+<div class="h-3 w-px bg-border-dark"></div>
+<span>RUN: N/D</span>
+</div>
+</header>
+<!-- Message Stream -->
+<div class="flex-1 overflow-y-auto p-space-lg space-y-space-lg"><!-- Section 1: Estado de execução -->
+<div class="border border-border-dark rounded-DEFAULT bg-surface-container-low p-space-sm flex items-center justify-between font-code text-metadata">
+<div class="flex items-center gap-space-sm">
+<span class="text-text-muted-dark font-bold">ESTADO DE EXECUÇÃO:</span>
+<span class="text-on-surface">N/D</span>
+</div>
+<div class="flex items-center gap-space-md text-text-muted-dark text-[11px]">
+<span>DESPACHO: N/D</span>
+<span class="h-3 w-px bg-border-dark"></span>
+<span>TEMPO DECORRIDO: N/D</span>
+</div>
+</div>
+<!-- Section 2: Indicador de pensamento -->
+<div class="border border-border-dark rounded-DEFAULT bg-surface p-space-sm flex items-center justify-between font-code text-metadata">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-text-muted-dark text-[16px]">psychology</span>
+<span class="text-text-muted-dark font-bold">PENSAMENTO:</span>
+<span class="text-on-surface text-[12px]">N/D</span>
+</div>
+<span class="text-text-muted-dark text-[11px]">[Inativo]</span>
+</div>
+<!-- Section 3: Fluxo de mensagens -->
+<div class="border border-border-dark rounded-DEFAULT bg-surface p-space-lg flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-[32px] text-text-muted-dark mb-2">chat_bubble_outline</span>
+<div class="font-code text-metadata font-bold text-on-surface">Nenhuma mensagem registrada</div>
+<div class="font-code text-metadata text-text-muted-dark mt-1">Nenhuma atividade de mensagem disponível nesta sessão.</div>
+<div class="mt-space-md pt-space-sm border-t border-border-dark flex items-center gap-space-lg font-code text-metadata text-text-muted-dark">
+<div>USO DE TOKENS: <span class="text-on-surface">N/D</span></div>
+<div class="h-3 w-px bg-border-dark"></div>
+<div>CUSTO: <span class="text-on-surface">N/D</span></div>
+</div>
+</div>
+<!-- Section 4: Chamadas de ferramentas (colapsadas) -->
+<div class="border border-border-dark rounded-DEFAULT bg-surface-container-low p-space-sm flex flex-col gap-1 font-code text-metadata">
+<div class="flex items-center justify-between text-text-muted-dark font-bold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">handyman</span>
+<span>CHAMADAS DE FERRAMENTAS [0]</span>
+</div>
+<span class="text-[11px] text-text-muted-dark font-normal">Colapsado</span>
+</div>
+<div class="text-text-muted-dark text-[11px] pt-1 border-t border-border-dark">
+    Nenhuma chamada de ferramenta registrada.
+  </div>
+</div></div>
+<!-- Composer Bar (Restrained / Disabled During Active Run) -->
+<div class="p-space-md bg-surface border-t border-border-dark shrink-0"><div class="border border-border-dark rounded-DEFAULT bg-surface-container-lowest p-space-sm flex flex-col gap-space-sm"><label class="sr-only" for="chat-composer-input">Entrada do comando ou mensagem</label><input class="w-full bg-transparent border-0 font-code text-body text-text-muted-dark cursor-not-allowed focus:ring-0 p-0" disabled="" id="chat-composer-input" readonly="" type="text" value="[Compositor desabilitado (N/D)]"/><div class="flex items-center justify-between pt-space-xs border-t border-border-dark font-code text-metadata"><div class="flex items-center gap-space-sm text-text-muted-dark"><span class="px-space-xs py-0.5 border border-border-dark text-[11px] text-text-muted-dark">[Esc] Voltar</span></div><div class="flex items-center gap-2 text-text-muted-dark text-[11px]"><span>ESTADO: N/D</span></div></div></div></div>
+</section>
+<!-- RIGHT PANE: INSPECTOR -->
+<aside class="w-72 md:w-80 bg-surface border-l border-border-dark flex flex-col shrink-0 z-20" id="inspector-pane">
+<!-- Inspector Tabs -->
+<nav aria-label="Abas do Inspetor" class="h-10 bg-surface-container-low border-b border-border-dark flex items-center shrink-0">
+<button class="flex-1 h-full font-code text-metadata text-text-muted-dark hover:text-on-surface border-b-2 border-transparent transition-none" id="tab-btn-mudancas" onclick="setInspectorTab('mudancas')">
+          Mudanças
+        </button>
+<button class="flex-1 h-full font-code text-metadata text-text-muted-dark hover:text-on-surface border-b-2 border-transparent transition-none" id="tab-btn-verificacoes" onclick="setInspectorTab('verificacoes')">
+          Verificações
+        </button>
+<button class="flex-1 h-full font-code text-metadata text-secondary font-bold border-b-2 border-secondary bg-surface transition-none" id="tab-btn-info" onclick="setInspectorTab('info')">
+          Info
+        </button>
+</nav>
+<!-- Tab Content: Mudanças -->
+<div class="hidden flex-1 p-space-md flex-col items-center justify-center text-center" id="inspector-tab-mudancas">
+<span class="material-symbols-outlined text-[32px] text-text-muted-dark mb-2" data-icon="difference">difference</span>
+<div class="font-code text-metadata font-bold text-on-surface">DIFF DE ARQUIVOS</div>
+<div class="font-code text-metadata text-text-muted-dark mt-1">Nenhum diff confirmado</div>
+</div>
+<!-- Tab Content: Verificações -->
+<div class="hidden flex-1 p-space-md flex-col gap-space-md" id="inspector-tab-verificacoes">
+<div class="font-code text-metadata font-bold text-on-surface border-b border-border-dark pb-1">
+          PORTÕES DE INTEGRIDADE
+        </div>
+<div class="p-space-sm border border-border-dark rounded-DEFAULT bg-surface-container flex flex-col gap-1 font-code text-metadata">
+<div class="flex items-center justify-between">
+<span class="text-on-surface">Testes Unitários</span>
+<span class="text-text-muted-dark">Validação: N/D</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-on-surface">Linter Estático</span>
+<span class="text-text-muted-dark">Validação: N/D</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-on-surface">Compilação TypeScript</span>
+<span class="text-text-muted-dark">Validação: N/D</span>
+</div>
+</div>
+<div class="font-code text-[11px] text-text-muted-dark">
+          Validações acionadas automaticamente após a finalização do despacho.
+        </div>
+</div>
+<!-- Tab Content: Info (Default active) -->
+<div class="flex-1 p-space-md flex flex-col gap-space-md overflow-y-auto" id="inspector-tab-info"><div class="font-code text-metadata font-bold text-on-surface border-b border-border-dark pb-1">METADADOS FACTUAIS</div><dl class="space-y-space-sm font-code text-metadata"><div class="p-space-xs border-b border-border-dark flex justify-between"><dt class="text-text-muted-dark">Projeto:</dt><dd class="text-on-surface font-bold">vitrine-api</dd></div><div class="p-space-xs border-b border-border-dark flex justify-between"><dt class="text-text-muted-dark">Worktree:</dt><dd class="text-on-surface font-bold">feature/catalogo</dd></div><div class="p-space-xs border-b border-border-dark flex justify-between"><dt class="text-text-muted-dark">Worker:</dt><dd class="text-secondary font-bold">Codex CLI</dd></div><div class="p-space-xs border-b border-border-dark flex justify-between"><dt class="text-text-muted-dark">Modelo:</dt><dd class="text-on-surface">N/D</dd></div><div class="p-space-xs border-b border-border-dark flex justify-between"><dt class="text-text-muted-dark">Sessões:</dt><dd class="text-on-surface">N/D</dd></div><div class="p-space-xs border-b border-border-dark flex justify-between"><dt class="text-text-muted-dark">Isolamento:</dt><dd class="text-text-muted-dark">N/D</dd></div></dl></div>
+</aside>
+</main>
+<!-- FOOTER STATUS BAR -->
+<footer class="h-8 bg-surface-container-lowest border-t border-border-dark px-space-md flex items-center justify-between shrink-0 font-code text-metadata z-40">
+<!-- Left: Shortcuts Hints -->
+<div class="flex items-center gap-space-md text-text-muted-dark truncate">
+<span class="hover:text-on-surface">[1] Barra Lateral</span>
+<span class="hover:text-on-surface">[2] Inspetor</span>
+<span class="hover:text-on-surface">[Tab] Navegar Foco</span>
+<span class="hover:text-on-surface">[Esc] Voltar</span>
+</div>
+<!-- Center/Right: Privacy sentence & Explicit Status Label -->
+<div class="flex items-center gap-space-lg shrink-0">
+<span class="text-text-muted-dark text-[11px] hidden lg:inline">
+        O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+      </span>
+<div class="flex items-center gap-1.5 font-bold text-text-muted-dark bg-surface px-space-sm py-0.5 border border-border-dark rounded-DEFAULT"><span class="inline-block w-2 h-2 rounded-full bg-border-dark"></span><span>STATUS: N/D</span></div>
+</div>
+</footer>
+<!-- Interactivity Script -->
+<script>
+    function setInspectorTab(tabKey) {
+      const tabs = ['mudancas', 'verificacoes', 'info'];
+      tabs.forEach(tab => {
+        const content = document.getElementById(`inspector-tab-${tab}`);
+        const btn = document.getElementById(`tab-btn-${tab}`);
+        if (tab === tabKey) {
+          content.classList.remove('hidden');
+          content.classList.add('flex');
+          btn.className = 'flex-1 h-full font-code text-metadata text-secondary font-bold border-b-2 border-secondary bg-surface transition-none';
+        } else {
+          content.classList.add('hidden');
+          content.classList.remove('flex');
+          btn.className = 'flex-1 h-full font-code text-metadata text-text-muted-dark hover:text-on-surface border-b-2 border-transparent transition-none';
+        }
+      });
+    }
+
+    // Keyboard and Toggle Bindings
+    const sidebar = document.getElementById('sidebar-pane');
+    const inspector = document.getElementById('inspector-pane');
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+    const toggleInspectorBtn = document.getElementById('toggle-inspector-btn');
+
+    function toggleSidebar() {
+      sidebar.classList.toggle('hidden');
+    }
+
+    function toggleInspector() {
+      inspector.classList.toggle('hidden');
+    }
+
+    toggleSidebarBtn.addEventListener('click', toggleSidebar);
+    toggleInspectorBtn.addEventListener('click', toggleInspector);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '1') {
+        toggleSidebar();
+      } else if (e.key === '2') {
+        toggleInspector();
+      }
+    });
+  </script>
+</body></html>

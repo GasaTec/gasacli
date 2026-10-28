@@ -1,0 +1,20 @@
+{
+    "promptFile":  "docs/design/prompts/web-05-multi-agent-run-dag.md",
+    "stitchScreenId":  "11cb21d0f42c4c2a848919cb7bbd8a07",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept only provided Task values in the graph",
+                                                  "marked unknown Dispatch, budget, role, attempts, reviews and activity as N/D or empty",
+                                                  "preserved exact Portuguese privacy sentence",
+                                                  "PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+                                                   "Stitch still displays extra Run R-203, RUNNING for the Run, pause/diagnostic actions, local/loopback/telemetry claims, and meta-copy after two edit attempts"
+                                               ]
+                      }
+}

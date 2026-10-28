@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI — Visão Geral do Projeto (vitrine-api)</title>
+<style>
+    /* Reset & Base System CSS Variables */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0B1220;
+      --surface: #111C2E;
+      --elevated: #1B2A40;
+      --border: #596982;
+      --border-subtle: #24354D;
+      --text-primary: #F4F7FB;
+      --text-secondary: #C3CFDF;
+      --text-muted: #9AAAC0;
+      --accent: #1ECFA5;
+      --accent-hover: #18b38e;
+      --navy: #172A46;
+      --success: #43D19E;
+      --warning: #F2B84B;
+      --danger: #FF7272;
+      --info: #79B8FF;
+      --idle: #9AA3B2;
+
+      --font-stack: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-stack);
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Focus visible */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Header Shell */
+    header {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 30;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-toggle-pane {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-toggle-pane:hover {
+      background-color: var(--elevated);
+      color: var(--text-primary);
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-decoration: none;
+      user-select: none;
+    }
+
+    .brand-logo-mark {
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .header-center .project-ref {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .header-center .sep {
+      color: var(--border);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-subtle {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg);
+      color: var(--text-muted);
+    }
+
+    /* Main Layout Grid (Orca 3-Pane Shell) */
+    .app-shell {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 48px - 32px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Left Drawer / Sidebar */
+    .sidebar-left {
+      width: 260px;
+      background-color: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    .pane-search-box {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .input-search {
+      width: 100%;
+      background-color: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 4px;
+    }
+
+    .input-search::placeholder {
+      color: var(--text-muted);
+    }
+
+    .sidebar-group {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .sidebar-group-header {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid transparent;
+      margin-bottom: 2px;
+    }
+
+    .nav-item:hover {
+      background-color: var(--elevated);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background-color: var(--elevated);
+      color: var(--text-primary);
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+
+    .dot-ready { background-color: var(--accent); }
+    .dot-idle { background-color: var(--idle); }
+    .dot-warning { background-color: var(--warning); }
+    .dot-danger { background-color: var(--danger); }
+
+    /* Center Content Area */
+    .workspace-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg);
+      overflow-y: auto;
+      min-width: 0;
+    }
+
+    /* Workspace Tabs Bar */
+    .workspace-tabs {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      height: 38px;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 14px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Project Overview Canvas */
+    .overview-scroll {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 1080px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Project Context Banner */
+    .project-header-card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+
+    .project-header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .project-title-area h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+    }
+
+    .path-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background-color: var(--elevated);
+      color: var(--text-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background-color: var(--border-subtle);
+      border-color: var(--text-secondary);
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      border-color: var(--accent);
+      color: var(--navy);
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: var(--border-subtle);
+    }
+
+    .btn-disabled:hover {
+      background-color: var(--elevated);
+      border-color: var(--border-subtle);
+    }
+
+    .project-meta-pills {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-subtle);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .meta-key {
+      color: var(--text-muted);
+    }
+
+    .meta-val {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .pill-trust {
+      background-color: rgba(67, 209, 158, 0.12);
+      border: 1px solid var(--success);
+      color: var(--success);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    /* 4-Card Summary Grid */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .summary-card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .summary-card.focus-state {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .badge-idle {
+      background-color: rgba(154, 163, 178, 0.15);
+      border: 1px solid var(--idle);
+      color: var(--text-secondary);
+    }
+
+    .badge-ready {
+      background-color: rgba(30, 207, 165, 0.15);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+
+    .badge-neutral {
+      background-color: var(--elevated);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    /* Card 1: Latest Run (No Active Run) */
+    .empty-state-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 12px;
+      text-align: center;
+      background-color: var(--bg);
+      border: 1px dashed var(--border-subtle);
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state-icon {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .empty-state-text {
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .empty-state-sub {
+      color: var(--text-muted);
+      font-size: 11px;
+      margin-top: 4px;
+      font-family: var(--font-mono);
+    }
+
+    .fact-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .fact-row:last-child {
+      border-bottom: none;
+    }
+
+    .fact-label {
+      color: var(--text-muted);
+    }
+
+    .fact-value {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* Card 2: Active Agents / Sessions */
+    .agent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .agent-item {
+      background-color: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .agent-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .agent-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .agent-meta-row {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .agent-status-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    /* Card 3: Quality Gates & Verifications */
+    .gates-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .gate-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .gate-name {
+      color: var(--text-primary);
+    }
+
+    .gate-state {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* Card 4: Recent Activity */
+    .activity-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .activity-item {
+      background-color: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .activity-glyph {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent);
+      line-height: 1.4;
+    }
+
+    .activity-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .activity-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .activity-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+
+    /* UI State Variations Section (Default, Focus, Disabled, Loading, Empty, Error) */
+    .states-section {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+
+    .states-header {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .states-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .state-box {
+      background-color: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .state-box-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .state-box-desc {
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .state-box.is-error {
+      border-color: var(--danger);
+    }
+
+    .state-box.is-loading {
+      border-color: var(--warning);
+    }
+
+    /* Right Inspector / Info Pane */
+    .sidebar-right {
+      width: 290px;
+      background-color: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    .inspector-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      height: 38px;
+      flex-shrink: 0;
+    }
+
+    .inspector-tab {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .inspector-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .inspector-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .inspector-card {
+      background-color: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .inspector-card-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .info-item .k {
+      color: var(--text-muted);
+    }
+
+    .info-item .v {
+      color: var(--text-primary);
+      text-align: right;
+    }
+
+    /* Footer Strip */
+    footer {
+      height: 32px;
+      background-color: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      z-index: 30;
+    }
+
+    .footer-shortcuts {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .shortcut-tag {
+      color: var(--text-secondary);
+    }
+
+    .shortcut-tag strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .footer-privacy {
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    /* Responsive Drawer Behaviors */
+    @media (max-width: 1024px) {
+      .overview-grid {
+        grid-template-columns: 1fr;
+      }
+      .states-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .sidebar-right {
+        width: 250px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .app-shell {
+        flex-direction: column;
+        height: auto;
+      }
+      .sidebar-left, .sidebar-right {
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .overview-scroll {
+        padding: 12px;
+      }
+      .states-grid {
+        grid-template-columns: 1fr;
+      }
+      footer {
+        height: auto;
+        padding: 8px 12px;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+<!-- Top App Header -->
+<header aria-label="Cabeçalho Principal do GasaCLI" role="banner">
+<div class="header-left">
+<button aria-label="Alternar painel lateral esquerdo" class="btn-toggle-pane" title="Alternar Barra Lateral [1]">
+<span>[1]</span> Painel
+      </button>
+<a aria-label="GasaCLI Home" class="brand-lockup" href="#">
+<span aria-hidden="true" class="brand-logo-mark">
+<!-- G+chevron canonical mark approximation -->
+<svg fill="none" height="20" viewbox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg">
+<rect fill="#172A46" height="24" rx="4" width="24"></rect>
+<path d="M12 6H7C5.89543 6 5 6.89543 5 8V16C5 17.1046 5.89543 18 7 18H13C14.1046 18 15 17.1046 15 16V12H11" stroke="#F4F7FB" stroke-linecap="round" stroke-width="2"></path>
+<path d="M15 10L19 14L15 18" stroke="#1ECFA5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</span>
+<span>G&gt; gasacli</span>
+</a>
+<span class="badge-subtle">visão geral</span>
+</div>
+<div class="header-center">
+<span>Projeto: <strong class="project-ref">vitrine-api</strong></span>
+<span class="sep">•</span>
+<span>Worktree: <strong>feature/catalogo</strong></span>
+</div>
+<div class="header-right">
+<button aria-label="Alternar painel inspetor direito" class="btn-toggle-pane" title="Alternar Inspetor [2]">
+<span>[2]</span> Inspetor
+      </button>
+</div>
+</header>
+<!-- Main 3-Pane App Shell -->
+<main class="app-shell" role="main">
+<!-- Left Sidebar / Navigation Drawer -->
+<aside aria-label="Navegação do Workspace" class="sidebar-left" role="complementary">
+<div class="pane-search-box">
+<label class="sr-only" for="search-input" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;">Buscar no Workspace</label>
+<input class="input-search" id="search-input" placeholder="Filtrar projetos ou sessões..." type="search" value=""/>
+</div>
+<div class="sidebar-group"><div class="sidebar-group-header"><span>Projetos Registrados</span><span>2 ITENS</span></div><div aria-current="true" class="nav-item active" role="button" tabindex="0"><span><span class="status-dot dot-idle"></span>vitrine-api</span><span class="badge-subtle">N/D</span></div><div class="nav-item" role="button" tabindex="0"><span><span class="status-dot dot-idle"></span>loja-aurora</span><span class="badge-subtle">N/D</span></div></div>
+<div class="sidebar-group">
+<div class="sidebar-group-header">
+<span>Worktrees (vitrine-api)</span>
+<span>1 ITEM</span>
+</div>
+<div class="nav-item active" role="button" tabindex="0">
+<span>↳ feature/catalogo</span>
+<span class="badge-subtle">atual</span>
+</div>
+</div>
+<div class="sidebar-group" style="flex: 1;"><div class="sidebar-group-header"><span>Sessões Detectadas</span><span>2 ITENS</span></div><div aria-label="Sessão Claude" class="nav-item active" role="button" tabindex="0"><div><div style="font-weight: 600;"><span class="status-dot dot-idle"></span>Claude Code</div><div style="font-size: 11px; color: var(--text-muted); margin-left: 13px;">Modelo: N/D</div></div><span style="font-size: 11px; color: var(--text-muted);">N/D</span></div><div aria-label="Sessão Codex CLI" class="nav-item" role="button" tabindex="0"><div><div style="font-weight: 500;"><span class="status-dot dot-idle"></span>Codex CLI</div><div style="font-size: 11px; color: var(--text-muted); margin-left: 13px;">Modelo: N/D</div></div><span style="font-size: 11px; color: var(--text-muted);">N/D</span></div></div>
+<div class="sidebar-group" style="border-bottom: none; background-color: var(--elevated); margin: 8px; border-radius: 6px; padding: 10px;">
+<div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">
+<strong>Terminal 120x36</strong>
+</div>
+<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+          Alternar para a visualização pura de terminal monoespaçado.
+        </div>
+<a class="btn" href="#" style="width: 100%; justify-content: center; font-size: 11px;">
+          Abrir Terminal TUI
+        </a>
+</div>
+</aside>
+<!-- Center Workspace / Project Overview Content -->
+<section aria-label="Visão Geral do Projeto" class="workspace-center">
+<!-- Tabs Bar -->
+<nav aria-label="Abas da Área de Trabalho" class="workspace-tabs" role="tablist">
+<button aria-selected="true" class="tab-btn active" id="tab-overview" role="tab">
+          Visão Geral
+        </button>
+<button aria-selected="false" class="tab-btn" id="tab-workspace" role="tab">
+          Workspace
+        </button>
+<button aria-selected="false" class="tab-btn" id="tab-tui" role="tab">
+          Terminal TUI
+        </button>
+</nav>
+<!-- Scrollable Overview Container -->
+<div class="overview-scroll" style="max-width: 1600px; padding: 18px 24px; gap: 16px;">
+<!-- Project Header / Path / Trust & Branch Context -->
+<article aria-labelledby="project-title" class="project-header-card">
+<div class="project-header-top">
+<div class="project-title-area">
+<h1 id="project-title">
+<span>vitrine-api</span>
+<span class="pill-trust">N/D</span>
+</h1>
+<div class="path-label">
+<span>Caminho do repositório:</span>
+<code style="color: var(--text-primary); background: var(--bg); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-subtle);">~/projetos/vitrine-api</code>
+</div>
+</div>
+<div class="header-actions">
+<button aria-label="Planejar nova execução de meta" class="btn btn-primary">
+<strong>[Enter]</strong> Planejar Meta (/goal)
+              </button>
+<button aria-label="Executar diagnóstico de agentes" class="btn">
+                [d] Diagnóstico (/doctor)
+              </button>
+<button aria-label="Atualizar status do projeto" class="btn">
+                [r] Atualizar
+              </button>
+</div>
+</div>
+<div class="project-meta-pills">
+<div class="meta-item">
+<span class="meta-key">Branch / Worktree:</span>
+<span class="meta-val">feature/catalogo</span>
+</div>
+<div class="meta-item">
+<span class="meta-key">Orquestrador:</span>
+<span class="meta-val">N/D</span>
+</div>
+<div class="meta-item">
+<span class="meta-key">Execuções Ativas:</span>
+<span class="meta-val">nenhuma (no active Run)</span>
+</div>
+<div class="meta-item">
+<span class="meta-key">Sessões Conectadas:</span>
+<span class="meta-val">2 sessões</span>
+</div>
+</div>
+</article>
+<!-- 4-Card Summary Grid -->
+<div class="overview-grid">
+<!-- Card 1: Latest Run (Factual No Active Run) -->
+<article aria-labelledby="card-run-title" class="summary-card focus-state" tabindex="0">
+<div class="card-header">
+<div class="card-title" id="card-run-title">
+<span>Último Run / Execução</span>
+</div>
+<span class="card-badge badge-idle">no active Run</span>
+</div>
+<div class="empty-state-box">
+<div class="empty-state-icon">Ø</div>
+<div class="empty-state-text">Nenhum Run em execução no momento</div>
+<div class="empty-state-sub">Nenhum Run em execução</div>
+</div>
+<div class="fact-row">
+<span class="fact-label">Identificador do Run:</span>
+<span class="fact-value">N/D</span>
+</div>
+<div class="fact-row">
+<span class="fact-label">Tarefa Ativa (Task):</span>
+<span class="fact-value">N/D</span>
+</div>
+<div class="fact-row">
+<span class="fact-label">Worker Designado:</span>
+<span class="fact-value">N/D</span>
+</div>
+<div class="fact-row">
+<span class="fact-label">Despacho (Dispatch):</span>
+<span class="fact-value">N/D</span>
+</div>
+<div class="fact-row">
+<span class="fact-label">Consumo de Tokens:</span>
+<span class="fact-value">N/D (indisponível)</span>
+</div>
+<div class="fact-row">
+<span class="fact-label">Custo Financeiro:</span>
+<span class="fact-value">N/D (indisponível)</span>
+</div>
+</article>
+<!-- Card 2: Active Agents / Sessions -->
+<article aria-labelledby="card-agents-title" class="summary-card"><div class="card-header"><div class="card-title" id="card-agents-title"><span>Agentes e Sessões</span></div><span class="card-badge badge-neutral">2 detectadas</span></div><div class="agent-list"><div class="agent-item"><div class="agent-info"><div class="agent-name-row"><span class="status-dot dot-idle"></span><span>Claude Code</span></div><div class="agent-meta-row"><span>Modelo declarado: <strong>N/D</strong></span></div></div><div style="text-align: right;"><span class="agent-status-tag">N/D</span></div></div><div class="agent-item"><div class="agent-info"><div class="agent-name-row"><span class="status-dot dot-idle"></span><span>Codex CLI</span></div><div class="agent-meta-row"><span>Modelo declarado: <strong>N/D</strong></span></div></div><div style="text-align: right;"><span class="agent-status-tag">N/D</span></div></div></div></article>
+<!-- Card 3: Quality Gates & Verifications -->
+<article aria-labelledby="card-gates-title" class="summary-card"><div class="card-header"><div class="card-title" id="card-gates-title"><span>Portões e Verificações</span></div><span class="card-badge badge-neutral">status N/D</span></div><div class="gates-list"><div class="gate-row"><span class="gate-name">Escrita em arquivos (write_project)</span><span class="gate-state">N/D</span></div><div class="gate-row"><span class="gate-name">Inspeção de diff prévia</span><span class="gate-state">N/D</span></div><div class="gate-row"><span class="gate-name">Credenciais e segredos locais</span><span class="gate-state">N/D</span></div></div><div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">Política efetiva: N/D</div></article>
+<!-- Card 4: Recent Activity Feed -->
+<article aria-labelledby="card-activity-title" class="summary-card"><div class="card-header"><div class="card-title" id="card-activity-title"><span>Atividade Recente</span></div><span class="card-badge badge-neutral">linha do tempo</span></div><div class="empty-state-box" style="margin-bottom: 0; padding: 24px 12px;"><div class="empty-state-icon">Ø</div><div class="empty-state-text">Nenhum evento registrado</div><div class="empty-state-sub">Histórico de atividades: N/D</div></div></article>
+</div>
+<!-- System States Specifications (Default, Focus, Disabled, Loading, Empty, Error) -->
+</div>
+</section>
+<!-- Right Inspector / Info Pane -->
+<aside aria-label="Inspetor do Projeto" class="sidebar-right" role="complementary">
+<div class="inspector-tabs" role="tablist">
+<button aria-selected="false" class="inspector-tab" role="tab">Mudanças</button>
+<button aria-selected="false" class="inspector-tab" role="tab">Verificações</button>
+<button aria-selected="true" class="inspector-tab active" role="tab">Info</button>
+</div>
+<div class="inspector-content"><div class="inspector-card"><div class="inspector-card-title">Contexto do Projeto</div><div class="info-list"><div class="info-item"><span class="k">Identificador:</span><span class="v">vitrine-api</span></div><div class="info-item"><span class="k">Status de Confiança:</span><span class="v">N/D</span></div><div class="info-item"><span class="k">Worktree Ativa:</span><span class="v">feature/catalogo</span></div><div class="info-item"><span class="k">Orquestrador:</span><span class="v">N/D</span></div></div></div><div class="inspector-card"><div class="inspector-card-title">Sessões e Métricas</div><div class="info-list"><div class="info-item"><span class="k">Sessões Detectadas:</span><span class="v">2 sessões</span></div><div class="info-item"><span class="k">Agente Primário:</span><span class="v">N/D</span></div><div class="info-item"><span class="k">Modelo Declarado:</span><span class="v">N/D</span></div><div class="info-item"><span class="k">Duração da Sessão:</span><span class="v">N/D</span></div><div class="info-item"><span class="k">Consumo de Tokens:</span><span class="v">N/D (indisponível)</span></div><div class="info-item"><span class="k">Custo Financeiro:</span><span class="v">N/D (indisponível)</span></div></div></div></div>
+</aside>
+</main>
+<!-- Functional Footer Strip -->
+<footer aria-label="Rodapé do Sistema" role="contentinfo">
+<div class="footer-shortcuts">
+<span class="shortcut-tag"><strong>[1]</strong> Barra Lateral</span>
+<span class="shortcut-tag"><strong>[2]</strong> Inspetor</span>
+<span class="shortcut-tag"><strong>[Enter]</strong> Planejar Meta</span>
+<span class="shortcut-tag"><strong>[Tab]</strong> Navegar Foco</span>
+<span class="shortcut-tag"><strong>[r]</strong> Atualizar</span>
+<span class="shortcut-tag"><strong>[Esc]</strong> Voltar</span>
+</div>
+<div class="footer-privacy">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+</footer>
+</body>
+</html>

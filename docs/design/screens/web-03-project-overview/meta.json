@@ -1,0 +1,20 @@
+{
+    "promptFile":  "docs/design/prompts/web-03-project-overview.md",
+    "stitchScreenId":  "2abbbbdb1234427ba79d8abc1b84f31d",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "unsupported trust/session/activity/policy/model claims changed to N/D or empty states",
+                                                  "removed glossary meta-copy",
+                                                  "preserved exact Portuguese privacy sentence",
+                                                  "PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+                                                   "project list includes loja-aurora and a repository path not specified for this screen; recorded as unresolved after two edit rounds"
+                                               ]
+                      }
+}

@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI — Multi-agent Run e DAG de Tarefas</title>
+<style>
+    /* Design Tokens strictly from DESIGN.md */
+    :root {
+      --bg: #0B1220;
+      --surface: #111C2E;
+      --elevated: #1B2A40;
+      --border: #596982;
+      --border-subtle: #2A3B52;
+      --text-primary: #F4F7FB;
+      --text-secondary: #C3CFDF;
+      --text-muted: #9AAAC0;
+      --accent: #1ECFA5;
+      --accent-ink: #172A46;
+      --brand-navy: #172A46;
+      --success: #43D19E;
+      --warning: #F2B84B;
+      --danger: #FF7272;
+      --info: #79B8FF;
+      --idle: #9AA3B2;
+
+      --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Accessibility focus indicators */
+    a:focus-visible, button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Header Nav */
+    header {
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 30;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .wordmark {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .wordmark span.chevron {
+      color: var(--accent);
+    }
+    .wordmark span.text {
+      color: var(--text-primary);
+    }
+
+    .meta-tag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 2px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 100%;
+    }
+
+    .nav-tab {
+      display: flex;
+      align-items: center;
+      height: 48px;
+      padding: 0 14px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      border-bottom: 2px solid transparent;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-tab:hover {
+      color: var(--text-primary);
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+    .nav-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background-color: rgba(30, 207, 165, 0.06);
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      text-decoration: none;
+      white-space: nowrap;
+      background: transparent;
+      color: var(--text-primary);
+    }
+
+    .btn-secondary {
+      background: var(--elevated);
+      border-color: var(--border);
+      color: var(--text-secondary);
+    }
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: var(--accent-ink);
+      font-weight: 600;
+    }
+    .btn-accent:hover {
+      filter: brightness(1.08);
+    }
+
+    /* Three-Pane Shell */
+    .shell-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 48px - 32px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Left Sidebar: Runs & Worktree Navigation */
+    .sidebar-left {
+      width: 280px;
+      background-color: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    .pane-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-section {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .list-item {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 4px;
+      background: var(--bg);
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 6px;
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .list-item.selected {
+      border-color: var(--accent);
+      background: var(--elevated);
+      color: var(--text-primary);
+    }
+
+    .list-item-title {
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .list-item-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Center Pane: DAG, Run Details & Task List */
+    .main-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background-color: var(--bg);
+      padding: 18px 22px;
+      gap: 16px;
+    }
+
+    /* Run Summary Card */
+    .run-summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+    }
+
+    .run-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .run-id-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .run-badge {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 3px 8px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+    }
+
+    .run-goal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .status-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      text-transform: uppercase;
+    }
+
+    .status-running {
+      background: rgba(242, 184, 75, 0.15);
+      border-color: var(--warning);
+      color: var(--warning);
+    }
+    .status-done {
+      background: rgba(67, 209, 158, 0.15);
+      border-color: var(--success);
+      color: var(--success);
+    }
+    .status-queued {
+      background: rgba(154, 163, 178, 0.15);
+      border-color: var(--idle);
+      color: var(--idle);
+    }
+    .status-nd {
+      background: rgba(154, 170, 192, 0.1);
+      border-color: var(--border-subtle);
+      color: var(--text-muted);
+    }
+
+    .run-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      background: var(--bg);
+      padding: 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .metric-box {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .metric-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .metric-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* DAG Dependency Graph Section */
+    .dag-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+    }
+
+    .dag-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .dag-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dag-canvas {
+      background: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      overflow-x: auto;
+      min-height: 120px;
+    }
+
+    .dag-node {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      min-width: 170px;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .dag-node.active {
+      border-color: var(--warning);
+      box-shadow: 0 0 0 1px var(--warning);
+    }
+    .dag-node.done {
+      border-color: var(--success);
+    }
+    .dag-node.queued {
+      border-color: var(--border-subtle);
+      opacity: 0.85;
+    }
+
+    .dag-node-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .dag-node-id {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .dag-node-role {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .dag-arrow {
+      flex: 1;
+      min-width: 32px;
+      height: 2px;
+      background: var(--border);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .dag-arrow::after {
+      content: '';
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid var(--border);
+      margin-right: -2px;
+    }
+
+    /* Tasks and Dispatches Table */
+    .tasks-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .table-container {
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      overflow-x: auto;
+      background: var(--bg);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    th {
+      background: var(--elevated);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr.row-selected {
+      background: rgba(30, 207, 165, 0.05);
+    }
+    tr.row-selected td {
+      color: var(--text-primary);
+    }
+
+    /* Right Sidebar: Inspector for Selected Task / Checks / Events */
+    .sidebar-right {
+      width: 340px;
+      background-color: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    .inspector-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .info-card {
+      background: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 12px;
+    }
+
+    .info-card-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 0.04em;
+    }
+
+    .kv-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+    .kv-row:last-child {
+      border-bottom: none;
+    }
+
+    .kv-key {
+      color: var(--text-muted);
+    }
+    .kv-val {
+      color: var(--text-primary);
+      font-weight: 500;
+      text-align: right;
+    }
+
+    /* Checks & Review box */
+    .checks-box {
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      background: var(--bg);
+      padding: 12px;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: var(--elevated);
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 8px 0 12px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 33.33%;
+    }
+
+    .event-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .empty-state-notice {
+      padding: 16px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      border: 1px dashed var(--border-subtle);
+      border-radius: 4px;
+      background: var(--bg);
+    }
+
+    /* Footer */
+    footer {
+      height: 32px;
+      background-color: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+      z-index: 30;
+    }
+
+    .footer-left {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .privacy-text {
+      color: var(--text-muted);
+      letter-spacing: -0.01em;
+    }
+
+    /* Responsive Drawer Toggles for Small Screens */
+    .drawer-toggle-btn {
+      display: none;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar-right {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 40;
+        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.4);
+        transform: translateX(100%);
+        transition: transform 0.2s ease-in-out;
+      }
+      .sidebar-right.open {
+        transform: translateX(0);
+      }
+      .drawer-toggle-btn {
+        display: inline-flex;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar-left {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 40;
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
+        transform: translateX(-100%);
+        transition: transform 0.2s ease-in-out;
+      }
+      .sidebar-left.open {
+        transform: translateX(0);
+      }
+      .drawer-toggle-left-btn {
+        display: inline-flex;
+      }
+      .header-nav {
+        display: none;
+      }
+      .main-viewport {
+        padding: 12px;
+      }
+      footer {
+        flex-direction: column;
+        height: auto;
+        padding: 6px 12px;
+        gap: 4px;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+<!-- Top App Bar -->
+<header>
+<div class="header-left">
+<button class="btn btn-secondary drawer-toggle-left-btn" id="toggle-left" style="display:none;" title="Alternar Barra Lateral">[1] Menu</button>
+<div aria-label="GasaCLI" class="wordmark">
+<span class="chevron">G&gt;</span>
+<span class="text">gasacli</span>
+</div>
+<div class="meta-tag">
+<span>PROJETO:</span>
+<strong style="color:var(--text-primary)">vitrine-api</strong>
+</div>
+<div class="meta-tag" style="display: none; @media(min-width: 640px){display: flex;}">
+<span>WORKTREE:</span>
+<span style="color:var(--text-secondary)">feature/catalogo</span>
+</div>
+</div>
+<nav aria-label="Navegação Principal" class="header-nav">
+<a class="nav-tab" href="#overview">Visão Geral</a>
+<a aria-current="page" class="nav-tab active" href="#runs">Goal Run &amp; DAG</a>
+<a class="nav-tab" href="#chat">Chat da Sessão</a>
+<a class="nav-tab" href="#tui">Terminal TUI</a>
+</nav>
+<div class="header-actions">
+<button class="btn btn-secondary drawer-toggle-btn" id="toggle-right" title="Alternar Painel Inspetor">[2] Inspetor</button>
+<button class="btn btn-secondary" title="Atualizar estado do Run">[r] Atualizar</button>
+<button class="btn btn-accent" title="Voltar ao início">[Esc] Voltar</button>
+</div>
+</header>
+<!-- Shell: Three Pane Container -->
+<div class="shell-container">
+<!-- Left Drawer / Pane: Context & Runs List -->
+<aside aria-label="Navegação de Execuções e Worktree" class="sidebar-left" id="sidebar-left">
+<div class="pane-header">
+<span>Navegação de Runs</span>
+<span style="color:var(--accent)">1 Ativo</span>
+</div>
+<div class="sidebar-section">
+<div class="section-title">
+<span>RUN ATUAL</span>
+<span>DISPATCH</span>
+</div>
+<div class="list-item selected" tabindex="0">
+<div class="list-item-title">
+<span style="color:var(--text-primary)">Run R-204</span>
+<span class="status-pill status-running" style="font-size:9px; padding:1px 5px;">RUNNING</span>
+</div>
+<div class="list-item-sub">Meta: "search"</div>
+</div>
+</div>
+</aside>
+<!-- Center Pane: Multi-agent Run & DAG Engine -->
+<main aria-label="Painel de Execução do Grafo de Tarefas" class="main-viewport" id="main-content">
+<!-- Run Header & Goal Card -->
+<section aria-labelledby="run-goal-heading" class="run-summary-card">
+<div class="run-top-row">
+<div class="run-id-lockup">
+<span class="run-badge">RUN R-204</span>
+<h1 class="run-goal-title" id="run-goal-heading">Meta: "search"</h1>
+<span aria-label="Estado da Execução: N/D" class="status-pill status-nd">N/D</span>
+</div>
+</div>
+<div class="run-metrics-grid">
+<div class="metric-box">
+<span class="metric-label">Estado do Run</span>
+<span class="metric-val" style="color:var(--text-muted)">N/D</span>
+</div>
+<div class="metric-box">
+<span class="metric-label">Orçamento (Budget)</span>
+<span class="metric-val" style="color:var(--text-muted)">N/D</span>
+</div>
+<div class="metric-box">
+<span class="metric-label">Consumo de Tokens</span>
+<span class="metric-val" style="color:var(--text-muted)">N/D (indisponível)</span>
+</div>
+<div class="metric-box">
+<span class="metric-label">Custo Estimado</span>
+<span class="metric-val" style="color:var(--text-muted)">N/D (indisponível)</span>
+</div>
+<div class="metric-box">
+<span class="metric-label">Critérios Verificados</span>
+<span class="metric-val" style="color:var(--accent)">1 / 3 critérios</span>
+</div>
+</div>
+</section>
+<!-- DAG (Dependency Graph) Visualization -->
+<section aria-labelledby="dag-heading" class="dag-section">
+<div class="dag-header">
+<h2 class="dag-title" id="dag-heading">
+<span>Grafo de Dependência de Tarefas (DAG)</span>
+<span style="font-size:12px; font-weight:400; color:var(--text-muted); font-family:var(--font-mono);">[Ordem Topológica Respeitada]</span>
+</h2>
+<span style="font-family:var(--font-mono); font-size:11px; color:var(--text-secondary);">3 Tarefas</span>
+</div>
+<div aria-label="Visualização do Grafo de Tarefas" class="dag-canvas" role="region">
+<!-- Node T1 -->
+<div aria-label="Tarefa T1 Concluída" class="dag-node done" tabindex="0">
+<div class="dag-node-header">
+<span class="dag-node-id">T1</span>
+<span class="status-pill status-done" style="font-size:9px; padding:1px 5px;">DONE</span>
+</div>
+<div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:2px;">Tarefa T1</div>
+<div class="dag-node-role">Worker: N/D</div>
+</div>
+<!-- Connector T1 -> T2 -->
+<div aria-hidden="true" class="dag-arrow"></div>
+<!-- Node T2 (Active) -->
+<div aria-label="Tarefa T2 Em Execução, Worker Codex CLI, Modelo gpt-6-luna" class="dag-node active" tabindex="0">
+<div class="dag-node-header">
+<span class="dag-node-id" style="color:var(--warning)">T2 (Foco)</span>
+<span class="status-pill status-running" style="font-size:9px; padding:1px 5px;">RUNNING</span>
+</div>
+<div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:2px;">Tarefa T2</div>
+<div class="dag-node-role" style="color:var(--accent)">Codex CLI (gpt-6-luna)</div>
+</div>
+<!-- Connector T2 -> T3 -->
+<div aria-hidden="true" class="dag-arrow"></div>
+<!-- Node T3 -->
+<div aria-label="Tarefa T3 Na Fila" class="dag-node queued" tabindex="0">
+<div class="dag-node-header">
+<span class="dag-node-id">T3</span>
+<span class="status-pill status-queued" style="font-size:9px; padding:1px 5px;">QUEUED</span>
+</div>
+<div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:2px;">Tarefa T3</div>
+<div class="dag-node-role">Worker: N/D</div>
+</div>
+</div>
+</section>
+<!-- Task / Dispatch / Worker Table -->
+<section aria-labelledby="table-heading" class="tasks-section">
+<div style="display:flex; justify-content:space-between; align-items:center;">
+<h2 id="table-heading" style="font-size:14px; font-weight:600;">Despacho de Tarefas e Atribuição de Workers</h2>
+</div>
+<div class="table-container">
+<table aria-label="Tabela de Tarefas e Workers">
+<thead>
+<tr>
+<th scope="col">ID</th>
+<th scope="col">Status</th>
+<th scope="col">Worker</th>
+<th scope="col">Modelo Declarado</th>
+<th scope="col">Papel (Role)</th>
+<th scope="col">Dispatch ID</th>
+<th scope="col">Tentativa</th>
+</tr>
+</thead>
+<tbody>
+<!-- Row T1 -->
+<tr>
+<td><strong>T1</strong></td>
+<td><span class="status-pill status-done" style="font-size:10px;">DONE</span></td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+</tr>
+<!-- Row T2 (Selected) -->
+<tr class="row-selected" tabindex="0">
+<td><strong style="color:var(--accent)">&gt; T2</strong></td>
+<td><span class="status-pill status-running" style="font-size:10px;">RUNNING</span></td>
+<td style="color:var(--text-primary); font-weight:600;">Codex CLI</td>
+<td style="color:var(--text-primary)">gpt-6-luna</td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+</tr>
+<!-- Row T3 -->
+<tr>
+<td><strong>T3</strong></td>
+<td><span class="status-pill status-queued" style="font-size:10px;">QUEUED</span></td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+<td style="color:var(--text-muted)">N/D</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</main>
+<!-- Right Drawer / Pane: Task Inspector & Review Gates -->
+<aside aria-label="Inspetor de Detalhes da Tarefa e Verificações" class="sidebar-right" id="sidebar-right">
+<div class="pane-header">
+<span>Inspetor de Tarefa</span>
+<span style="color:var(--warning)">T2 Selecionada</span>
+</div>
+<div class="inspector-content">
+<!-- Details Card -->
+<div class="info-card">
+<div class="info-card-title">Metadados da Tarefa T2</div>
+<div class="kv-row">
+<span class="kv-key">Identificador:</span>
+<span class="kv-val">T2</span>
+</div>
+<div class="kv-row">
+<span class="kv-key">Status:</span>
+<span class="kv-val" style="color:var(--warning)">RUNNING</span>
+</div>
+<div class="kv-row">
+<span class="kv-key">Worker Designado:</span>
+<span class="kv-val">Codex CLI</span>
+</div>
+<div class="kv-row">
+<span class="kv-key">Modelo Declarado:</span>
+<span class="kv-val">gpt-6-luna</span>
+</div>
+<div class="kv-row">
+<span class="kv-key">Papel no Despacho:</span>
+<span class="kv-val" style="color:var(--text-muted)">N/D</span>
+</div>
+<div class="kv-row">
+<span class="kv-key">ID do Despacho:</span>
+<span class="kv-val" style="color:var(--text-muted)">N/D</span>
+</div>
+<div class="kv-row">
+<span class="kv-key">Tentativa (Attempt):</span>
+<span class="kv-val" style="color:var(--text-muted)">N/D</span>
+</div>
+</div>
+<!-- Portões de Verificação e Revisão -->
+<div class="checks-box">
+<div class="info-card-title" style="display:flex; justify-content:space-between;">
+<span>Critérios e Verificações</span>
+<span style="color:var(--accent)">1/3</span>
+</div>
+<div aria-label="Progresso de critérios verificados" aria-valuemax="3" aria-valuemin="0" aria-valuenow="1" class="progress-bar-container" role="progressbar">
+<div class="progress-fill"></div>
+</div>
+<div style="display:flex; flex-direction:column; gap:8px;">
+<div class="kv-row">
+<span class="kv-key">Resultado da Revisão:</span>
+<span class="kv-val" style="color:var(--text-muted)">N/D</span>
+</div>
+<div class="kv-row">
+<span class="kv-key">Verificações Automatizadas:</span>
+<span class="kv-val" style="color:var(--text-muted)">N/D</span>
+</div>
+<div class="kv-row">
+<span class="kv-key">Políticas Efetivas:</span>
+<span class="kv-val" style="color:var(--text-muted)">N/D</span>
+</div>
+</div>
+</div>
+<!-- Feed de Eventos da Execução -->
+<div>
+<div class="info-card-title">Registro de Eventos (Feed)</div>
+<div class="empty-state-notice">
+            Nenhum evento registrado no momento.<br/>
+<span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono)">Eventos: N/D</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+<!-- Bottom App Status Strip -->
+<footer>
+<div class="footer-left">
+<span>[1] Barra Lateral</span>
+<span>[2] Inspetor</span>
+<span>[Tab] Navegar Foco</span>
+<span>[Esc] Voltar</span>
+</div>
+<div class="footer-right">
+<span class="privacy-text">O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.</span>
+<span style="color:var(--warning); margin-left:8px;">● STATUS: RUNNING (T2 ATIVA)</span>
+</div>
+</footer>
+<!-- Vanilla Drawer Interaction for Responsive Breakpoints -->
+<script>
+    const toggleLeft = document.getElementById('toggle-left');
+    const toggleRight = document.getElementById('toggle-right');
+    const sidebarLeft = document.getElementById('sidebar-left');
+    const sidebarRight = document.getElementById('sidebar-right');
+
+    if (toggleLeft && sidebarLeft) {
+      toggleLeft.addEventListener('click', () => {
+        sidebarLeft.classList.toggle('open');
+      });
+    }
+
+    if (toggleRight && sidebarRight) {
+      toggleRight.addEventListener('click', () => {
+        sidebarRight.classList.toggle('open');
+      });
+    }
+  </script>
+</body>
+</html>

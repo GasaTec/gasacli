@@ -1,0 +1,22 @@
+{
+    "promptFile":  "docs/design/prompts/web-04-session-chat.md",
+    "stitchScreenId":  "1565dc674ff54afc8eafd0b9eef621fc",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "removed private reasoning, fake commands and unsupported execution/security claims",
+                                                  "replaced session/runtime metadata with N/D",
+                                                  "preserved exact Portuguese privacy sentence",
+                                                  "removed external Google Fonts and Tailwind CDN references from HTML",
+                                                  "PNG within 600 KB limit"
+                                              ],
+                          "remainingDefects":  [
+                                                   "typography remains serif and empty workspace has large whitespace",
+                                                   "screen still shows tool call count 0, which may imply unsupported absence"
+                                               ]
+                      }
+}

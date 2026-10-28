@@ -1,0 +1,17 @@
+{
+  "promptFile": "docs/design/prompts/web-02-workspace-shell.md",
+  "stitchScreenId": "42323648d2314fa7a3a1ef6f8b83b0e0",
+  "generatedAt": "2026-10-28 09:05:32 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed invented Runs, extra agents, source changes, permissions and network/security claims"
+    ],
+    "remainingDefects": [
+      "empty workspace copy still says no item is running, a status not present in the sample"
+    ]
+  }
+}
