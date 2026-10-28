@@ -138,7 +138,7 @@ func TestNodeAtLeastMajorAndFullVersions(t *testing.T) {
 func TestPlanOnlyNeverRunsInstallRunner(t *testing.T) {
 	var out bytes.Buffer
 	missing := []discovery.Result{{ID: "claude", Name: "Claude Code", Status: discovery.NotFound}, {ID: "codex", Name: "Codex", Status: discovery.NotFound}, {ID: "gemini", Name: "Gemini", Status: discovery.Available}, {ID: "cursor-agent", Name: "Cursor", Status: discovery.Available}, {ID: "opencode", Name: "OpenCode", Status: discovery.Available}, {ID: "orca", Name: "Orca", Status: discovery.Available}, {ID: "kimi", Name: "Kimi", Status: discovery.Available}}
-	err := Run(context.Background(), Options{In: strings.NewReader(""), Out: &out, Interactive: true, PlanOnly: true, Keys: &keys{KeyEnter}, Discover: func(context.Context) []discovery.Result { return missing }, Apps: map[string]discovery.Result{"obsidian": {ID: "obsidian", Name: "Obsidian", Status: discovery.Available}}, Lookup: func(string) (string, error) { return "tool", nil }, Run: func(context.Context, string, ...string) ([]byte, error) {
+	err := Run(context.Background(), Options{In: strings.NewReader(""), Out: &out, Interactive: true, PlanOnly: true, GOOS: "windows", Keys: &keys{KeyEnter}, Discover: func(context.Context) []discovery.Result { return missing }, Apps: map[string]discovery.Result{"obsidian": {ID: "obsidian", Name: "Obsidian", Status: discovery.Available}}, Lookup: func(string) (string, error) { return "tool", nil }, Run: func(context.Context, string, ...string) ([]byte, error) {
 		t.Fatal("plan queried a command runner")
 		return nil, nil
 	}, Command: func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error {

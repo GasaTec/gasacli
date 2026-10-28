@@ -123,6 +123,28 @@ fail() { msg "Erro: $1" "Error: $2" >&2; exit 1; }
 checksum_for_archive() {
     LC_ALL=C tr '\000' '\001' < "$1" | LC_ALL=C awk -v name="$2" 'NR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, ""); line=$0; sub(/^[ \t\v\f]*/, "", line); hash=line; sub(/[ \t\v\f].*$/, "", hash); rest=substr(line,length(hash)+1); if (length(hash) == 64 && hash ~ /^[[:xdigit:]]+$/ && rest ~ /^[ \t\v\f]+/) { sub(/^[ \t\v\f]+/, "", rest); sub(/^\*/, "", rest); sub(/[ \t\v\f]*$/, "", rest); if (rest !~ /[ \t\v\f\r]/ && rest == name) { h=tolower(hash); if (found && h != expected) conflict=1; expected=h; found=1 } } } END { if (conflict) print "CONFLICT"; else if (found) print expected; else print "MISSING" }'
 }
+valid_version() (
+    LC_ALL=C
+    export LC_ALL
+    version=$1
+    case "$version" in v*) version=${version#v} ;; *) return 1 ;; esac
+    has_pre=0
+    case "$version" in *-*) has_pre=1; prerelease=${version#*-}; core=${version%%-*} ;; *) prerelease=; core=$version ;; esac
+    case "$core" in *.*.*) major=${core%%.*}; remainder=${core#*.}; minor=${remainder%%.*}; patch=${remainder#*.} ;; *) return 1 ;; esac
+    case "$patch" in *.*) return 1 ;; esac
+    for number in "$major" "$minor" "$patch"; do
+        case "$number" in ''|*[!0-9]*) return 1 ;; esac
+    done
+    [ "$has_pre" -eq 1 ] || return 0
+    while :; do
+        case "$prerelease" in
+            *.*) identifier=${prerelease%%.*}; prerelease=${prerelease#*.}; more=1 ;;
+            *) identifier=$prerelease; more=0 ;;
+        esac
+        case "$identifier" in ''|*[!A-Za-z0-9]*) return 1 ;; esac
+        [ "$more" -eq 1 ] || break
+    done
+)
 download() {
     current=$1; dest=$2; hop=0
     while [ "$hop" -le 5 ]; do
@@ -200,7 +222,7 @@ if [ "${GASA_METHOD:-binary}" = npm ]; then
         version=$(printf '%s\n' "$latest" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
     fi
     case "$version" in *"$newline"*|*"$(printf '\r')"*) fail "Versão inválida." "Invalid version." ;; esac
-    printf '%s\n' "$version" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$' || fail "Versão inválida: $version" "Invalid version: $version"
+    valid_version "$version" || fail "Versão inválida: $version" "Invalid version: $version"
     npm install -g "gasacli@${version#v}" || fail "npm install -g gasacli@${version#v} falhou." "npm install -g gasacli@${version#v} failed."
     command -v gasa >/dev/null 2>&1 || fail "Instalado pelo npm, mas gasa não está no PATH." "Installed with npm, but gasa is not on PATH."
     gasa --version || fail "gasa --version falhou após a instalação." "gasa --version failed after installation."
@@ -222,7 +244,7 @@ latest=$(get_latest_version) || fail "Não foi possível consultar as releases d
     version=$(printf '%s\n' "$latest" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
 fi
 case "$version" in *"$newline"*|*"$(printf '\r')"*) fail "Versão inválida." "Invalid version." ;; esac
-printf '%s\n' "$version" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$' || fail "Versão inválida: $version" "Invalid version: $version"
+valid_version "$version" || fail "Versão inválida: $version" "Invalid version: $version"
 archive="gasa_${version#v}_${platform}_${arch}.tar.gz"
 if command -v sha256sum >/dev/null 2>&1; then hash_tool=sha256sum
 elif command -v shasum >/dev/null 2>&1; then hash_tool='shasum -a 256'

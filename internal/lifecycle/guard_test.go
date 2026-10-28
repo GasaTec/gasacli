@@ -26,8 +26,14 @@ func TestValidateHomeAcceptsMarkedTemporaryDirectories(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != filepath.Clean(home) {
-				t.Fatalf("ValidateHome() = %q, want %q", got, filepath.Clean(home))
+			// ValidateHome returns the canonical spelling (Windows 8.3 short names, macOS /var ->
+			// /private/var), so compare the location, not the spelling.
+			want, err := filepath.EvalSymlinks(home)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gotResolved, err := filepath.EvalSymlinks(got); err != nil || gotResolved != want {
+				t.Fatalf("ValidateHome() = %q (resolves to %q, err %v), want location %q", got, gotResolved, err, want)
 			}
 		})
 	}
