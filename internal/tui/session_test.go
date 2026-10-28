@@ -36,6 +36,18 @@ func TestScriptedSession(t *testing.T) {
 	}
 }
 
+func TestSetupHookAndHelp(t *testing.T) {
+	var out bytes.Buffer
+	calls := 0
+	s := Session{In: strings.NewReader("y\n/help\n/setup\n/exit\n"), Out: &out, ProjectPath: t.TempDir(), TrustStore: trust.NewStore(t.TempDir()), Setup: func(w io.Writer) error { calls++; fmt.Fprintln(w, "setup callback"); return nil }}
+	if err := s.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 || !strings.Contains(out.String(), "/setup") || !strings.Contains(out.String(), "setup callback") {
+		t.Fatalf("calls=%d output=%s", calls, out.String())
+	}
+}
+
 func TestTrustRefused(t *testing.T) {
 	for _, input := range []string{"", "n\n/help\n", "\n", "yes\n"} {
 		var out bytes.Buffer
