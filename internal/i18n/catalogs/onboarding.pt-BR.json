@@ -91,5 +91,7 @@
     "onboarding.install_outside_chat":  "Para instalar, rode `gasa setup` fora do chat.",
     "onboarding.plan.manual_reason":  "Motivo manual: %s",
     "onboarding.note.app_auth_not_checked":  "aplicativo; autenticação não verificada",
-    "onboarding.note.auth_not_checked":  "autenticação não verificada"
+    "onboarding.note.auth_not_checked":  "autenticação não verificada",
+    "onboarding.note.auth_probe_unsupported":  "não há verificação de autenticação não interativa documentada",
+    "onboarding.note.auth_probe_unknown":  "não foi possível verificar o estado da autenticação"
 }

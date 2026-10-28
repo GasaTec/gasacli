@@ -43,6 +43,13 @@ func formatDiagnosticOutput(out io.Writer, results []discovery.Result) error {
 		errText := result.Err
 		if errText != "" {
 			reason = cliDiagnosticField(errText, 200)
+		} else if result.Auth == discovery.AuthUnknown && result.Status == discovery.Installed {
+			switch result.Note {
+			case "no documented non-interactive authentication probe":
+				reason = i18n.T("doctor.reason.auth_probe_unsupported")
+			case "authentication status could not be verified":
+				reason = i18n.T("doctor.reason.auth_probe_unknown")
+			}
 		} else {
 			reason = i18n.T(reason)
 		}

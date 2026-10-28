@@ -14,14 +14,14 @@ func TestFormatDiagnosticOutputUsesSelectedCatalog(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLanguage(previous) })
 	result := []discovery.Result{{
 		Name: "Codex", Status: discovery.Installed, Auth: discovery.AuthUnknown,
-		Version: "1.2.3", Note: "authentication not checked",
+		Version: "1.2.3", Note: "no documented non-interactive authentication probe",
 	}}
 	for _, test := range []struct {
 		language string
 		want     string
 	}{
-		{language: "en", want: "installed"},
-		{language: "pt-BR", want: "instalado"},
+		{language: "en", want: "No documented non-interactive authentication command"},
+		{language: "pt-BR", want: "N\u00e3o h\u00e1 comando documentado"},
 	} {
 		t.Run(test.language, func(t *testing.T) {
 			i18n.SetLanguage(test.language)

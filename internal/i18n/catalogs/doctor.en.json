@@ -11,5 +11,7 @@
     "doctor.reason.installed":  "Authentication readiness was not checked",
     "doctor.reason.missing":  "CLI not found in PATH",
     "doctor.reason.version_unknown":  "CLI found; version could not be checked",
-    "doctor.reason.error":  "Local probe failed"
+    "doctor.reason.error":  "Local probe failed",
+    "doctor.reason.auth_probe_unsupported":  "No documented non-interactive authentication command",
+    "doctor.reason.auth_probe_unknown":  "Authentication status could not be verified"
 }

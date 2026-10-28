@@ -28,6 +28,43 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestWriteTableShowsAuthenticationReadiness(t *testing.T) {
+	previousLanguage := i18n.Language()
+	t.Cleanup(func() { i18n.SetLanguage(previousLanguage) })
+	t.Setenv("GASACLI_LANG", "en")
+	i18n.Configure("")
+	var output bytes.Buffer
+	rows := []discovery.Result{
+		{ID: "claude", Name: "Claude", Status: discovery.Ready},
+		{ID: "codex", Name: "Codex", Status: discovery.NeedsLogin},
+		{ID: "gemini", Name: "Gemini", Status: discovery.Installed, Note: "no documented non-interactive authentication probe"},
+	}
+	if err := writeTable(&output, rows); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"READY", "LOGIN REQUIRED", "INSTALLED", "no documented non-interactive authentication check"} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("table output missing %q: %s", want, output.String())
+		}
+	}
+}
+
+func TestMissingItemsDoesNotTreatNeedsLoginAsMissing(t *testing.T) {
+	rows := make([]discovery.Result, 0, len(Catalog()))
+	for _, agent := range Catalog() {
+		status := discovery.Installed
+		if agent.ID == "codex" {
+			status = discovery.NeedsLogin
+		}
+		rows = append(rows, discovery.Result{ID: agent.ID, Status: status})
+	}
+	for _, item := range missingItems(rows) {
+		if item.ID == "codex" {
+			t.Fatal("installed Codex requiring login was scheduled for installation")
+		}
+	}
+}
+
 func (k *keys) ReadKey() (Key, error) {
 	if len(*k) == 0 {
 		return KeyEnter, nil

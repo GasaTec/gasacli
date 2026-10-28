@@ -111,18 +111,30 @@ func TestDocumentedReadinessCommands(t *testing.T) {
 		want             Status
 		auth             AuthStatus
 	}{
+		{name: "claude logged in", id: "claude", output: `{"loggedIn":true}`, want: Ready, auth: AuthReady},
+		{name: "claude logged out", id: "claude", output: `{"loggedIn":false}`, want: NeedsLogin, auth: AuthNeedsLogin},
 		{name: "codex logged in", id: "codex", output: "Logged in using ChatGPT\n", want: Ready, auth: AuthReady},
 		{name: "codex logged out", id: "codex", output: "Not logged in\n", want: NeedsLogin, auth: AuthNeedsLogin},
+		{name: "codex logged out with nonzero exit", id: "codex", output: "Not logged in\n", err: errors.New("exit status 1"), want: NeedsLogin, auth: AuthNeedsLogin},
+		{name: "codex warning before logged out state", id: "codex", output: "WARNING: aliases unavailable\nNot logged in\n", err: errors.New("exit status 1"), want: NeedsLogin, auth: AuthNeedsLogin},
 		{name: "codex unknown", id: "codex", output: "TOKEN=do-not-print\n", want: Installed, auth: AuthUnknown},
+		{name: "github authenticated", id: "gh", output: `{"hosts":{"github.com":[{"state":"success"}]}}`, want: Ready, auth: AuthReady},
+		{name: "github needs login", id: "gh", output: `{"hosts":{"github.com":[{"state":"unauthenticated"}]}}`, want: NeedsLogin, auth: AuthNeedsLogin},
 		{name: "opencode has provider", id: "opencode", output: `[{"provider":"anthropic"}]`, want: Ready, auth: AuthReady},
 		{name: "opencode empty", id: "opencode", output: `[]`, want: NeedsLogin, auth: AuthNeedsLogin},
 		{name: "status failed", id: "codex", output: "", err: errors.New("private failure"), want: Installed, auth: AuthUnknown},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			calls := 0
-			catalog := []Agent{{ID: tc.id, Name: tc.id, Binaries: []string{tc.id}, ReadyArgs: []string{"login", "status"}}}
-			if tc.id == "opencode" {
-				catalog[0].ReadyArgs = []string{"auth", "list", "--format", "json"}
+			var catalog []Agent
+			for _, agent := range DefaultCatalog() {
+				if agent.ID == tc.id {
+					catalog = []Agent{agent}
+					break
+				}
+			}
+			if len(catalog) == 0 {
+				t.Fatalf("missing catalog entry for %s", tc.id)
 			}
 			result := Discover(context.Background(), catalog, Deps{
 				LookPath: func(string) (string, error) { return ".", nil },
@@ -144,6 +156,26 @@ func TestDocumentedReadinessCommands(t *testing.T) {
 				t.Fatalf("unexpected result: %+v", result)
 			}
 		})
+	}
+}
+
+func TestProductionDiscoveryCacheExpiresAndCopiesResults(t *testing.T) {
+	key := "cache-test-" + t.Name()
+	now := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	want := []Result{{ID: "codex", Status: Ready}}
+	storeDiscovery(key, want, now)
+	want[0].Status = Missing
+	cached, ok := cachedDiscovery(key, now.Add(cacheTTL-time.Nanosecond))
+	if !ok || len(cached) != 1 || cached[0].Status != Ready {
+		t.Fatalf("cached result = %+v, %v", cached, ok)
+	}
+	cached[0].Status = Error
+	again, ok := cachedDiscovery(key, now.Add(cacheTTL-time.Nanosecond))
+	if !ok || again[0].Status != Ready {
+		t.Fatalf("cache returned mutable result: %+v, %v", again, ok)
+	}
+	if expired, ok := cachedDiscovery(key, now.Add(cacheTTL)); ok || expired != nil {
+		t.Fatalf("expired cache entry = %+v, %v", expired, ok)
 	}
 }
 
@@ -218,7 +250,7 @@ func TestTimeout(t *testing.T) {
 			return nil, ctx.Err()
 		},
 	})[0]
-	if r.Status != VersionUnknown || r.Err != "version probe timed out" || time.Since(start) > 5*time.Second {
+	if r.Status != VersionUnknown || r.Err != "version probe timed out" || time.Since(start) > probeTimeout+time.Second {
 		t.Fatalf("timeout failed: %+v, duration %v", r, time.Since(start))
 	}
 }

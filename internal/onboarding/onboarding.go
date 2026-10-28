@@ -340,8 +340,15 @@ func writeTable(w io.Writer, rows []discovery.Result) error {
 	for _, r := range rows {
 		kind := i18n.T("onboarding.type.agent")
 		status := i18n.T("onboarding.status.missing")
-		if r.Status == discovery.Available {
+		switch r.Status {
+		case discovery.Ready:
+			status = i18n.T("onboarding.status.ready")
+		case discovery.NeedsLogin:
+			status = i18n.T("onboarding.status.needs_login")
+		case discovery.Installed, discovery.VersionUnknown:
 			status = i18n.T("onboarding.status.installed")
+		case discovery.Error:
+			status = i18n.T("onboarding.status.unknown")
 		}
 		if r.ID == "obsidian" {
 			kind = i18n.T("onboarding.type.app")
@@ -349,6 +356,10 @@ func writeTable(w io.Writer, rows []discovery.Result) error {
 		note := r.Note
 		if note == "authentication not checked" {
 			note = i18n.T("onboarding.note.auth_not_checked")
+		} else if note == "no documented non-interactive authentication probe" {
+			note = i18n.T("onboarding.note.auth_probe_unsupported")
+		} else if note == "authentication status could not be verified" {
+			note = i18n.T("onboarding.note.auth_probe_unknown")
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", r.Name, kind, status, r.Version, note)
 	}
@@ -362,7 +373,7 @@ func missingItems(rows []discovery.Result) []Item {
 	}
 	var missing []Item
 	for _, it := range all {
-		if r, ok := byID[it.ID]; !ok || r.Status != discovery.Available {
+		if r, ok := byID[it.ID]; !ok || (r.Status != discovery.Installed && r.Status != discovery.Ready && r.Status != discovery.NeedsLogin && r.Status != discovery.VersionUnknown) {
 			missing = append(missing, it)
 		}
 	}

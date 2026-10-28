@@ -17,13 +17,13 @@ type Agent struct {
 // are MVP agents; the remaining entries are discovered as other CLIs only.
 func DefaultCatalog() []Agent {
 	return []Agent{
-		{ID: "claude", Name: "Claude Code", Binaries: []string{"claude"}},
+		{ID: "claude", Name: "Claude Code", Binaries: []string{"claude"}, ReadyArgs: []string{"auth", "status", "--json"}},
 		{ID: "codex", Name: "Codex", Binaries: []string{"codex"}, ReadyArgs: []string{"login", "status"}},
 		{ID: "gemini", Name: "Gemini CLI", Binaries: []string{"gemini"}},
 		{ID: "cursor-agent", Name: "Cursor CLI", Binaries: []string{"cursor-agent", "agent"}, RequireText: "cursor"},
 		{ID: "opencode", Name: "OpenCode", Binaries: []string{"opencode"}, ReadyArgs: []string{"auth", "list", "--format", "json"}},
 		{ID: "orca", Name: "Orca", Binaries: []string{"orca"}},
 		{ID: "kimi", Name: "Kimi Code CLI", Binaries: []string{"kimi"}},
-		{ID: "gh", Name: "GitHub CLI", Binaries: []string{"gh"}},
+		{ID: "gh", Name: "GitHub CLI", Binaries: []string{"gh"}, ReadyArgs: []string{"auth", "status", "--json", "hosts"}},
 	}
 }

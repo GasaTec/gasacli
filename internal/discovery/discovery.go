@@ -15,12 +15,15 @@ import (
 )
 
 const (
-	probeTimeout = 3 * time.Second
+	probeTimeout = 10 * time.Second
 	outputLimit  = 4 * 1024
 	versionLimit = 200
 	workerLimit  = 4
-	authNote     = "authentication not checked"
+	authNote     = "no documented non-interactive authentication probe"
+	cacheTTL     = 60 * time.Second
 )
+
+const authProbeNote = "authentication status could not be verified"
 
 type Status string
 
@@ -65,9 +68,26 @@ type Deps struct {
 	Run      func(context.Context, string, ...string) ([]byte, error)
 }
 
+var productionCache = struct {
+	sync.Mutex
+	entries map[string]cacheEntry
+}{entries: make(map[string]cacheEntry)}
+
+type cacheEntry struct {
+	results []Result
+	expires time.Time
+}
+
 // Discover probes a trusted catalog with at most four concurrent workers and
 // returns one result per entry in catalog order, including after cancellation.
 func Discover(ctx context.Context, catalog []Agent, deps Deps) []Result {
+	cacheKey := ""
+	if deps.LookPath == nil && deps.Run == nil {
+		cacheKey = discoveryCacheKey(catalog)
+		if results, ok := cachedDiscovery(cacheKey, time.Now()); ok {
+			return results
+		}
+	}
 	if deps.LookPath == nil {
 		deps.LookPath = exec.LookPath
 	}
@@ -91,7 +111,40 @@ func Discover(ctx context.Context, catalog []Agent, deps Deps) []Result {
 	}
 	close(jobs)
 	workers.Wait()
+	if cacheKey != "" && ctx.Err() == nil {
+		storeDiscovery(cacheKey, results, time.Now())
+	}
 	return results
+}
+
+func discoveryCacheKey(catalog []Agent) string {
+	data, _ := json.Marshal(catalog)
+	return string(data)
+}
+
+func cachedDiscovery(key string, now time.Time) ([]Result, bool) {
+	productionCache.Lock()
+	defer productionCache.Unlock()
+	entry, ok := productionCache.entries[key]
+	if !ok {
+		return nil, false
+	}
+	if !now.Before(entry.expires) {
+		delete(productionCache.entries, key)
+		return nil, false
+	}
+	return append([]Result(nil), entry.results...), true
+}
+
+func storeDiscovery(key string, results []Result, now time.Time) {
+	productionCache.Lock()
+	for existing, entry := range productionCache.entries {
+		if !now.Before(entry.expires) {
+			delete(productionCache.entries, existing)
+		}
+	}
+	productionCache.entries[key] = cacheEntry{results: append([]Result(nil), results...), expires: now.Add(cacheTTL)}
+	productionCache.Unlock()
 }
 
 func probe(ctx context.Context, agent Agent, deps Deps) Result {
@@ -173,6 +226,8 @@ func probe(ctx context.Context, agent Agent, deps Deps) Result {
 				} else if r.Auth == AuthNeedsLogin {
 					r.Status = NeedsLogin
 					r.Note = ""
+				} else {
+					r.Note = authProbeNote
 				}
 			}
 		}
@@ -184,19 +239,29 @@ func probe(ctx context.Context, agent Agent, deps Deps) Result {
 // authVerdict interprets only documented status commands and never returns
 // their output to callers.
 func authVerdict(agentID string, output []byte, err error) AuthStatus {
-	if err != nil {
-		return AuthUnknown
-	}
 	switch agentID {
+	case "claude":
+		var status struct {
+			LoggedIn *bool `json:"loggedIn"`
+		}
+		if json.Unmarshal(output, &status) == nil && status.LoggedIn != nil {
+			if *status.LoggedIn {
+				return AuthReady
+			}
+			return AuthNeedsLogin
+		}
 	case "codex":
-		status := strings.ToLower(sanitize(string(output), versionLimit))
-		if strings.HasPrefix(status, "logged in") {
+		status := strings.ToLower(string(output))
+		if strings.Contains(status, "logged in using") {
 			return AuthReady
 		}
-		if strings.HasPrefix(status, "not logged in") {
+		if strings.Contains(status, "not logged in") {
 			return AuthNeedsLogin
 		}
 	case "opencode":
+		if err != nil {
+			return AuthUnknown
+		}
 		var providers []json.RawMessage
 		if json.Unmarshal(output, &providers) == nil {
 			if len(providers) > 0 {
@@ -204,8 +269,44 @@ func authVerdict(agentID string, output []byte, err error) AuthStatus {
 			}
 			return AuthNeedsLogin
 		}
+	case "gh":
+		var status any
+		if json.Unmarshal(output, &status) != nil {
+			return AuthUnknown
+		}
+		states := authStates(status)
+		if len(states) == 0 {
+			return AuthUnknown
+		}
+		for _, state := range states {
+			if !strings.EqualFold(state, "success") {
+				return AuthNeedsLogin
+			}
+		}
+		return AuthReady
 	}
 	return AuthUnknown
+}
+
+func authStates(value any) []string {
+	var states []string
+	switch item := value.(type) {
+	case map[string]any:
+		for key, nested := range item {
+			if strings.EqualFold(key, "state") {
+				if state, ok := nested.(string); ok {
+					states = append(states, state)
+				}
+				continue
+			}
+			states = append(states, authStates(nested)...)
+		}
+	case []any:
+		for _, nested := range item {
+			states = append(states, authStates(nested)...)
+		}
+	}
+	return states
 }
 
 // cappedOutput retains only the first 4 KiB while draining the pipe, so a child
@@ -235,9 +336,20 @@ func runVersion(ctx context.Context, path string, args ...string) ([]byte, error
 		}
 	}
 	var output cappedOutput
+	var errorOutput cappedOutput
 	cmd.Stdout, cmd.Stderr = &output, io.Discard
+	if isAuthenticationCommand(args) {
+		cmd.Stderr = &errorOutput
+	}
 	err := runProcess(ctx, cmd)
+	if len(output.data) == 0 {
+		output.data = errorOutput.data
+	}
 	return output.data, err
+}
+
+func isAuthenticationCommand(args []string) bool {
+	return len(args) >= 2 && ((args[0] == "login" && args[1] == "status") || (args[0] == "auth" && (args[1] == "status" || args[1] == "list")))
 }
 
 // sanitize strips terminal escape sequences (CSI, OSC and related strings),
