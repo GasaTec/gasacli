@@ -10,8 +10,8 @@ import (
 )
 
 func init() {
-	Register(Command{Name: "sessions", Summary: "command.sessions", Usage: "/sessions", Category: "sessions", Handler: listSessionsCommand})
-	Register(Command{Name: "send", Summary: "command.send", Usage: "/send <sessao> <mensagem>", Category: "sessions", Handler: sendSessionCommand})
+	Register(Command{Name: "/sessions", Summary: "command.sessions", Usage: "/sessions", Category: "sessions", Handler: listSessionsCommand})
+	Register(Command{Name: "/send", Summary: "command.send", Usage: "/send <sessao> <mensagem>", Category: "sessions", Handler: sendSessionCommand})
 }
 
 type liveSessionContext interface {

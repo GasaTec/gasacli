@@ -13,6 +13,8 @@ GasaCLI commands:
   /prompts         Manage prompts
   /quit            Close GasaCLI
   /restore         Restore local data
+  /send            Send a message to a trusted session
+  /sessions        List trusted project sessions
   /resume          Resume a saved run (planned; see issue #11)
   /setup           Review setup and install guidance
   /skills          Manage local skills

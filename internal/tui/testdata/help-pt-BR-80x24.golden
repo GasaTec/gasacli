@@ -13,6 +13,8 @@ GasaCLI commands:
   /prompts         Gerencia prompts
   /quit            Encerra o GasaCLI
   /restore         Restaura dados locais
+  /send            Envia mensagem para uma sessão confiável
+  /sessions        Lista sessões do projeto confiável
   /resume          Retoma uma execução salva (planejado; consulte a solicitação #11)
   /setup           Revisa configuração e instalação
   /skills          Gerencia skills locais
