@@ -15,6 +15,9 @@ import (
 
 func TestHome(t *testing.T) {
 	t.Setenv("GASACLI_HOME", "")
+	if runtime.GOOS == "linux" {
+		t.Setenv("XDG_DATA_HOME", filepath.Join(t.TempDir(), "data"))
+	}
 	base, err := userDataDir()
 	if err != nil {
 		t.Fatal(err)
@@ -27,6 +30,17 @@ func TestHome(t *testing.T) {
 	got, err = Home()
 	if err != nil || got != os.Getenv("GASACLI_HOME") {
 		t.Fatalf("override = %q, %v", got, err)
+	}
+}
+
+func TestHomeRejectsRelativeXDGDataHome(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("XDG paths are Linux-specific")
+	}
+	t.Setenv("GASACLI_HOME", "")
+	t.Setenv("XDG_DATA_HOME", "relative/data")
+	if _, err := Home(); err == nil {
+		t.Fatal("accepted relative XDG_DATA_HOME")
 	}
 }
 
@@ -247,6 +261,35 @@ func TestEnsureAdoptsOnlyValidLegacyDefault(t *testing.T) {
 	}
 	if got := snapshotTree(t, invalidHome); got != before {
 		t.Fatalf("invalid legacy config changed: before=%s after=%s", before, got)
+	}
+}
+
+func TestEnsureDoesNotAdoptLegacyHomeWhenOverrideIsSet(t *testing.T) {
+	base := t.TempDir()
+	configureTestRoots(t, base)
+	legacy, err := legacyHome()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(legacy, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(legacy, "config.yaml"), []byte("web: {mode: manual}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(legacy, "legacy.txt"), []byte("preserve"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	override := filepath.Join(t.TempDir(), "custom-home")
+	t.Setenv("GASACLI_HOME", override)
+	if err := Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(override, "legacy.txt")); !os.IsNotExist(err) {
+		t.Fatalf("legacy data was copied into explicit override: %v", err)
+	}
+	if data, err := os.ReadFile(filepath.Join(legacy, "legacy.txt")); err != nil || string(data) != "preserve" {
+		t.Fatalf("legacy data changed: %q %v", data, err)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/GasaTec/gasacli/internal/lifecycle"
 	"github.com/GasaTec/gasacli/internal/storage"
@@ -78,8 +79,12 @@ func Ensure() error {
 	if err != nil {
 		return err
 	}
+	home, err = lifecycle.ValidateEnsureHome(home)
+	if err != nil {
+		return err
+	}
 	legacy, legacyErr := legacyHome()
-	if legacyErr == nil && !samePath(legacy, home) {
+	if os.Getenv("GASACLI_HOME") == "" && legacyErr == nil && !samePath(legacy, home) {
 		if _, statErr := os.Lstat(home); os.IsNotExist(statErr) {
 			if _, validateErr := lifecycle.ValidateHome(legacy); validateErr == nil {
 				if err := copyLegacyHome(legacy, home); err != nil {
@@ -250,7 +255,11 @@ func copyLegacyHome(source, target string) error {
 }
 
 func samePath(a, b string) bool {
-	return filepath.Clean(a) == filepath.Clean(b)
+	left, right := filepath.Clean(a), filepath.Clean(b)
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(left, right)
+	}
+	return left == right
 }
 
 type identityMarker struct {
