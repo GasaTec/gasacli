@@ -1,5 +1,5 @@
 package tui
 
 func init() {
-	Register(Command{Name: "/resume", Summary: "command.resume", Usage: "/resume", Category: "general", Planned: true, IssueRef: "#11"})
+	Register(Command{Name: "/resume", Summary: "command.resume", Usage: "/resume [run-id]", Category: "general", Handler: resumeCommand})
 }

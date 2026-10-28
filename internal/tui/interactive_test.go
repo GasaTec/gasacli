@@ -55,8 +55,8 @@ func TestInteractiveChatGoldenAndCommandPalette(t *testing.T) {
 		t.Fatalf("matches=%v", matches)
 	}
 	model.submit("/goal refactor")
-	if !strings.Contains(strings.Join(model.lines, "\n"), "solicitação #11") {
-		t.Fatal("planned command did not show its issue")
+	if !strings.Contains(strings.Join(model.lines, "\n"), "coding CLI") {
+		t.Fatal("goal command did not report the missing coding CLI")
 	}
 }
 

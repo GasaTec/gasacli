@@ -165,9 +165,10 @@ func TestCLI(t *testing.T) {
 		}
 	}
 	t.Run("HelpAndTrustPersistence", func(t *testing.T) {
+		t.Setenv("GASACLI_LANG", "pt-BR")
 		_, home, project := newHome(t)
 		out := run(t, home, project, "y\n/help\n/status\n/goal test\n/web status\n/exit\n", 0)
-		contains(t, out, "[y/N]", "/help", "/exit", "/agents", "/doctor", "/status", "/goal", "/permissions", "/backup", "/restore", "/web", "planejado", "sem run ativo; orquestração não implementada", "Dashboard:")
+		contains(t, out, "[y/N]", "/help", "/exit", "/agents", "/doctor", "/status", "/goal", "/permissions", "/backup", "/restore", "/web", "/cancel", "/runs", "No orchestration run for this project.", "no supported coding CLI is installed", "Dashboard:")
 		t.Logf("real startup and /help output (public URL only):\n%s", out)
 		out = run(t, home, project, "/help\n/exit\n", 0)
 		if strings.Contains(out, "[y/N]") {

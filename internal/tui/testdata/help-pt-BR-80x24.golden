@@ -3,17 +3,19 @@ GasaCLI commands:
   /backup          Cria um backup local
   /backups         Lista backups locais
   /brain           Pesquisa a base de conhecimento local
+  /cancel          Cancela a execução atual
   /config          Gerencia a configuração efetiva
   /doctor          Executa diagnósticos locais
   /exit            Encerra o GasaCLI
   /github          Conecta ferramentas do GitHub
-  /goal            Inicia uma tarefa orquestrada (planejado; consulte a solicitação #11)
+  /goal            Inicia uma tarefa orquestrada
   /help            Exibe comandos e atalhos
   /permissions     Configura permissões de execução (planejado; consulte a solicitação #31)
   /prompts         Gerencia prompts
   /quit            Encerra o GasaCLI
   /restore         Restaura dados locais
-  /resume          Retoma uma execução salva (planejado; consulte a solicitação #11)
+  /resume          Retoma uma execução salva
+  /runs            Lista execuções orquestradas
   /setup           Revisa configuração e instalação
   /skills          Gerencia skills locais
   /status          Exibe a sessão atual
