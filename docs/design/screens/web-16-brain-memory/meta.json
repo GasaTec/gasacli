@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-16-brain-memory.md",
+    "stitchScreenId":  "3987c172a3324e3bac647b2f5d6c1650",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept 18 files, 2 results, 3d and path decisoes/auth",
+                                                  "connection/index/query/result content/preview are N/D where unspecified",
+                                                  "removed local vault badge, semantic search claim and explanatory meta text",
+                                                  "no external resources; PNG within 600 KB limit",
+                                                  "preserved exact privacy sentence"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

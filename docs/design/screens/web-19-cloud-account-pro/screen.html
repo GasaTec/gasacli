@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<<html class="dark" lang="pt-BR">
+<<head>
+<<meta charset="utf-8"/>
+<<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<<title>Web — Conta na nuvem e ativação Pro (GasaCLI)</title>
+<<style>  :root {    --bg-canvas: #0B1220;    --bg-surface: #111C2E;    --bg-elevated: #172A46;    --bg-input: #0d1624;    --border-color: #273852;    --border-bright: #3b506f;    --text-primary: #F4F7FB;    --text-secondary: #C3CFDF;    --text-muted: #8899B0;    --accent-teal: #1ECFA5;    --accent-teal-dark: #0e8568;    --status-warning: #F2B84B;    --status-neutral: #8899B0;    --status-danger: #FF7272;    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;  }  * {    box-sizing: border-box;    margin: 0;    padding: 0;  }  body {    background-color: var(--bg-canvas);    color: var(--text-primary);    font-family: var(--font-mono);    font-size: 13px;    line-height: 1.45;    height: 100vh;    display: flex;    flex-direction: column;    overflow: hidden;    -webkit-font-smoothing: antialiased;  }  /* Focus ring accessible */  *:focus-visible {    outline: 2px solid var(--accent-teal);    outline-offset: 1px;  }  /* TOP HEADER BAR */  header.top-bar {    background-color: #080e1a;    border-bottom: 1px solid var(--border-color);    height: 38px;    display: flex;    align-items: center;    justify-content: space-between;    padding: 0 16px;    font-size: 12px;    flex-shrink: 0;    user-select: none;  }  .header-left {    display: flex;    align-items: center;    gap: 16px;  }  .brand-lockup {    display: flex;    align-items: center;    gap: 6px;    font-weight: 700;    letter-spacing: -0.02em;    color: var(--text-primary);  }  .brand-glyph {    color: var(--accent-teal);    font-weight: 900;  }  .route-breadcrumb {    color: var(--text-muted);  }  .header-center-nav {    display: flex;    gap: 8px;  }  .nav-crumb {    color: var(--text-muted);    text-decoration: none;    padding: 4px 8px;    border-radius: 2px;  }  .nav-crumb:hover {    color: var(--text-primary);    background: var(--bg-surface);  }  .nav-crumb.active {    color: var(--accent-teal);    border-bottom: 2px solid var(--accent-teal);    font-weight: 600;  }  .header-right {    display: flex;    align-items: center;    gap: 12px;  }  .badge-tag {    display: inline-flex;    align-items: center;    gap: 5px;    padding: 2px 7px;    border: 1px solid var(--border-color);    background-color: var(--bg-surface);    color: var(--text-secondary);    border-radius: 2px;    font-size: 11px;  }  .btn-header {    background: transparent;    border: 1px solid var(--border-color);    color: var(--text-secondary);    font-family: var(--font-mono);    font-size: 11px;    padding: 3px 8px;    border-radius: 2px;    cursor: pointer;  }  .btn-header:hover {    border-color: var(--accent-teal);    color: var(--accent-teal);  }  /* WORKSPACE THREE-PANE SHELL */  main.workspace-shell {    display: grid;    grid-template-columns: 260px 1fr 300px;    flex: 1;    overflow: hidden;    background-color: var(--bg-canvas);  }  /* PANE 1: LEFT PERSISTENT NAVIGATION & CONTEXT */  aside.left-pane {    background-color: var(--bg-surface);    border-right: 1px solid var(--border-color);    display: flex;    flex-direction: column;    overflow-y: auto;  }  .pane-header {    padding: 10px 14px;    border-bottom: 1px solid var(--border-color);    font-size: 11px;    font-weight: 700;    color: var(--text-muted);    letter-spacing: 0.05em;    display: flex;    justify-content: space-between;    align-items: center;    background-color: rgba(0, 0, 0, 0.2);  }  .pane-header-action {    color: var(--accent-teal);    font-size: 10px;  }  .left-pane-section {    padding: 12px 14px;    border-bottom: 1px solid var(--border-color);  }  .section-label {    font-size: 11px;    font-weight: 600;    color: var(--text-muted);    margin-bottom: 8px;    text-transform: uppercase;    letter-spacing: 0.04em;  }  .nav-item-list {    list-style: none;    display: flex;    flex-direction: column;    gap: 3px;  }  .nav-item {    display: flex;    align-items: center;    justify-content: space-between;    padding: 6px 10px;    border-radius: 3px;    color: var(--text-secondary);    text-decoration: none;    font-size: 12px;    border: 1px solid transparent;  }  .nav-item:hover {    background-color: var(--bg-canvas);    color: var(--text-primary);  }  .nav-item.active {    background-color: var(--bg-elevated);    border-color: var(--border-bright);    color: var(--accent-teal);    font-weight: 600;  }  .item-meta-pill {    font-size: 10px;    padding: 1px 5px;    background-color: var(--bg-canvas);    border: 1px solid var(--border-color);    border-radius: 2px;    color: var(--text-muted);  }  .nav-item.active .item-meta-pill {    border-color: var(--accent-teal);    color: var(--accent-teal);  }  .summary-card-mini {    background-color: var(--bg-canvas);    border: 1px solid var(--border-color);    padding: 10px;    border-radius: 3px;    margin-top: 6px;  }  .summary-row {    display: flex;    justify-content: space-between;    padding: 3px 0;    font-size: 11px;  }  .summary-label {    color: var(--text-muted);  }  .summary-value {    color: var(--text-primary);    font-weight: 500;  }  /* PANE 2: CENTER TASK WORKSPACE */  section.center-pane {    display: flex;    flex-direction: column;    overflow-y: auto;    background-color: var(--bg-canvas);    padding: 20px 24px;    gap: 16px;  }  .title-block {    display: flex;    flex-direction: column;    gap: 4px;  }  .screen-title {    font-size: 18px;    font-weight: 700;    color: var(--text-primary);    display: flex;    align-items: center;    gap: 10px;  }  .screen-subtitle {    font-size: 12px;    color: var(--text-secondary);    line-height: 1.5;  }  /* CARD SYSTEM */  .card-module {    background-color: var(--bg-surface);    border: 1px solid var(--border-color);    border-radius: 4px;    overflow: hidden;  }  .card-module-header {    background-color: rgba(23, 42, 70, 0.4);    border-bottom: 1px solid var(--border-color);    padding: 9px 14px;    display: flex;    justify-content: space-between;    align-items: center;    font-size: 12px;    font-weight: 600;  }  .card-module-title {    color: var(--text-primary);    display: flex;    align-items: center;    gap: 8px;  }  .card-module-badge {    font-size: 10px;    padding: 2px 6px;    border-radius: 2px;    border: 1px solid var(--border-color);    color: var(--text-muted);  }  .card-module-body {    padding: 14px;    display: flex;    flex-direction: column;    gap: 12px;  }  /* GRID OF DATA CARDS */  .meta-grid-2 {    display: grid;    grid-template-columns: 1fr 1fr;    gap: 12px;  }  .meta-cell {    background-color: var(--bg-canvas);    border: 1px solid var(--border-color);    padding: 10px 12px;    border-radius: 3px;    display: flex;    flex-direction: column;    gap: 4px;  }  .meta-cell-label {    font-size: 11px;    color: var(--text-muted);    text-transform: uppercase;    letter-spacing: 0.03em;  }  .meta-cell-value {    font-size: 13px;    font-weight: 600;    color: var(--text-primary);  }  .meta-cell-sub {    font-size: 11px;    color: var(--text-muted);  }  /* INPUT & REDEMPTION FORM */  .redemption-box {    display: flex;    flex-direction: column;    gap: 10px;  }  .input-label-row {    display: flex;    justify-content: space-between;    align-items: center;    font-size: 11px;  }  .input-group-row {    display: flex;    gap: 8px;  }  .text-input-field {    flex: 1;    background-color: var(--bg-input);    border: 1px solid var(--border-color);    color: var(--text-primary);    font-family: var(--font-mono);    font-size: 13px;    padding: 8px 12px;    border-radius: 3px;    letter-spacing: 0.1em;  }  .text-input-field:focus {    border-color: var(--accent-teal);    background-color: #0b1524;  }  .btn-primary {    background-color: var(--accent-teal);    color: #081220;    border: 1px solid var(--accent-teal);    font-family: var(--font-mono);    font-weight: 700;    font-size: 12px;    padding: 8px 16px;    border-radius: 3px;    cursor: pointer;    white-space: nowrap;    user-select: none;  }  .btn-primary:hover {    background-color: #2be2b6;  }  .btn-secondary {    background-color: transparent;    color: var(--text-secondary);    border: 1px solid var(--border-color);    font-family: var(--font-mono);    font-weight: 600;    font-size: 12px;    padding: 8px 14px;    border-radius: 3px;    cursor: pointer;    white-space: nowrap;  }  .btn-secondary:hover {    border-color: var(--border-bright);    color: var(--text-primary);    background-color: var(--bg-elevated);  }  .btn-danger {    background-color: transparent;    color: var(--status-danger);    border: 1px solid #6b2828;    font-family: var(--font-mono);    font-weight: 600;    font-size: 12px;    padding: 8px 14px;    border-radius: 3px;    cursor: pointer;    white-space: nowrap;  }  .btn-danger:hover {    background-color: rgba(255, 114, 114, 0.1);    border-color: var(--status-danger);  }  /* DEVICE LIST TABLE */  .custom-table {    width: 100%;    border-collapse: collapse;    font-size: 12px;  }  .custom-table th {    text-align: left;    padding: 7px 10px;    background-color: var(--bg-canvas);    color: var(--text-muted);    font-weight: 600;    border-bottom: 1px solid var(--border-color);    font-size: 11px;    text-transform: uppercase;    letter-spacing: 0.04em;  }  .custom-table td {    padding: 9px 10px;    border-bottom: 1px solid var(--border-color);    color: var(--text-secondary);  }  .custom-table tr:last-child td {    border-bottom: none;  }  .custom-table tr.selected {    background-color: rgba(30, 207, 165, 0.05);  }  /* CALLOUT BANNER - COMMUNITY SPECIFICATION */  .community-callout {    background-color: rgba(23, 42, 70, 0.4);    border: 1px solid var(--border-bright);    border-left: 3px solid var(--accent-teal);    padding: 11px 14px;    border-radius: 3px;    display: flex;    justify-content: space-between;    align-items: center;    gap: 12px;  }  .community-callout-text {    font-size: 12px;    color: var(--text-secondary);  }  .community-callout-title {    font-weight: 700;    color: var(--accent-teal);    margin-bottom: 2px;  }  /* ACTION CONTROLS FOOTER OF TASK */  .task-actions-row {    display: flex;    justify-content: space-between;    align-items: center;    padding-top: 8px;    border-top: 1px solid var(--border-color);    margin-top: auto;  }  .action-group-left {    display: flex;    gap: 10px;  }  .action-group-right {    display: flex;    gap: 10px;  }  /* PANE 3: RIGHT INSPECTOR (CHANGES / CHECKS / INFO) */  aside.right-pane {    background-color: var(--bg-surface);    border-left: 1px solid var(--border-color);    display: flex;    flex-direction: column;    overflow-y: auto;  }  .tabs-bar {    display: flex;    border-bottom: 1px solid var(--border-color);    background-color: rgba(0, 0, 0, 0.25);  }  .tab-btn {    flex: 1;    background: transparent;    border: none;    padding: 9px 4px;    font-family: var(--font-mono);    font-size: 11px;    color: var(--text-muted);    cursor: pointer;    text-align: center;    border-bottom: 2px solid transparent;  }  .tab-btn:hover {    color: var(--text-primary);  }  .tab-btn.active {    color: var(--accent-teal);    border-bottom-color: var(--accent-teal);    font-weight: 700;    background-color: rgba(30, 207, 165, 0.04);  }  .inspector-body {    padding: 14px;    display: flex;    flex-direction: column;    gap: 14px;    flex: 1;  }  .inspector-block {    display: flex;    flex-direction: column;    gap: 6px;  }  .inspector-block-title {    font-size: 11px;    font-weight: 700;    text-transform: uppercase;    color: var(--text-muted);    letter-spacing: 0.05em;    display: flex;    justify-content: space-between;    align-items: center;  }  .inspector-card {    background-color: var(--bg-canvas);    border: 1px solid var(--border-color);    border-radius: 3px;    padding: 10px;    display: flex;    flex-direction: column;    gap: 6px;    font-size: 11px;  }  .inspector-row {    display: flex;    justify-content: space-between;    padding: 2px 0;  }  .inspector-label {    color: var(--text-muted);  }  .inspector-val {    color: var(--text-primary);    font-weight: 500;  }  .inspector-val.unverified {    color: var(--status-warning);    font-weight: 600;  }  .inspector-val.nd {    color: var(--text-muted);  }  .glossary-list {    display: flex;    flex-direction: column;    gap: 4px;    font-size: 11px;    color: var(--text-secondary);    line-height: 1.4;  }  .glossary-item {    display: flex;    gap: 6px;  }  .glossary-term {    color: var(--accent-teal);    font-weight: 600;    white-space: nowrap;  }  /* FOOTER STATUS STRIP */  footer.bottom-bar {    background-color: #080e1a;    border-top: 1px solid var(--border-color);    height: 30px;    display: flex;    align-items: center;    justify-content: space-between;    padding: 0 14px;    font-size: 11px;    color: var(--text-muted);    flex-shrink: 0;    user-select: none;  }  .footer-shortcuts {    display: flex;    gap: 14px;    align-items: center;  }  .footer-shortcut-key {    color: var(--accent-teal);    font-weight: 600;  }  .footer-privacy-text {    color: var(--text-muted);    font-size: 11px;  }  .footer-status-pill {    display: inline-flex;    align-items: center;    gap: 6px;    color: var(--accent-teal);    font-weight: 600;  }  .status-dot {    width: 7px;    height: 7px;    border-radius: 50%;    background-color: var(--accent-teal);  }  /* Responsive drawer rules */  @media (max-width: 1024px) {    main.workspace-shell {      grid-template-columns: 220px 1fr;    }    aside.right-pane {      display: none;    }  }  @media (max-width: 768px) {    main.workspace-shell {      grid-template-columns: 1fr;    }    aside.left-pane {      display: none;    }    header.top-bar {      padding: 0 10px;    }    .header-center-nav {      display: none;    }    section.center-pane {      padding: 14px;    }  }</style>
+<</head>
+<<body>
+<<!-- TOP HEADER BAR -->
+<<header class="top-bar" role="banner">
+<<div class="header-left">
+<<div class="brand-lockup">
+<<span class="brand-glyph">G&gt;</span>
+<<span>gasacli</span>
+<</div>
+<<span class="route-breadcrumb">/ conta-e-pro</span>
+<</div>
+<<nav aria-label="Navegação Superior" class="header-center-nav">
+<<a class="nav-crumb" href="#geral">Visão Geral</a>
+<<a class="nav-crumb" href="#agentes">Agentes</a>
+<<a class="nav-crumb" href="#brain">Brain &amp; Memory</a>
+<<a class="nav-crumb" href="#permissoes">Permissões</a>
+<<a class="nav-crumb" href="#config">Configurações</a>
+<<a aria-current="page" class="nav-crumb active" href="#conta">[ Conta &amp; Pro ]</a>
+<</nav>
+<<div class="header-right">
+<<div class="badge-tag">
+<<span>Terminal 120x36</span>
+<</div>
+<<button aria-label="Alternar para terminal" class="btn-header" type="button">[1] Painel</button>
+<<button aria-label="Abrir inspetor" class="btn-header" type="button">[2] Inspetor</button>
+<<button aria-label="Voltar à tela anterior" class="btn-header" type="button">[Esc] Voltar</button>
+<</div>
+<</header>
+<<!-- THREE-PANE WORKSPACE SHELL -->
+<<main class="workspace-shell">
+<<!-- PANE 1: LEFT PERSISTENT NAVIGATION & CONTEXT -->
+<<aside aria-label="Navegação Lateral" class="left-pane">
+<<div class="pane-header">
+<<span>[1] GESTÃO DE CONTA &amp; DISPOSITIVOS</span>
+<<span class="pane-header-action">FOCO</span>
+<</div>
+<<div class="left-pane-section">
+<<div class="section-label">Painéis de Licenciamento</div>
+<<ul class="nav-item-list" role="list">
+<<li>
+<<a aria-current="page" class="nav-item active" href="#resumo">
+<<span>Conta &amp; Ativação Pro</span>
+<<span class="item-meta-pill">Atual</span>
+<</a>
+<</li>
+<<li>
+<<a class="nav-item" href="#dispositivos">
+<<span>Dispositivos Autorizados</span>
+<<span class="item-meta-pill">1 ativo</span>
+<</a>
+<</li>
+<<li>
+<<a class="nav-item" href="#historico">
+<<span>Histórico de Resgate</span>
+<<span class="item-meta-pill">N/D</span>
+<</a>
+<</li>
+<</ul>
+<</div>
+<<div class="left-pane-section">
+<<div class="section-label">Identificação da Conta</div>
+<<div class="summary-card-mini">
+<<div class="summary-row">
+<<span class="summary-label">Rótulo:</span>
+<<span class="summary-value">Conta local de demonstração</span>
+<</div>
+<<div class="summary-row">
+<<span class="summary-label">E-mail:</span>
+<<span class="summary-value" style="color: var(--text-muted);">N/D</span>
+<</div>
+<<div class="summary-row">
+<<span class="summary-label">Provedor:</span>
+<<span class="summary-value">N/D</span>
+<</div>
+<<div class="summary-row">
+<<span class="summary-label">Status Pro:</span>
+<<span class="summary-value" style="color: var(--status-warning);">Não verificado</span>
+<</div>
+<</div>
+<</div>
+<<div class="left-pane-section">
+<<div class="section-label">Edição Local Ativa</div>
+<<div class="summary-card-mini">
+<<div class="summary-row">
+<<span class="summary-label">Nível de Acesso:</span>
+<<span class="summary-value" style="color: var(--accent-teal);">Community</span>
+<</div>
+<<div class="summary-row">
+<<span class="summary-label">Status:</span>
+<<span class="summary-value">Ativo</span>
+<</div>
+<<div class="summary-row">
+<<span class="summary-label">Dispositivos:</span>
+<<span class="summary-value">1 autorizado</span>
+<</div>
+<</div>
+<</div>
+<<div class="left-pane-section" style="margin-top: auto;">
+<<div class="section-label">Instruções de Navegação</div>
+<<p style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">          Utilize <kbd style="color: var(--text-secondary); background: var(--bg-canvas); padding: 1px 4px; border: 1px solid var(--border-color); border-radius: 2px;">Tab</kbd> para alternar campos e <kbd style="color: var(--text-secondary); background: var(--bg-canvas); padding: 1px 4px; border: 1px solid var(--border-color); border-radius: 2px;">Enter</kbd> para acionar comandos sem mouse.        </p>
+<</div>
+<</aside>
+<<!-- PANE 2: CENTER TASK WORKSPACE -->
+<<section aria-label="Conteúdo Principal" class="center-pane">
+<<div class="title-block">
+<<h1 class="screen-title">
+<<span>Conta na nuvem e ativação Pro</span>
+<<span class="badge-tag" style="border-color: var(--border-bright); font-size: 11px;">Opcional</span>
+<</h1>
+<<p class="screen-subtitle">Revise informações de conta, dispositivos associados e validação de direito Pro. A edição Community permanece utilizável.</p>
+<</div>
+<<!-- CALLOUT COMMUNITY SPECIFICATION -->
+<<div class="community-callout" role="note">
+<<div class="community-callout-text">
+<<div>A edição Community permanece utilizável.</div>
+<</div>
+<<span class="badge-tag" style="background-color: var(--bg-surface); color: var(--accent-teal); border-color: var(--accent-teal);">Community Ativo</span>
+<</div>
+<<!-- MODULE 1: ACCOUNT & ENTITLEMENT VIEW -->
+<<div class="card-module">
+<<div class="card-module-header">
+<<div class="card-module-title">
+<<span>1. Visão de Conta e Direito (Entitlement)</span>
+<</div>
+<<span class="card-module-badge">Status: Não verificado</span>
+<</div>
+<<div class="card-module-body">
+<<div class="meta-grid-2">
+<<div class="meta-cell">
+<<span class="meta-cell-label">Rótulo da Conta</span>
+<<span class="meta-cell-value">Conta local de demonstração</span>
+<<span class="meta-cell-sub">E-mail: N/D</span>
+<</div>
+<<div class="meta-cell">
+<<span class="meta-cell-label">Status do Direito (Entitlement)</span>
+<<span class="meta-cell-value" style="color: var(--status-warning);">Não verificado</span>
+<<span class="meta-cell-sub">Validação de direito Pro pendente de verificação</span>
+<</div>
+<<div class="meta-cell">
+<<span class="meta-cell-label">Expiração de Vigência</span>
+<<span class="meta-cell-value" style="color: var(--text-muted);">N/D</span>
+<<span class="meta-cell-sub">Data ou prazo de encerramento não informado</span>
+<</div>
+<<div class="meta-cell">
+<<span class="meta-cell-label">Período de Carência (Grace Period)</span>
+<<span class="meta-cell-value" style="color: var(--text-muted);">N/D</span>
+<<span class="meta-cell-sub">Regra de tolerância pós-expiração não informada</span>
+<</div>
+<</div>
+<</div>
+<</div>
+<<!-- MODULE 2: REDEMPTION CODE ENTRY -->
+<<div class="card-module">
+<<div class="card-module-header">
+<<div class="card-module-title">
+<<span>2. Resgate de Código Pro (Redemption Code)</span>
+<</div>
+<<span class="card-module-badge">Máscara Ativa</span>
+<</div>
+<<div class="card-module-body">
+<<div class="redemption-box">
+<<div class="input-label-row">
+<<label for="codigo-pro" style="color: var(--text-secondary); font-weight: 500;">Código de Resgate / Ativação:</label>
+<<span style="color: var(--text-muted); font-size: 11px;">Validade do código: N/D</span>
+<</div>
+<<div class="input-group-row">
+<<input aria-label="Código de resgate oculto por máscara" class="text-input-field" id="codigo-pro" readonly="" type="password" value="••••••••••••••••"/>
+<<button class="btn-primary" type="button">[ Validar Código ]</button>
+<</div>
+<<div style="font-size: 11px; color: var(--text-muted);">Código oculto por máscara.</div>
+<</div>
+<</div>
+<</div>
+<<!-- MODULE 3: ENROLLED DEVICES -->
+<<div class="card-module">
+<<div class="card-module-header">
+<<div class="card-module-title">
+<<span>3. Dispositivos Autorizados (Enrolled Devices)</span>
+<</div>
+<<span class="card-module-badge">1 Dispositivo Autorizado</span>
+<</div>
+<<div class="card-module-body" style="padding: 0;">
+<<table aria-label="Tabela de Dispositivos Autorizados" class="custom-table">
+<<thead>
+<<tr>
+<<th scope="col">Dispositivo</th>
+<<th scope="col">Identidade / Hardware</th>
+<<th scope="col">Estado</th>
+<<th scope="col">Última Validação</th>
+<</tr>
+<</thead>
+<<tbody>
+<<tr class="selected">
+<<td style="font-weight: 600; color: var(--text-primary);">                  [1] Dispositivo autorizado                </td>
+<<td style="color: var(--text-muted);">N/D</td>
+<<td>
+<<span class="badge-tag" style="border-color: var(--accent-teal); color: var(--accent-teal);">                    Autorizado                  </span>
+<</td>
+<<td style="color: var(--text-muted);">N/D</td>
+<</tr>
+<</tbody>
+<</table>
+<</div>
+<</div>
+<<!-- TASK ACTIONS ROW -->
+<<div class="task-actions-row">
+<<div class="action-group-left">
+<<button aria-label="Cancelar ou reverter" class="btn-secondary" type="button">[ Cancelar ]</button>
+<<button aria-label="Atualizar dados de direito" class="btn-secondary" type="button">[r] Atualizar Status</button>
+<</div>
+<<div class="action-group-right">
+<<button aria-label="Encerrar sessão segura" class="btn-danger" type="button">[ Desconectar Conta (Sign-out) ]</button>
+<</div>
+<</div>
+<</section>
+<<!-- PANE 3: RIGHT INSPECTOR (CHANGES / CHECKS / INFO) -->
+<<aside aria-label="Inspetor de Conta" class="right-pane">
+<<div class="tabs-bar" role="tablist">
+<<button aria-selected="true" class="tab-btn active" role="tab" type="button">Info</button>
+<<button aria-selected="false" class="tab-btn" role="tab" type="button">Verificações</button>
+<<button aria-selected="false" class="tab-btn" role="tab" type="button">Mudanças</button>
+<</div>
+<<div class="inspector-body">
+<<!-- INSPECTOR BLOCK 1: ACCOUNT METRICS -->
+<<div class="inspector-block">
+<<div class="inspector-block-title">
+<<span>Metadados Fatuais</span>
+<<span style="color: var(--text-muted); font-size: 10px;">PRO-META</span>
+<</div>
+<<div class="inspector-card">
+<<div class="inspector-row">
+<<span class="inspector-label">Conta:</span>
+<<span class="inspector-val">Conta local de demonstração</span>
+<</div>
+<<div class="inspector-row">
+<<span class="inspector-label">E-mail:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<<div class="inspector-row">
+<<span class="inspector-label">Provedor:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<<div class="inspector-row">
+<<span class="inspector-label">Direito Pro:</span>
+<<span class="inspector-val unverified">Não verificado</span>
+<</div>
+<<div class="inspector-row">
+<<span class="inspector-label">Código:</span>
+<<span class="inspector-val">[Oculto]</span>
+<</div>
+<<div class="inspector-row">
+<<span class="inspector-label">Validade Código:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<<div class="inspector-row">
+<<span class="inspector-label">Dispositivos:</span>
+<<span class="inspector-val">1 autorizado</span>
+<</div>
+<<div class="inspector-row">
+<<span class="inspector-label">Identidade Disp.:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<<div class="inspector-row">
+<<span class="inspector-label">Expiração:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<<div class="inspector-row">
+<<span class="inspector-label">Carência:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<</div>
+<</div>
+<<!-- INSPECTOR BLOCK 2: SPECIFICATION BOUNDARY -->
+<<div class="inspector-block">
+<<div class="inspector-block-title">
+<<span>Limites de Especificação</span>
+<</div>
+<<div class="inspector-card">
+<<div style="color: var(--text-secondary); line-height: 1.45;">A edição Community permanece utilizável.</div>
+<</div>
+<</div>
+<<!-- INSPECTOR BLOCK 3: GLOSSARY OF PERMITTED TERMS -->
+<<div class="inspector-block" style="margin-top: auto;">
+<<div class="inspector-block-title">
+<<span>Glossário Autorizado</span>
+<</div>
+<<div class="inspector-card">
+<<div class="glossary-list">
+<<div class="glossary-item">
+<<span class="glossary-term">Orquestrador:</span>
+<<span>GasaCLI</span>
+<</div>
+<<div class="glossary-item">
+<<span class="glossary-term">Agentes:</span>
+<<span>Claude Code, Codex CLI, Gemini CLI, Cursor CLI, OpenCode, Orca, Kimi.</span>
+<</div>
+<<div class="glossary-item">
+<<span class="glossary-term">Modelos:</span>
+<<span>claude-sonnet-5-5, gpt-6-luna.</span>
+<</div>
+<<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">                Cursor CLI e OpenCode mantidos como entidades separadas.              </div>
+<</div>
+<</div>
+<</div>
+<</div>
+<</aside>
+<</main>
+<<!-- FOOTER STATUS & SHORTCUT STRIP -->
+<<footer class="bottom-bar" role="contentinfo">
+<<div class="footer-shortcuts">
+<<span>
+<<span class="footer-shortcut-key">[1]</span> Navegação</span>
+<<span>
+<<span class="footer-shortcut-key">[2]</span> Inspetor</span>
+<<span>
+<<span class="footer-shortcut-key">[Tab]</span> Alternar Campo</span>
+<<span>
+<<span class="footer-shortcut-key">[Enter]</span> Ação</span>
+<<span>
+<<span class="footer-shortcut-key">[Esc]</span> Voltar</span>
+<</div>
+<<div class="footer-privacy-text">      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.    </div>
+<<div class="footer-status-pill">
+<<div class="status-dot">
+<</div>
+<<span>CONTA &amp; PRO</span>
+<</div>
+<</footer>
+<</body>
+<</html>

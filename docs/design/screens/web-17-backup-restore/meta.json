@@ -1,0 +1,20 @@
+{
+    "promptFile":  "docs/design/prompts/web-17-backup-restore.md",
+    "stitchScreenId":  "48711a259997473cad1941cbc6c13338",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "replaced unsupported signature, enclave, and security-exclusion labels with neutral copy where visible",
+                                                  "kept Total: 18 without inferring a unit; all unspecified backup, migration, and restore details remain N/D",
+                                                  "removed remote CDN, icon-font, and external font references from HTML",
+                                                  "PNG is within the 600 KiB limit and the exact pt-BR privacy sentence is present"
+                                              ],
+                          "remainingDefects":  [
+                                                   "The row label Integridade da Assinatura remains in the screenshot; signature support is not specified by the source prompt."
+                                               ]
+                      }
+}

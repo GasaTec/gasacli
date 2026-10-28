@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-20-sync-status.md",
+    "stitchScreenId":  "c6ae73b83d3945f3a57c1c6bfb514bb5",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept only Pausada, 3 objects, 1 conflict, 12m, and the three specified exclusion labels",
+                                                  "removed unsupported guarantees about offline mode, local access, transfer, and permanent exclusion behavior",
+                                                  "removed invented object IDs and conflict status; unspecified details remain N/D",
+                                                  "removed remote CDN, icon-font, and external font references from HTML",
+                                                  "PNG is 559836 bytes, within the 600 KiB limit, and exact pt-BR privacy sentence is present"
+                                              ],
+                          "remainingDefects":  [
+                                                   "The summary card still says Aguardando despacho, which is an unsupported per-queue status."
+                                               ]
+                      }
+}

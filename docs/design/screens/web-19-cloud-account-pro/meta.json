@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-19-cloud-account-pro.md",
+    "stitchScreenId":  "4379e9020fa64cc78cf9401d0d1352e8",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept only the demonstration account, hidden code, one authorized device, and unverified entitlement values",
+                                                  "removed unsupported local sovereignty, cloud-independence, and server-validation claims",
+                                                  "kept unspecified provider, device identity, expiry and grace details as N/D",
+                                                  "removed remote CDN, icon-font, and external font references from HTML",
+                                                  "PNG is 586707 bytes, within the 600 KiB limit, and exact pt-BR privacy sentence is present"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

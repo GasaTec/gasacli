@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-18-settings.md",
+    "stitchScreenId":  "117f09a225b849f68cb563cbe7505b6c",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "removed invented workspace name and kept workspace context N/D",
+                                                  "removed descriptions asserting behavior for auto, manual, and always modes",
+                                                  "removed unsupported exclusive-storage and save-confirmation promises",
+                                                  "removed remote CDN, icon-font, and external font references from HTML",
+                                                  "PNG is 594648 bytes, within the 600 KiB limit, and exact pt-BR privacy sentence is present"
+                                              ],
+                          "remainingDefects":  [
+                                                   "The intro phrase workspace soberano is unsupported copy and remains visible after the final review."
+                                               ]
+                      }
+}

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<<html class="dark" lang="pt-BR">
+<<head>
+<<meta charset="utf-8"/>
+<<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<<title>Web — Configurações: inicialização, tema, idioma e diretórios (GasaCLI)</title>
+<<style>    /* Reset & Base Fonts (System Monospace only - zero external fonts/CDNs) */    *, *::before, *::after {      box-sizing: border-box;      margin: 0;      padding: 0;    }    :root {      --bg: #0B1220;      --surface: #111C2E;      --surface-dim: #0d1624;      --elevated: #1B2A40;      --border: #596982;      --border-muted: #2d3d54;      --text-primary: #F4F7FB;      --text-secondary: #C3CFDF;      --text-muted: #9AAAC0;      --accent: #1ECFA5;      --accent-dim: rgba(30, 207, 165, 0.15);      --accent-dark: #172A46;      --danger: #FF7272;      --warning: #F2B84B;      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;    }    body {      background-color: var(--bg);      color: var(--text-primary);      font-family: var(--font-mono);      font-size: 13px;      line-height: 1.45;      min-height: 100vh;      display: flex;      flex-direction: column;      overflow-x: hidden;      -webkit-font-smoothing: antialiased;    }    /* Focus visible standard WCAG 2.2 AA */    :focus-visible {      outline: 2px solid var(--accent);      outline-offset: 2px;    }    /* Top Bar */    header.top-header {      background-color: #080E18;      border-bottom: 1px solid var(--border-muted);      height: 38px;      display: flex;      align-items: center;      justify-content: space-between;      padding: 0 16px;      font-size: 12px;      user-select: none;      flex-shrink: 0;    }    .brand-group {      display: flex;      align-items: center;      gap: 12px;    }    .wordmark {      font-weight: 700;      letter-spacing: -0.02em;      color: var(--text-primary);      font-size: 13px;    }    .wordmark span.chevron {      color: var(--accent);      font-weight: 800;      margin-right: 2px;    }    .nav-path {      color: var(--text-muted);    }    .nav-path span.current {      color: var(--text-secondary);    }    .header-actions {      display: flex;      align-items: center;      gap: 12px;    }    .header-pill {      background-color: var(--surface);      border: 1px solid var(--border-muted);      padding: 2px 8px;      border-radius: 3px;      font-size: 11px;      color: var(--text-secondary);    }    .header-link {      color: var(--text-muted);      text-decoration: none;      padding: 2px 6px;      border: 1px solid transparent;      border-radius: 3px;    }    .header-link:hover {      color: var(--text-primary);      border-color: var(--border-muted);    }    /* Shell Navigation Bar */    nav.app-nav {      background-color: var(--surface-dim);      border-bottom: 1px solid var(--border-muted);      display: flex;      align-items: center;      justify-content: space-between;      padding: 0 16px;      font-size: 12px;      flex-shrink: 0;      overflow-x: auto;    }    .nav-tabs {      display: flex;      align-items: center;      gap: 4px;    }    .nav-tab {      padding: 8px 12px;      color: var(--text-muted);      text-decoration: none;      border-bottom: 2px solid transparent;      white-space: nowrap;    }    .nav-tab:hover {      color: var(--text-primary);    }    .nav-tab.active {      color: var(--accent);      border-bottom-color: var(--accent);      background-color: rgba(30, 207, 165, 0.05);      font-weight: 600;    }    .nav-status-badge {      font-size: 11px;      color: var(--text-muted);      display: flex;      align-items: center;      gap: 6px;      white-space: nowrap;    }    /* Main Three-Pane Layout */    main.workspace-shell {      flex: 1;      display: grid;      grid-template-columns: 280px minmax(520px, 1fr) 340px;      min-height: calc(100vh - 38px - 37px - 34px);      background-color: var(--bg);    }    /* Common Pane Styles */    .pane {      display: flex;      flex-direction: column;      overflow-y: auto;    }    .pane-left {      background-color: #0b1322;      border-right: 1px solid var(--border-muted);    }    .pane-center {      background-color: var(--bg);      border-right: 1px solid var(--border-muted);      padding: 20px;    }    .pane-right {      background-color: #0e1726;      padding: 16px;    }    .pane-header {      padding: 10px 14px;      border-bottom: 1px solid var(--border-muted);      background-color: var(--surface);      font-size: 11px;      font-weight: 600;      letter-spacing: 0.04em;      text-transform: uppercase;      color: var(--text-secondary);      display: flex;      align-items: center;      justify-content: space-between;    }    .pane-header .tag {      font-size: 10px;      color: var(--accent);    }    /* Left Nav Pane Content */    .left-section {      padding: 14px 12px;      border-bottom: 1px solid var(--border-muted);    }    .left-section-title {      font-size: 11px;      font-weight: 600;      color: var(--text-muted);      text-transform: uppercase;      letter-spacing: 0.05em;      margin-bottom: 8px;      padding: 0 4px;    }    .category-list {      list-style: none;      display: flex;      flex-direction: column;      gap: 2px;    }    .category-item {      display: flex;      align-items: center;      justify-content: space-between;      padding: 7px 10px;      border-radius: 4px;      color: var(--text-secondary);      cursor: pointer;      text-decoration: none;      border: 1px solid transparent;      font-size: 12px;    }    .category-item:hover {      background-color: var(--surface);      color: var(--text-primary);    }    .category-item.active {      background-color: var(--surface);      border-color: var(--border);      color: var(--accent);      font-weight: 600;    }    .category-badge {      font-size: 10px;      padding: 1px 5px;      border-radius: 3px;      background-color: rgba(255, 255, 255, 0.06);      color: var(--text-muted);    }    .category-item.active .category-badge {      background-color: var(--accent-dim);      color: var(--accent);    }    .scope-card {      background-color: var(--surface);      border: 1px solid var(--border-muted);      border-radius: 4px;      padding: 10px;      font-size: 11px;      display: flex;      flex-direction: column;      gap: 6px;    }    .scope-row {      display: flex;      justify-content: space-between;      align-items: center;    }    .scope-label {      color: var(--text-muted);    }    .scope-val {      color: var(--text-primary);    }    /* Center Settings Content */    .settings-title-row {      margin-bottom: 18px;    }    .settings-main-title {      font-size: 16px;      font-weight: 700;      color: var(--text-primary);      margin-bottom: 4px;    }    .settings-subtitle {      font-size: 12px;      color: var(--text-muted);    }    .config-card {      background-color: var(--surface);      border: 1px solid var(--border);      border-radius: 5px;      padding: 16px;      margin-bottom: 16px;    }    .config-card-header {      display: flex;      align-items: center;      justify-content: space-between;      border-bottom: 1px solid var(--border-muted);      padding-bottom: 10px;      margin-bottom: 14px;    }    .config-card-title {      font-size: 13px;      font-weight: 600;      color: var(--text-primary);    }    .config-card-ref {      font-size: 11px;      color: var(--text-muted);    }    /* Option Group (Settings choices) */    .option-grid {      display: grid;      grid-template-columns: repeat(3, 1fr);      gap: 10px;      margin-bottom: 12px;    }    .option-card {      background-color: #0b1424;      border: 1px solid var(--border-muted);      border-radius: 4px;      padding: 12px 10px;      cursor: pointer;      display: flex;      flex-direction: column;      gap: 4px;      transition: border-color 0.15s ease;      position: relative;    }    .option-card:hover {      border-color: var(--border);    }    .option-card.selected {      border-color: var(--accent);      background-color: rgba(30, 207, 165, 0.06);    }    .option-head {      display: flex;      align-items: center;      justify-content: space-between;      font-weight: 600;      font-size: 12px;      color: var(--text-primary);    }    .option-card.selected .option-head {      color: var(--accent);    }    .option-marker {      font-size: 11px;      padding: 1px 4px;      border-radius: 2px;      background: rgba(255, 255, 255, 0.08);      color: var(--text-muted);    }    .option-card.selected .option-marker {      background: var(--accent);      color: var(--accent-dark);      font-weight: 700;    }    .option-desc {      font-size: 11px;      color: var(--text-muted);      line-height: 1.35;    }    .form-group {      margin-bottom: 14px;    }    .form-group:last-child {      margin-bottom: 0;    }    .form-label {      display: flex;      justify-content: space-between;      font-size: 12px;      font-weight: 600;      color: var(--text-secondary);      margin-bottom: 6px;    }    .form-hint {      font-weight: 400;      font-size: 11px;      color: var(--text-muted);    }    .input-box {      width: 100%;      background-color: #080f1a;      border: 1px solid var(--border-muted);      border-radius: 4px;      padding: 8px 10px;      color: var(--text-primary);      font-family: var(--font-mono);      font-size: 12px;    }    .input-box:focus {      border-color: var(--accent);    }    .input-box[readonly] {      background-color: #070d17;      color: var(--text-secondary);      cursor: default;    }    .status-note-box {      background-color: #0d1727;      border-left: 3px solid var(--accent);      padding: 9px 12px;      border-radius: 0 4px 4px 0;      font-size: 11px;      color: var(--text-secondary);      margin-top: 8px;    }    /* Safety & Action Toolbar in Center Pane */    .action-panel-bar {      background-color: var(--surface);      border: 1px solid var(--border);      border-radius: 5px;      padding: 14px 16px;      display: flex;      align-items: center;      justify-content: space-between;      gap: 16px;    }    .action-guidance {      font-size: 12px;      color: var(--text-secondary);    }    .action-buttons {      display: flex;      align-items: center;      gap: 10px;      flex-shrink: 0;    }    .btn {      padding: 8px 16px;      font-size: 12px;      font-family: var(--font-mono);      font-weight: 600;      border-radius: 4px;      cursor: pointer;      border: 1px solid transparent;      display: inline-flex;      align-items: center;      gap: 6px;    }    .btn-secondary {      background-color: transparent;      border-color: var(--border);      color: var(--text-secondary);    }    .btn-secondary:hover {      background-color: var(--elevated);      color: var(--text-primary);      border-color: var(--text-muted);    }    .btn-primary {      background-color: var(--accent);      color: var(--accent-dark);      border-color: var(--accent);    }    .btn-primary:hover {      background-color: #19b691;    }    /* Right Pane: Inspector, Changes, Checks, Info */    .tab-strip-sub {      display: flex;      border-bottom: 1px solid var(--border-muted);      margin-bottom: 14px;    }    .tab-strip-btn {      flex: 1;      text-align: center;      padding: 6px 4px;      background: none;      border: none;      border-bottom: 2px solid transparent;      color: var(--text-muted);      font-family: var(--font-mono);      font-size: 11px;      font-weight: 600;      cursor: pointer;    }    .tab-strip-btn.active {      color: var(--accent);      border-bottom-color: var(--accent);      background-color: rgba(30, 207, 165, 0.05);    }    .inspector-card {      background-color: var(--surface);      border: 1px solid var(--border-muted);      border-radius: 4px;      padding: 12px;      margin-bottom: 12px;    }    .inspector-card-title {      font-size: 11px;      font-weight: 600;      text-transform: uppercase;      letter-spacing: 0.04em;      color: var(--text-muted);      margin-bottom: 8px;      display: flex;      justify-content: space-between;      align-items: center;    }    .inspector-list {      display: flex;      flex-direction: column;      gap: 7px;      font-size: 11px;    }    .inspector-item {      display: flex;      justify-content: space-between;      align-items: baseline;      padding-bottom: 5px;      border-bottom: 1px dashed rgba(255, 255, 255, 0.07);    }    .inspector-item:last-child {      border-bottom: none;      padding-bottom: 0;    }    .inspector-key {      color: var(--text-muted);    }    .inspector-val {      color: var(--text-primary);      text-align: right;    }    .inspector-val.nd {      color: var(--text-muted);      font-style: italic;    }    .inspector-val.accent {      color: var(--accent);      font-weight: 600;    }    /* Glossary Section */    .glossary-box {      border: 1px solid var(--border-muted);      border-radius: 4px;      padding: 10px;      background-color: #0b1424;      font-size: 10px;      color: var(--text-muted);      line-height: 1.4;    }    .glossary-title {      font-weight: 600;      color: var(--text-secondary);      text-transform: uppercase;      margin-bottom: 4px;    }    /* Bottom Shortcut Bar */    footer.app-footer {      height: 34px;      background-color: #080E18;      border-top: 1px solid var(--border-muted);      padding: 0 16px;      display: flex;      align-items: center;      justify-content: space-between;      font-size: 11px;      color: var(--text-muted);      flex-shrink: 0;      user-select: none;    }    .footer-left {      display: flex;      align-items: center;      gap: 16px;    }    .footer-keys {      display: flex;      align-items: center;      gap: 12px;    }    .key-shortcut {      color: var(--text-secondary);    }    .key-shortcut span.key {      color: var(--accent);      font-weight: 600;    }    .privacy-text {      color: var(--text-secondary);    }    .footer-status-pill {      display: flex;      align-items: center;      gap: 6px;      color: var(--accent);      font-weight: 600;    }    .status-dot {      width: 7px;      height: 7px;      border-radius: 50%;      background-color: var(--accent);    }    /* Mobile Drawer & Responsive Rules */    @media (max-width: 1024px) {      main.workspace-shell {        grid-template-columns: 240px 1fr;      }      .pane-right {        display: none;      }    }    @media (max-width: 768px) {      main.workspace-shell {        grid-template-columns: 1fr;      }      .pane-left {        display: none;      }      .pane-center {        padding: 12px;      }      .option-grid {        grid-template-columns: 1fr;      }      .action-panel-bar {        flex-direction: column;        align-items: stretch;      }      .action-buttons {        justify-content: flex-end;      }    }  </style>
+<</head>
+<<body>
+<<!-- Top System Header (Neutral terminal 120x36 framing, plain wordmark G> gasacli, zero device paths) -->
+<<header class="top-header">
+<<div class="brand-group">
+<<div class="wordmark">
+<<span class="chevron">G&gt;</span> gasacli</div>
+<<div class="nav-path">/ <span class="current">configuracoes</span>
+<</div>
+<</div>
+<<div class="header-actions">
+<<div class="header-pill">Terminal 120x36</div>
+<<a class="header-link" href="#painel-esq">[1] Navegação</a>
+<<a class="header-link" href="#painel-centro">[2] Configurações</a>
+<<a class="header-link" href="#painel-dir">[3] Inspetor</a>
+<<a class="header-link" href="#voltar">[Esc] Voltar</a>
+<</div>
+<</header>
+<<!-- Application Shell Navigation Bar -->
+<<nav class="app-nav">
+<<div class="nav-tabs">
+<<a class="nav-tab" href="#visao-geral">Visão Geral</a>
+<<a class="nav-tab" href="#agentes">Agentes</a>
+<<a class="nav-tab" href="#brain">Brain &amp; Memory</a>
+<<a class="nav-tab" href="#permissoes">Permissões</a>
+<<a class="nav-tab" href="#backup">Backup &amp; Restauração</a>
+<<a class="nav-tab active" href="#configuracoes">[ Configurações ]</a>
+<</div>
+<<div class="nav-status-badge">
+<<span>Contexto: N/D</span>
+<<span>•</span>
+<<span>Status: N/D</span>
+<</div>
+<</nav>
+<<!-- Three-Pane Main Workspace Layout -->
+<<main class="workspace-shell">
+<<!-- Left Navigation Pane (Persistent Shell) -->
+<<aside class="pane pane-left" id="painel-esq">
+<<div class="pane-header">
+<<span>[1] Categorias de Ajuste</span>
+<<span class="tag">FOCO</span>
+<</div>
+<<div class="left-section">
+<<div class="left-section-title">Seções de Configuração</div>
+<<ul class="category-list">
+<<li>
+<<a class="category-item active" href="#modo-web">
+<<span>Inicialização Web</span>
+<<span class="category-badge">Auto</span>
+<</a>
+<</li>
+<<li>
+<<a class="category-item" href="#aparencia-idioma">
+<<span>Tema e Idioma</span>
+<<span class="category-badge">Escuro / pt-BR</span>
+<</a>
+<</li>
+<<li>
+<<a class="category-item" href="#diretorios">
+<<span>Diretórios e Caminhos</span>
+<<span class="category-badge">Local</span>
+<</a>
+<</li>
+<<li>
+<<a class="category-item" href="#seguranca">
+<<span>Segurança e Reinício</span>
+<<span class="category-badge">N/D</span>
+<</a>
+<</li>
+<</ul>
+<</div>
+<<div class="left-section">
+<<div class="left-section-title">Escopo Atual</div>
+<<div class="scope-card">
+<<div class="scope-row">
+<<span class="scope-label">Workspace:</span>
+<<span class="scope-val">N/D</span>
+<</div>
+<<div class="scope-row">
+<<span class="scope-label">Origem da Definição:</span>
+<<span class="scope-val">N/D</span>
+<</div>
+<<div class="scope-row">
+<<span class="scope-label">Necessidade de Reinício:</span>
+<<span class="scope-val">N/D</span>
+<</div>
+<<div class="scope-row">
+<<span class="scope-label">Estado de Sincronia:</span>
+<<span class="scope-val">N/D</span>
+<</div>
+<</div>
+<</div>
+<<div class="left-section" style="margin-top: auto; border-bottom: none;">
+<<div class="left-section-title">Instruções de Teclado</div>
+<<div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">          Utilize <span style="color: var(--accent);">[Tab]</span> para alternar o foco entre painéis e <span style="color: var(--accent);">[Enter]</span> para selecionar opções.        </div>
+<</div>
+<</aside>
+<<!-- Center Pane: Preferences & Settings Form -->
+<<section class="pane pane-center" id="painel-centro">
+<<div class="settings-title-row">
+<<h1 class="settings-main-title">Configurações: inicialização, tema, idioma e diretórios</h1>
+<<p class="settings-subtitle">Revise e selecione preferências do workspace soberano. As escolhas configuram parâmetros de inicialização sem reivindicar garantias operacionais de tempo de execução.</p>
+<</div>
+<<!-- 1. Modo Web (Inicialização do Dashboard) -->
+<<div class="config-card" id="modo-web">
+<<div class="config-card-header">
+<<span class="config-card-title">1. Modo de Inicialização do Web Dashboard</span>
+<<span class="config-card-ref">Opções de configuração</span>
+<</div>
+<<div class="option-grid">
+<<div aria-checked="true" class="option-card selected" role="radio" tabindex="0">
+<<div class="option-head">
+<<span>Auto</span>
+<<span class="option-marker">[X] SELECIONADO</span>
+<</div>
+<</div>
+<<div aria-checked="false" class="option-card" role="radio" tabindex="0">
+<<div class="option-head">
+<<span>Manual</span>
+<<span class="option-marker">[ ]</span>
+<</div>
+<</div>
+<<div aria-checked="false" class="option-card" role="radio" tabindex="0">
+<<div class="option-head">
+<<span>Always</span>
+<<span class="option-marker">[ ]</span>
+<</div>
+<</div>
+<</div>
+<</div>
+<<!-- 2. Tema e Idioma -->
+<<div class="config-card" id="aparencia-idioma">
+<<div class="config-card-header">
+<<span class="config-card-title">2. Tema e Idioma da Interface</span>
+<<span class="config-card-ref">Aparência</span>
+<</div>
+<<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+<<!-- Theme -->
+<<div class="form-group">
+<<label class="form-label" for="theme-select">
+<<span>Tema Visual</span>
+<<span class="form-hint">[Padrão Dark]</span>
+<</label>
+<<div class="input-box" id="theme-select" style="display: flex; align-items: center; justify-content: space-between;">
+<<span style="color: var(--accent); font-weight: 600;">dark (Escuro - Navy &amp; Teal)</span>
+<<span style="color: var(--text-muted); font-size: 11px;">[Ativo]</span>
+<</div>
+<<div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">              Paleta canônica `#172A46` (Navy) e `#1ECFA5` (Teal), conforme DESIGN.md.            </div>
+<</div>
+<<!-- Language -->
+<<div class="form-group">
+<<label class="form-label" for="lang-select">
+<<span>Idioma da Interface</span>
+<<span class="form-hint">[pt-BR]</span>
+<</label>
+<<div class="input-box" id="lang-select" style="display: flex; align-items: center; justify-content: space-between;">
+<<span style="color: var(--accent); font-weight: 600;">pt-BR (Português do Brasil)</span>
+<<span style="color: var(--text-muted); font-size: 11px;">[Definido]</span>
+<</div>
+<<div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">              Interface e mensagens informativas em português do Brasil sem alternância silenciosa.            </div>
+<</div>
+<</div>
+<</div>
+<<!-- 3. Diretórios e Caminhos -->
+<<div class="config-card" id="diretorios">
+<<div class="config-card-header">
+<<span class="config-card-title">3. Diretórios e Caminhos do Workspace</span>
+<<span class="config-card-ref">Armazenamento</span>
+<</div>
+<<div class="form-group">
+<<label class="form-label">
+<<span>Raiz Global de Dados (GasaCLI data directory)</span>
+<<span class="form-hint">Local</span>
+<</label>
+<<input class="input-box" readonly="" type="text" value="local GasaCLI data directory"/>
+<</div>
+<<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+<<div class="form-group">
+<<label class="form-label">
+<<span>Caminho do Second Brain (Opcional)</span>
+<<span class="form-hint">N/D</span>
+<</label>
+<<input class="input-box" readonly="" type="text" value="N/D"/>
+<</div>
+<<div class="form-group">
+<<label class="form-label">
+<<span>Caminhos Adicionais de Projetos</span>
+<<span class="form-hint">N/D</span>
+<</label>
+<<input class="input-box" readonly="" type="text" value="N/D"/>
+<</div>
+<</div>
+<</div>
+<<!-- 4. Explicação de Reinício e Segurança sem Garantias Indevidas -->
+<<div class="config-card" id="seguranca">
+<<div class="config-card-header">
+<<span class="config-card-title">4. Segurança de Aplicação e Necessidade de Reinício</span>
+<<span class="config-card-ref">Ciclo de vida</span>
+<</div>
+<<div style="display: flex; gap: 16px; font-size: 11px; color: var(--text-muted);">
+<<span>Necessidade de reinício da sessão: <strong style="color: var(--text-primary);">N/D</strong>
+<</span>
+<<span>•</span>
+<<span>Validação de caminho em disco: <strong style="color: var(--text-primary);">N/D</strong>
+<</span>
+<<span>•</span>
+<<span>Contrato de dados: <strong style="color: var(--text-primary);">N/D</strong>
+<</span>
+<</div>
+<</div>
+<<!-- Safe Confirm / Cancel Toolbar -->
+<<div class="action-panel-bar">
+<<div class="action-guidance">Ações de configuração do workspace.</div>
+<<div class="action-buttons">
+<<button class="btn btn-secondary" tabindex="0" type="button">            [ Cancelar / Reverter ]          </button>
+<<button class="btn btn-primary" tabindex="0" type="button">            [ Salvar Preferências ]          </button>
+<</div>
+<</div>
+<</section>
+<<!-- Right Pane: Changes, Checks & Info (Inspector) -->
+<<aside class="pane pane-right" id="painel-dir">
+<<div class="pane-header">
+<<span>[3] Inspetor de Configurações</span>
+<<span class="tag">N/D</span>
+<</div>
+<<div class="tab-strip-sub">
+<<button class="tab-strip-btn active" type="button">Mudanças</button>
+<<button class="tab-strip-btn" type="button">Verificações</button>
+<<button class="tab-strip-btn" type="button">Info</button>
+<</div>
+<<!-- Changes Panel -->
+<<div class="inspector-card">
+<<div class="inspector-card-title">
+<<span>Mudanças Pendentes</span>
+<<span style="color: var(--text-muted); font-size: 10px;">BUFFER: N/D</span>
+<</div>
+<<div class="inspector-list">
+<<div class="inspector-item">
+<<span class="inspector-key">Modo Web:</span>
+<<span class="inspector-val accent">auto</span>
+<</div>
+<<div class="inspector-item">
+<<span class="inspector-key">Tema:</span>
+<<span class="inspector-val accent">dark</span>
+<</div>
+<<div class="inspector-item">
+<<span class="inspector-key">Idioma:</span>
+<<span class="inspector-val accent">pt-BR</span>
+<</div>
+<<div class="inspector-item">
+<<span class="inspector-key">Data Root:</span>
+<<span class="inspector-val">local</span>
+<</div>
+<<div class="inspector-item">
+<<span class="inspector-key">Brain Path:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<<div class="inspector-item">
+<<span class="inspector-key">Project Paths:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<</div>
+<</div>
+<<!-- Checks Panel -->
+<<div class="inspector-card">
+<<div class="inspector-card-title">
+<<span>Verificações de Ambiente</span>
+<<span style="color: var(--text-muted); font-size: 10px;">ESTADO</span>
+<</div>
+<<div class="inspector-list">
+<<div class="inspector-item">
+<<span class="inspector-key">Sonda de Reinício:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<<div class="inspector-item">
+<<span class="inspector-key">Leitura de Diretório:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<<div class="inspector-item">
+<<span class="inspector-key">Permissões de Escrita:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<<div class="inspector-item">
+<<span class="inspector-key">Disponibilidade Port:</span>
+<<span class="inspector-val nd">N/D</span>
+<</div>
+<</div>
+<</div>
+<<!-- Authorized Glossary Reference -->
+<<div class="glossary-box">
+<<div class="glossary-title">Glossário Autorizado</div>
+<<div style="margin-bottom: 4px;">          Orquestrador: GasaCLI        </div>
+<<div style="margin-bottom: 4px;">          Agentes: Claude Code, Codex CLI, Gemini CLI, Cursor CLI, OpenCode, Orca, Kimi.        </div>
+<<div>          Modelos: claude-sonnet-5-5, gpt-6-luna.        </div>
+<</div>
+<</aside>
+<</main>
+<<!-- Application Shortcut & Privacy Footer -->
+<<footer class="app-footer">
+<<div class="footer-left">
+<<div class="footer-keys">
+<<span class="key-shortcut">
+<<span class="key">[1]</span> Categorias</span>
+<<span class="key-shortcut">
+<<span class="key">[2]</span> Preferências</span>
+<<span class="key-shortcut">
+<<span class="key">[3]</span> Inspetor</span>
+<<span class="key-shortcut">
+<<span class="key">[Tab]</span> Alternar Painel</span>
+<<span class="key-shortcut">
+<<span class="key">[Esc]</span> Voltar</span>
+<</div>
+<</div>
+<<div class="privacy-text">      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.    </div>
+<<div class="footer-status-pill">
+<<span class="status-dot">
+<</span>
+<<span>CONFIGURAÇÕES</span>
+<</div>
+<</footer>
+<</body>
+<</html>

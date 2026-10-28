@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<<html class="dark" lang="pt-BR">
+<<head>
+<<meta charset="utf-8"/>
+<<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<<title>GasaCLI — Backup e Restauração</title>
+<<script id="tailwind-config">    tailwind.config = {      darkMode: "class",      theme: {        extend: {          colors: {            "on-primary-container": "#7f92b3",            "danger-dark": "#FF7272",            "elevated-light": "#FFFFFF",            "tertiary-fixed-dim": "#e7c08b",            "tertiary": "#e7c08b",            "text-muted-dark": "#9AAAC0",            "text-primary-dark": "#F4F7FB",            "inverse-surface": "#e4e2e5",            "on-error-container": "#ffdad6",            "primary-container": "#172a46",            "inverse-on-surface": "#303033",            "on-tertiary-fixed": "#291800",            "error": "#ffb4ab",            "success-light": "#137A54",            "surface-variant": "#343537",            "background-dark": "#0B1220",            "on-secondary-fixed-variant": "#00513f",            "border-dark": "#596982",            "primary-fixed-dim": "#b5c7eb",            "surface-light": "#FFFFFF",            "on-secondary-container": "#004b3a",            "text-secondary-light": "#44546A",            "on-primary-fixed": "#061c37",            "text-secondary-dark": "#C3CFDF",            "surface-dim": "#131315",            "text-primary-light": "#172A46",            "border-light": "#8996A8",            "surface-container-high": "#292a2c",            "on-secondary-fixed": "#002117",            "warning-dark": "#F2B84B",            "surface-bright": "#39393b",            "success-dark": "#43D19E",            "background-light": "#F4F7FB",            "primary-fixed": "#d6e3ff",            "on-tertiary-fixed-variant": "#5c4218",            "on-tertiary": "#432c04",            "surface-container": "#1f1f22",            "surface-container-lowest": "#0d0e10",            "on-surface": "#e4e2e5",            "on-error": "#690005",            "on-tertiary-container": "#ad8b5b",            "info-light": "#145FA8",            "outline": "#8e9098",            "secondary": "#3fe1b6",            "error-container": "#93000a",            "surface": "#131315",            "warning-light": "#8A5600",            "text-muted-light": "#5B6B80",            "inverse-primary": "#4d5f7e",            "tertiary-fixed": "#ffddb1",            "primary": "#b5c7eb",            "surface-dark": "#111C2E",            "outline-variant": "#44474d",            "on-surface-variant": "#c4c6ce",            "surface-container-low": "#1b1b1e",            "secondary-fixed": "#61fbcf",            "info-dark": "#79B8FF",            "background": "#131315",            "on-primary-fixed-variant": "#354765",            "secondary-container": "#00c59c",            "danger-light": "#B4232F",            "elevated-dark": "#1B2A40",            "on-secondary": "#00382a",            "surface-container-highest": "#343537",            "on-primary": "#1e314d",            "secondary-fixed-dim": "#3bdeb3",            "surface-tint": "#b5c7eb",            "on-background": "#e4e2e5",            "tertiary-container": "#3b2500"          },          borderRadius: {            DEFAULT: "0.125rem",            lg: "0.25rem",            xl: "0.5rem",            full: "0.75rem"          },          spacing: {            gutter: "24px",            "space-md": "12px",            "space-xs": "4px",            "space-sm": "8px",            "space-3xl": "40px",            margin: "24px",            "space-4xl": "48px",            "space-xl": "24px",            "space-lg": "16px",            "space-2xl": "32px"          },          fontFamily: {            "page-title": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],            metadata: ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],            hero: ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],            code: ["\"ui-monospace, SFMono-Regular, Consolas, monospace\""],            "body-emphasized": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],            body: ["\"Inter, ui-sans-serif, system-ui, sans-serif\""],            "section-title": ["\"Inter, ui-sans-serif, system-ui, sans-serif\""]          },          fontSize: {            "page-title": ["20px", { lineHeight: "28px", fontWeight: "600" }],            metadata: ["12px", { lineHeight: "16px", fontWeight: "400" }],            hero: ["28px", { lineHeight: "34px", fontWeight: "600" }],            code: ["13px", { lineHeight: "18px", fontWeight: "400" }],            "body-emphasized": ["14px", { lineHeight: "21px", fontWeight: "500" }],            body: ["13px", { lineHeight: "19px", fontWeight: "400" }],            "section-title": ["16px", { lineHeight: "24px", fontWeight: "600" }]          }        }      }    };  </script>
+<</head>
+<<body class="bg-background-dark text-text-primary-dark font-code antialiased selection:bg-primary-container selection:text-secondary h-screen flex flex-col overflow-hidden">
+<<!-- TOP APP BAR / TERMINAL HEADER -->
+<<header class="w-full bg-background-dark border-b border-border-dark flex-none select-none z-40">
+<<div class="h-9 px-space-md flex items-center justify-between border-b border-elevated-dark text-code">
+<<div class="flex items-center space-x-space-md">
+<<div aria-label="GasaCLI Terminal" class="flex items-center space-x-1">
+<<span class="font-code font-bold text-text-primary-dark">G</span>
+<<span class="font-code font-bold text-secondary">&gt;</span>
+<<span class="font-code font-bold tracking-tight text-text-primary-dark ml-1">gasacli</span>
+<</div>
+<<span class="text-border-dark">/</span>
+<<div class="flex items-center space-x-space-xs text-metadata">
+<<span class="text-secondary font-code">backup-restauracao</span>
+<</div>
+<</div>
+<<nav aria-label="Atalhos Globais do Header" class="flex items-center space-x-space-sm font-code text-metadata">
+<<span class="text-text-muted-dark hover:text-text-secondary-dark px-1 py-0.5 rounded cursor-pointer border border-transparent hover:border-border-dark">[1] Painel</span>
+<<span class="text-text-muted-dark hover:text-text-secondary-dark px-1 py-0.5 rounded cursor-pointer border border-transparent hover:border-border-dark">[2] Ações</span>
+<<span class="text-text-muted-dark hover:text-text-secondary-dark px-1 py-0.5 rounded cursor-pointer border border-transparent hover:border-border-dark">[3] Inspetor</span>
+<<span class="text-danger-dark hover:bg-error-container/20 px-1 py-0.5 rounded cursor-pointer border border-border-dark">[Esc] Voltar</span>
+<</nav>
+<</div>
+<<!-- Navigation Tabs Cluster -->
+<<div class="h-8 px-space-md flex items-center justify-between bg-surface-dark/60 text-code">
+<<div aria-label="Abas de Navegação" class="flex items-center space-x-1" role="tablist">
+<<a aria-selected="false" class="px-space-md py-1 text-text-muted-dark hover:text-text-secondary-dark hover:bg-elevated-dark/40 border-b-2 border-transparent transition-none font-code text-metadata" href="#" role="tab">          Visão Geral        </a>
+<<a aria-selected="false" class="px-space-md py-1 text-text-muted-dark hover:text-text-secondary-dark hover:bg-elevated-dark/40 border-b-2 border-transparent transition-none font-code text-metadata" href="#" role="tab">          Agentes        </a>
+<<a aria-selected="false" class="px-space-md py-1 text-text-muted-dark hover:text-text-secondary-dark hover:bg-elevated-dark/40 border-b-2 border-transparent transition-none font-code text-metadata" href="#" role="tab">          Brain &amp; Memory        </a>
+<<a aria-selected="false" class="px-space-md py-1 text-text-muted-dark hover:text-text-secondary-dark hover:bg-elevated-dark/40 border-b-2 border-transparent transition-none font-code text-metadata" href="#" role="tab">          Permissões        </a>
+<<a aria-selected="true" class="px-space-md py-1 text-secondary bg-primary-container/80 border-b-2 border-secondary font-code text-metadata font-bold" href="#" role="tab">          [ Backup &amp; Restauração ]        </a>
+<</div>
+<<div class="flex items-center space-x-space-md text-metadata font-code text-text-muted-dark">
+<</div>
+<</div>
+<</header>
+<<!-- MAIN THREE-PANE TUI WORKSPACE -->
+<<main class="flex-1 w-full grid grid-cols-1 md:grid-cols-12 overflow-hidden bg-background-dark">
+<<!-- PANE 1: ESCOPO & CONFIGURAÇÃO DO BACKUP (~26% / col-span-3) -->
+<<section aria-labelledby="pane-1-heading" class="md:col-span-3 border-r border-border-dark flex flex-col bg-surface-dark overflow-y-auto">
+<<div class="h-8 px-space-md flex items-center justify-between bg-elevated-dark/70 border-b border-border-dark flex-none">
+<<h2 class="font-code text-metadata font-bold text-text-primary-dark tracking-wide" id="pane-1-heading">          [1] ESCOPO &amp; CONFIGURAÇÃO DO BACKUP        </h2>
+<<span class="font-code text-metadata text-secondary">FOCO</span>
+<</div>
+<<div class="p-space-md flex flex-col space-y-space-md flex-1">
+<<!-- Scope Selector Card (Focused) -->
+<<div class="border border-secondary bg-background-dark p-space-sm rounded">
+<<div class="flex items-center justify-between mb-1">
+<<span class="font-code text-metadata text-text-muted-dark uppercase tracking-wider">Escopo de Execução</span>
+<<span class="font-code text-metadata text-text-secondary-dark border border-border-dark px-1 py-0.5 rounded">N/D</span>
+<</div>
+<<div class="font-code text-code text-text-primary-dark">&gt; Escopo: N/D</div>
+<<div class="mt-2 pt-2 border-t border-elevated-dark flex items-center justify-between text-metadata font-code">
+<<span class="text-text-muted-dark">Identificador de Sessão:</span>
+<<span class="text-text-secondary-dark">N/D</span>
+<</div>
+<</div>
+<<!-- Scope Metrics Card (Strict Constraint: ONLY Total: 18) -->
+<<div class="border border-border-dark bg-background-dark p-space-sm rounded">
+<<div class="flex items-center justify-between text-metadata font-code mb-1">
+<<span class="text-text-muted-dark uppercase tracking-wider">Métrica de Escopo</span>
+<<span class="text-secondary font-code text-metadata">AMOSTRA CANÔNICA</span>
+<</div>
+<<div class="p-space-xs bg-surface-dark/90 border border-elevated-dark rounded text-center my-1">
+<<span class="font-code text-section-title font-bold text-text-primary-dark tracking-wide">              Total: 18            </span>
+<</div>
+<<div class="text-metadata font-code text-text-muted-dark text-right">            Verificação de contagem: <span class="text-text-secondary-dark">N/D</span>
+<</div>
+<</div>
+<<!-- Inclusion: Second Brain (N/D) -->
+<<div class="border border-border-dark bg-background-dark p-space-sm rounded">
+<<div class="flex items-start space-x-space-sm">
+<<div class="mt-0.5 flex-none">
+<<input class="rounded border-border-dark bg-elevated-dark text-secondary focus:ring-0 focus:ring-offset-0 cursor-not-allowed opacity-75" disabled="" id="second-brain-toggle" type="checkbox"/>
+<</div>
+<<div class="flex-1">
+<<label class="font-code text-code text-text-secondary-dark font-medium cursor-not-allowed" for="second-brain-toggle">                Incluir Second Brain &amp; Memória              </label>
+<<div class="font-code text-metadata text-text-muted-dark mt-0.5">                Estado da partição: <span class="text-warning-dark">N/D</span>
+<</div>
+<</div>
+<</div>
+<</div>
+<<!-- Destination / Path Configuration (N/D) -->
+<<div class="border border-border-dark bg-background-dark p-space-sm rounded space-y-space-xs">
+<<div class="font-code text-metadata text-text-muted-dark uppercase tracking-wider">            Destino / Caminho do Arquivo          </div>
+<<div class="bg-surface-dark border border-elevated-dark px-space-sm py-1.5 rounded font-code text-code text-text-muted-dark flex items-center justify-between">
+<<span class="truncate">N/D</span>
+<<span class="text-metadata text-border-dark">[RO]</span>
+<</div>
+<<div class="flex items-center justify-between text-metadata font-code text-text-muted-dark">
+<<span>Ponto de montagem:</span>
+<<span class="text-text-secondary-dark">N/D</span>
+<</div>
+<</div>
+<<!-- Manifesto Config (N/D) -->
+<<div class="border border-border-dark bg-background-dark p-space-sm rounded space-y-space-xs">
+<<div class="font-code text-metadata text-text-muted-dark uppercase tracking-wider">            Configuração de Manifesto          </div>
+<<div class="grid grid-cols-2 gap-space-xs font-code text-metadata">
+<<div class="bg-surface-dark border border-elevated-dark p-1 rounded">
+<<span class="text-text-muted-dark block">Formato canônico:</span>
+<<span class="text-text-secondary-dark font-bold">N/D</span>
+<</div>
+<<div class="bg-surface-dark border border-elevated-dark p-1 rounded">
+<<span class="text-text-muted-dark block">Exclusões do manifesto:</span>
+<<span class="text-text-secondary-dark font-bold">N/D</span>
+<</div>
+<</div>
+<<div class="text-metadata font-code text-text-muted-dark pt-1">Configuração adicional: <span class="text-text-secondary-dark">N/D</span>
+<</div>
+<</div>
+<<!-- Bottom Action Affordance (No claim that backup was created) -->
+<<div class="mt-auto pt-space-md border-t border-elevated-dark">
+<<button aria-label="Criar Backup Local" class="w-full bg-secondary text-on-secondary font-code text-body-emphasized py-2 px-space-md rounded font-bold hover:bg-secondary-container active:scale-[0.99] transition-none border border-secondary shadow-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 focus:ring-offset-background-dark" type="button">            [ Criar Backup ]          </button>
+<<div class="flex items-center justify-between text-metadata font-code text-text-muted-dark mt-2">
+<<span>Disponibilidade da rotina:</span>
+<<span class="text-text-secondary-dark">N/D</span>
+<</div>
+<</div>
+<</div>
+<</section>
+<<!-- PANE 2: MANIFESTO, INTEGRIDADE & RESTAURAÇÃO (~46% / col-span-5) -->
+<<section aria-labelledby="pane-2-heading" class="md:col-span-5 border-r border-border-dark flex flex-col bg-surface-dark overflow-y-auto">
+<<div class="h-8 px-space-md flex items-center justify-between bg-elevated-dark/70 border-b border-border-dark flex-none">
+<<h2 class="font-code text-metadata font-bold text-text-primary-dark tracking-wide" id="pane-2-heading">          [2] MANIFESTO, INTEGRIDADE &amp; RESTAURAÇÃO        </h2>
+<<span class="font-code text-metadata text-text-muted-dark">
+<</span>
+<</div>
+<<div class="p-space-md flex flex-col space-y-space-md flex-1">
+<<!-- SECTION A: Verificação de Integridade & Checksum -->
+<<div class="border border-border-dark bg-background-dark rounded">
+<<div class="px-space-sm py-1.5 bg-elevated-dark/50 border-b border-elevated-dark flex items-center justify-between font-code text-metadata">
+<<span class="font-bold text-text-primary-dark">SEÇÃO A :: VERIFICAÇÃO DE INTEGRIDADE</span>
+<<span class="text-text-muted-dark">INTEGRIDADE</span>
+<</div>
+<<div class="p-space-sm space-y-space-xs font-code text-metadata">
+<<div class="flex items-center justify-between py-1 border-b border-elevated-dark/40">
+<<span class="text-text-muted-dark">Arquivo de Backup Alvo:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<<div class="flex items-center justify-between py-1 border-b border-elevated-dark/40">
+<<span class="text-text-muted-dark">Checksum Declarado:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<<div class="flex items-center justify-between py-1 border-b border-elevated-dark/40">
+<<span class="text-text-muted-dark">Integridade da Assinatura:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<<div class="flex items-center justify-between py-1">
+<<span class="text-text-muted-dark">Validação Estrutural:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<</div>
+<</div>
+<<!-- SECTION B: Pré-visualização da Restauração (Restore Preview) -->
+<<div class="border border-border-dark bg-background-dark rounded flex-1 flex flex-col">
+<<div class="px-space-sm py-1.5 bg-elevated-dark/50 border-b border-elevated-dark flex items-center justify-between font-code text-metadata">
+<<span class="font-bold text-text-primary-dark">SEÇÃO B :: PRÉ-VISUALIZAÇÃO DA RESTAURAÇÃO</span>
+<<span class="text-secondary font-code">[ PRÉVIA DA RESTAURAÇÃO ]</span>
+<</div>
+<<div class="p-space-sm flex-1 flex flex-col justify-between space-y-space-sm font-code text-metadata">
+<<div class="bg-surface-dark border border-elevated-dark p-space-sm rounded">
+<<div class="flex items-center justify-between text-text-muted-dark mb-1">
+<<span>Conteúdo do Manifesto:</span>
+<<span class="text-border-dark">[RAW]</span>
+<</div>
+<<div class="bg-background-dark p-2 border border-elevated-dark rounded text-text-secondary-dark font-code text-code">
+<<manifesto> N/D </manifesto>
+<</div>
+<</div>
+<<div class="grid grid-cols-1 md:grid-cols-3 gap-space-xs">
+<<div class="p-2 border border-elevated-dark bg-surface-dark rounded">
+<<span class="text-text-muted-dark block">Impacto na Árvore Local:</span>
+<<span class="text-text-secondary-dark font-bold font-code mt-0.5 block">N/D</span>
+<</div>
+<<div class="p-2 border border-elevated-dark bg-surface-dark rounded">
+<<span class="text-text-muted-dark block">Arquivos a Sobrescrever:</span>
+<<span class="text-text-secondary-dark font-bold font-code mt-0.5 block">N/D</span>
+<</div>
+<<div class="p-2 border border-elevated-dark bg-surface-dark rounded">
+<<span class="text-text-muted-dark block">Migração de Esquema:</span>
+<<span class="text-text-secondary-dark font-bold font-code mt-0.5 block">N/D</span>
+<</div>
+<</div>
+<</div>
+<</div>
+<<!-- SECTION C: Snapshot de Pré-restauração & Confirmação -->
+<<div class="border border-border-dark bg-background-dark rounded p-space-sm space-y-space-sm">
+<<div class="flex items-center justify-between font-code text-metadata border-b border-elevated-dark pb-1.5">
+<<span class="font-bold text-text-primary-dark">SEÇÃO C :: SNAPSHOT &amp; CONFIRMAÇÃO</span>
+<<div class="flex items-center space-x-1">
+<<span class="text-text-muted-dark">Snapshot:</span>
+<<span class="text-text-secondary-dark font-bold">N/D</span>
+<</div>
+<</div>
+<<div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm pt-1">
+<<button class="w-full bg-elevated-dark border border-border-dark text-text-primary-dark font-code text-code py-1.5 px-space-sm rounded hover:bg-surface-dark hover:border-text-secondary-dark transition-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-secondary" type="button">[ Pré-visualizar Restauração ]</button>
+<<button aria-disabled="true" class="w-full bg-transparent border border-danger-dark text-danger-dark font-code text-code py-1.5 px-space-sm rounded hover:bg-danger-dark/10 transition-none cursor-not-allowed opacity-90 focus:outline-none focus:ring-1 focus:ring-danger-dark" type="button">[ Confirmar Restauração (Preview) ]</button>
+<</div>
+<<div class="flex items-center justify-between text-metadata font-code text-text-muted-dark pt-0.5">
+<<span>Trava de integridade: <span class="text-text-secondary-dark">N/D</span>
+<</span>
+<<span>Confirmação pendente: <span class="text-text-secondary-dark">N/D</span>
+<</span>
+<</div>
+<</div>
+<</div>
+<</section>
+<<!-- PANE 3: INSPETOR DE BACKUP & MIGRAÇÃO (~28% / col-span-4) -->
+<<section aria-labelledby="pane-3-heading" class="md:col-span-4 flex flex-col bg-surface-dark overflow-y-auto">
+<<div class="h-8 px-space-md flex items-center justify-between bg-elevated-dark/70 border-b border-border-dark flex-none">
+<<h2 class="font-code text-metadata font-bold text-text-primary-dark tracking-wide" id="pane-3-heading">          [3] INSPETOR DE BACKUP &amp; MIGRAÇÃO        </h2>
+<<span class="font-code text-metadata text-text-muted-dark">
+<</span>
+<</div>
+<<div class="p-space-md flex flex-col space-y-space-md flex-1">
+<<!-- Metadata of Snapshot / Package -->
+<<div class="border border-border-dark bg-background-dark rounded">
+<<div class="px-space-sm py-1.5 bg-elevated-dark/50 border-b border-elevated-dark flex items-center justify-between font-code text-metadata">
+<<span class="font-bold text-text-primary-dark">METADADOS DO SNAPSHOT</span>
+<<span class="text-text-muted-dark">N/D</span>
+<</div>
+<<div class="p-space-sm space-y-space-xs font-code text-metadata">
+<<div class="flex items-center justify-between py-1 border-b border-elevated-dark/40">
+<<span class="text-text-muted-dark">Carimbo / Data:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<<div class="flex items-center justify-between py-1 border-b border-elevated-dark/40">
+<<span class="text-text-muted-dark">Tamanho Declarado:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<<div class="flex items-center justify-between py-1 border-b border-elevated-dark/40">
+<<span class="text-text-muted-dark">Origem da Criação:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<<div class="flex items-center justify-between py-1">
+<<span class="text-text-muted-dark">Versão do Esquema:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<</div>
+<</div>
+<<!-- Migration Report -->
+<<div class="border border-border-dark bg-background-dark rounded">
+<<div class="px-space-sm py-1.5 bg-elevated-dark/50 border-b border-elevated-dark flex items-center justify-between font-code text-metadata">
+<<span class="font-bold text-text-primary-dark">RELATÓRIO DE MIGRAÇÃO</span>
+<<span class="text-text-muted-dark">COMPATIBILIDADE</span>
+<</div>
+<<div class="p-space-sm space-y-space-xs font-code text-metadata">
+<<div class="flex items-center justify-between py-1 border-b border-elevated-dark/40">
+<<span class="text-text-muted-dark">Status da Migração:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<<div class="flex items-center justify-between py-1 border-b border-elevated-dark/40">
+<<span class="text-text-muted-dark">Transformações Aplicadas:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<<div class="flex items-center justify-between py-1">
+<<span class="text-text-muted-dark">Compatibilidade com Runtime:</span>
+<<span class="text-text-secondary-dark font-code">N/D</span>
+<</div>
+<</div>
+<</div>
+<<!-- Local Audit -->
+<<div class="border border-border-dark bg-background-dark rounded flex-1 flex flex-col">
+<<div class="px-space-sm py-1.5 bg-elevated-dark/50 border-b border-elevated-dark flex items-center justify-between font-code text-metadata">
+<<span class="font-bold text-text-primary-dark">HISTÓRICO DE RESTAURAÇÕES</span>
+<<span class="text-text-muted-dark">LOG</span>
+<</div>
+<<div class="p-space-sm flex-1 flex flex-col justify-between space-y-space-sm font-code text-metadata">
+<<div class="space-y-space-xs">
+<<div class="text-text-muted-dark">Registro de Execução:</div>
+<<div class="bg-surface-dark border border-elevated-dark p-2 rounded text-text-secondary-dark">N/D</div>
+<</div>
+<<div class="space-y-space-xs">
+<<div class="text-text-muted-dark">Histórico de Restaurações:</div>
+<<div class="bg-surface-dark border border-elevated-dark p-2 rounded text-text-secondary-dark">N/D</div>
+<</div>
+<<div class="pt-2 border-t border-elevated-dark flex items-center justify-between text-text-muted-dark">
+<<span>Sincronização:</span>
+<<span class="text-text-secondary-dark">N/D</span>
+<</div>
+<</div>
+<</div>
+<</div>
+<</section>
+<</main>
+<<!-- FOOTER STRIP -->
+<<footer class="w-full h-8 bg-surface-container-lowest border-t border-border-dark flex-none px-space-md flex items-center justify-between select-none z-50 text-metadata font-code">
+<<!-- Left: Navigation Shortcuts -->
+<<div class="flex items-center space-x-space-md text-text-muted-dark overflow-hidden whitespace-nowrap">
+<<span class="hover:text-secondary cursor-pointer">[1] Escopo</span>
+<<span class="hover:text-secondary cursor-pointer">[2] Manifesto &amp; Restauração</span>
+<<span class="hover:text-secondary cursor-pointer">[3] Inspetor</span>
+<<span class="hover:text-secondary cursor-pointer">[Tab] Mudar Painel</span>
+<<span class="hover:text-danger-dark cursor-pointer">[Esc] Voltar</span>
+<</div>
+<<!-- Center: Exact Privacy Sentence -->
+<<div aria-label="Aviso de Privacidade Local" class="hidden lg:flex items-center justify-center text-text-muted-dark px-space-md text-center truncate max-w-xl">
+<<span>O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.</span>
+<</div>
+<<!-- Right: Status Indicator -->
+<<div class="flex items-center space-x-1.5 flex-none font-bold text-secondary">
+<<span class="text-text-muted-dark">●</span>
+<<span class="tracking-wide text-text-secondary-dark">BACKUP &amp; RESTAURAÇÃO</span>
+<</div>
+<</footer>
+<</body>
+<</html>
