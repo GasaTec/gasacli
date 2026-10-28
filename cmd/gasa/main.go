@@ -156,7 +156,7 @@ func run(ctx context.Context, args []string) error {
 		}
 		state, _ := loadStartupState(home, os.Stderr)
 		if !state.Onboarding.Completed || state.Onboarding.Version < 2 {
-			if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: os.Stdout, Resume: true, GrantTrust: trust.NewStore(home).Grant}); err != nil {
+			if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: os.Stdout, Resume: state.Onboarding.Version > 0 && !state.Onboarding.Completed, GrantTrust: trust.NewStore(home).Grant}); err != nil {
 				return err
 			}
 			if ctx.Err() != nil {
@@ -174,14 +174,6 @@ func run(ctx context.Context, args []string) error {
 	}
 	var server *web.Server
 	defer func() { shutdown(server) }()
-	readyAgents := 0
-	if interactiveTerminal {
-		for _, result := range discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{}) {
-			if result.Status == discovery.Available {
-				readyAgents++
-			}
-		}
-	}
 	var sessionInput io.Reader = os.Stdin
 	if !interactiveTerminal {
 		input, writer := io.Pipe()
@@ -211,7 +203,15 @@ func run(ctx context.Context, args []string) error {
 		Context: ctx, In: sessionInput, Out: os.Stdout, ProjectPath: cwd, TrustStore: trust.NewStore(home),
 		Interactive:    interactiveTerminal,
 		DashboardState: "starting",
-		ReadyAgents:    readyAgents,
+		DiscoverReady: func() int {
+			ready := 0
+			for _, result := range discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{}) {
+				if result.Status == discovery.Available {
+					ready++
+				}
+			}
+			return ready
+		},
 		Agents: func(out io.Writer) {
 			if err := diagnostics(ctx, out); err != nil {
 				fmt.Fprintln(os.Stderr, "discovery:", err)

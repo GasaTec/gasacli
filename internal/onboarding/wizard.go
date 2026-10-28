@@ -27,14 +27,14 @@ type WizardOptions struct {
 }
 
 type wizardModel struct {
-	options                                                       WizardOptions
-	state                                                         config.OnboardingState
-	results                                                       []discovery.Result
-	missing                                                       []Item
-	selected                                                      map[string]bool
-	step, cursor, language, permission, dashboard, edition, width int
-	trustFolder, confirmInstall, installConfirmed, completed      bool
-	err                                                           error
+	options                                                               WizardOptions
+	state                                                                 config.OnboardingState
+	results                                                               []discovery.Result
+	missing                                                               []Item
+	selected                                                              map[string]bool
+	step, cursor, language, permission, dashboard, edition, width, height int
+	trustFolder, confirmInstall, installConfirmed, completed              bool
+	err                                                                   error
 }
 
 var permissionProfiles = []string{"restricted", "balanced", "autonomous"}
@@ -82,6 +82,12 @@ func RunWizard(ctx context.Context, options WizardOptions) error {
 		selected[item.ID] = item.ID == "claude" || item.ID == "codex"
 	}
 	model := wizardModel{options: options, state: saved.Onboarding, results: results, missing: missing, selected: selected}
+	if saved.Onboarding.Language == "" {
+		model.language = 1
+	}
+	if !options.Resume {
+		model.step = -1
+	}
 	if options.Resume && (!saved.Onboarding.Completed || saved.Onboarding.Version < 2) {
 		model.step = max(0, min(5, saved.Onboarding.CurrentStep))
 		model.state.Completed = false
@@ -115,6 +121,10 @@ func RunWizard(ctx context.Context, options WizardOptions) error {
 	if !ok || !result.completed {
 		return nil
 	}
+	if !result.trustFolder {
+		fmt.Fprintln(options.Out, "\nConfiguração encerrada\nEsta pasta continua sem confiança; nenhum arquivo do projeto foi acessado.\nPara revisar depois, execute `gasa setup`.")
+		return fmt.Errorf("project not trusted; review this choice with `gasa setup`")
+	}
 	if result.trustFolder && options.GrantTrust != nil {
 		if err := options.GrantTrust(options.Project); err != nil {
 			return fmt.Errorf("grant project trust: %w", err)
@@ -143,8 +153,18 @@ func (m wizardModel) Init() tea.Cmd { return nil }
 func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := message.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
+		m.width, m.height = msg.Width, msg.Height
 	case tea.KeyMsg:
+		if m.step == -1 {
+			switch msg.String() {
+			case "enter":
+				m.step = 0
+				m.persist()
+			case "esc", "ctrl+c":
+				return m, tea.Quit
+			}
+			return m, nil
+		}
 		if m.step == 2 && m.confirmInstall {
 			switch msg.String() {
 			case "y", "Y":
@@ -155,6 +175,7 @@ func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		// Wizard screens contain selections but no free-text fields; h/b are navigation aliases here.
 		switch msg.String() {
 		case "ctrl+c":
 			m.persist()
@@ -259,24 +280,45 @@ func (m *wizardModel) complete() {
 }
 
 func (m wizardModel) View() string {
-	accent := lipgloss.AdaptiveColor{Light: "#16866d", Dark: "#1ECFA5"}
-	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(accent).Padding(1, 2).Width(max(44, min(96, m.width-4)))
+	accent := lipgloss.AdaptiveColor{Light: "#087E68", Dark: "#1ECFA5"}
+	box := lipgloss.NewStyle().Border(lipgloss.Border{Top: "─", Bottom: "─", Left: "│", Right: "│", TopLeft: "┌", TopRight: "┐", BottomLeft: "└", BottomRight: "┘"}).BorderForeground(accent).Foreground(lipgloss.AdaptiveColor{Light: "#172A46", Dark: "#F4F7FB"}).Padding(1, 2).Width(max(44, min(96, m.width-4)))
 	var body strings.Builder
-	if m.step < 6 {
-		fmt.Fprintf(&body, "Step %d of 6\n\n", m.step+1)
+	if m.step == -1 {
+		body.WriteString("Bem-vindo ao GasaCLI\n\n")
+		fmt.Fprintf(&body, "Projeto: %s\nConfiança: pendente de confirmação\n\n", m.options.Project)
+		body.WriteString("Configure as opções locais e revise as ferramentas antes de continuar.\n\nEnter inicia a configuração. Esc sai sem alterar o projeto.")
+	} else if m.step == 3 {
+		body.WriteString("Confirmação de workspace\n\n")
+	} else if m.step < 6 {
+		visibleStep := m.step + 1
+		if m.step > 3 {
+			visibleStep--
+		}
+		fmt.Fprintf(&body, "Passo %d de 6\n\n", visibleStep)
 	} else {
-		body.WriteString("Setup summary\n\n")
+		fmt.Fprintf(&body, "Passo 6 de 6\n\n")
+		body.WriteString("Resumo da configuração\n\n")
 	}
 	switch m.step {
 	case 0:
-		fmt.Fprintf(&body, "Welcome to GasaCLI\n\nA local-first terminal for discovering coding agents and coordinating work. Community works without an account.\n\nLanguage: %s (Left/Right to change)\n", languages[m.language])
+		fmt.Fprintf(&body, "Idioma do terminal\n\nPortuguês (Brasil) é recomendado. A saída padrão pode ser alterada depois.\n\nIdioma: %s (←/→ para alterar)\n", map[bool]string{true: "Português (Brasil)", false: "English (US)"}[m.language == 1])
 	case 1:
-		body.WriteString("Detected agents\n\n")
+		body.WriteString("Agentes e ferramentas locais\n\nNOME                 VERSÃO          STATUS\n")
 		for _, result := range m.results {
-			fmt.Fprintf(&body, "%-18s %-12s %-18s %s\n", result.Name, result.Version, result.Status, result.Path)
+			name := truncateColumns(result.Name, 20)
+			version := result.Version
+			if version == "" {
+				version = "N/D"
+			}
+			version = truncateColumns(version, 15)
+			fmt.Fprintf(&body, "%-20s %-15s [%s]\n", name, version, readinessLabel(result.Status))
+			if result.Path != "" {
+				pathWidth := max(12, min(68, m.width-12))
+				fmt.Fprintf(&body, "  %s\n", lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#5B6B80", Dark: "#9AAAC0"}).Render(truncateColumns(result.Path, pathWidth)))
+			}
 		}
 	case 2:
-		body.WriteString("Install missing tools\nSelect with Space. Auto and manual methods are shown. Nothing runs without explicit confirmation.\n\n")
+		body.WriteString("Instalar ferramentas ausentes\nUse Espaço para selecionar. Nada será instalado sem confirmação explícita.\n\n")
 		for index, item := range m.missing {
 			mark, cursor := "[ ]", "  "
 			if m.selected[item.ID] {
@@ -299,14 +341,14 @@ func (m wizardModel) View() string {
 			}
 		}
 		if m.confirmInstall {
-			body.WriteString("\nConfirm this exact plan? Press y to accept; n to skip installs.\n")
+			body.WriteString("\nConfirmar este plano exato? Pressione y para aceitar ou n para pular.\n")
 		}
 	case 3:
-		body.WriteString("Trust this folder?\n\nTrust allows discovery and project access when requested. It does not approve commands or installs.\n\n")
+		body.WriteString("Confirmação de pasta confiável\n\nA confiança permite descobrir ferramentas e acessar arquivos do projeto quando solicitado. Ela não aprova comandos ou instalações.\n\n")
 		if m.trustFolder {
-			body.WriteString("> Yes, trust " + m.options.Project)
+			body.WriteString("> Sim, confiar em " + m.options.Project)
 		} else {
-			body.WriteString("  Yes, trust " + m.options.Project)
+			body.WriteString("  Sim, confiar em " + m.options.Project)
 		}
 		body.WriteString("\n")
 		if !m.trustFolder {
@@ -314,32 +356,90 @@ func (m wizardModel) View() string {
 		} else {
 			body.WriteString("  ")
 		}
-		body.WriteString("Keep untrusted (default). Press y or n to choose.")
+		body.WriteString("Manter sem confiança (padrão). Pressione y ou n para escolher.")
 	case 4:
-		fmt.Fprintf(&body, "Permission profile (Left/Right to change: %s)\n\n", permissionProfiles[m.permission])
+		fmt.Fprintf(&body, "Perfil de permissões (←/→ para alterar: %s)\n\n", permissionProfiles[m.permission])
 		for i, name := range permissionProfiles {
 			mark := "[ ]"
 			if i == m.permission {
 				mark = "[x]"
 			}
-			description := []string{"Ask before writes, commands, installs, and network access.", "Allow routine work; ask before risky commands and external access.", "Allow routine actions; sensitive operations still require approval."}[i]
+			description := []string{"Pergunta antes de gravar, executar comandos, instalar ou acessar a rede.", "Permite ações comuns; pergunta antes de ações arriscadas ou externas.", "Permite ações comuns; operações sensíveis ainda exigem aprovação."}[i]
 			fmt.Fprintf(&body, "%s %s - %s\n", mark, name, description)
 		}
 	case 5:
-		fmt.Fprintf(&body, "Dashboard mode: %s\nEdition: %s\n\nUp/Down changes dashboard mode; Tab changes edition.\n", dashboardModes[m.dashboard], editions[m.edition])
+		fmt.Fprintf(&body, "Modo do dashboard: %s\nEdição: %s\n\n↑/↓ altera o modo do dashboard; Tab altera a edição.\n", dashboardModes[m.dashboard], editionLabel(m.edition))
 	case 6:
-		installPlan := "none (not confirmed)"
+		installPlan := "Nenhuma (não confirmada)"
 		if m.installConfirmed {
 			installPlan = selectedNames(m.missing, m.selected)
+			if installPlan == "none" {
+				installPlan = "Nenhuma"
+			}
 		}
-		fmt.Fprintf(&body, "Review your choices\n\nPermission profile: %s\nDashboard: %s\nEdition: %s\nTrust folder: %t\nConfirmed installs: %s\n\nEnter starts GasaCLI.", permissionProfiles[m.permission], dashboardModes[m.dashboard], editions[m.edition], m.trustFolder, installPlan)
+		trustStatus := "Não confiável"
+		if m.trustFolder {
+			trustStatus = "Confiável"
+		}
+		fmt.Fprintf(&body, "Revise suas escolhas\n\nPerfil de permissões: %s\nDashboard: %s\nEdição: %s\nConfiança do workspace: %s\nInstalações confirmadas: %s\n\nEnter inicia o GasaCLI.", permissionProfiles[m.permission], dashboardModes[m.dashboard], editionLabel(m.edition), trustStatus, installPlan)
 	}
 	if m.err != nil {
-		body.WriteString("\n\nCould not save setup progress: " + m.err.Error())
+		body.WriteString("\n\nNão foi possível salvar o progresso da configuração: " + m.err.Error())
 	}
-	footer := "Left: Back | Right/Enter: Next | S: Skip"
-	title := lipgloss.NewStyle().Bold(true).Foreground(accent).Render("G> GasaCLI setup")
+	footer := "Enter: Iniciar configuração | Esc: Sair"
+	if m.step >= 0 {
+		footer = "Enter: Avançar | S: Pular"
+	}
+	if m.step > 0 && m.step < 6 {
+		footer = "←: Voltar | Enter: Avançar | S: Pular"
+	}
+	if m.step == 6 {
+		footer = "Enter: Concluir | Esc: Voltar"
+	}
+	mark := "╭G›╮"
+	if os.Getenv("TERM") == "dumb" {
+		mark = "+G>+"
+	}
+	title := lipgloss.NewStyle().Bold(true).Foreground(accent).Render(mark + " gasacli")
 	return box.Render(title + "\n\n" + body.String() + "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#475569", Dark: "#94a3b8"}).Render(footer))
+}
+
+func readinessLabel(status discovery.Status) string {
+	switch status {
+	case discovery.Available:
+		return "READY"
+	case discovery.VersionUnknown:
+		return "INSTALADO"
+	case discovery.NotFound:
+		return "AUSENTE"
+	default:
+		return "DESCONHECIDO"
+	}
+}
+
+func editionLabel(index int) string {
+	if index == 1 {
+		return "Pro (ativação depois)"
+	}
+	return "Community"
+}
+
+func truncateColumns(value string, width int) string {
+	if width < 1 {
+		return ""
+	}
+	if lipgloss.Width(value) <= width {
+		return value
+	}
+	var out strings.Builder
+	for _, r := range value {
+		candidate := out.String() + string(r) + "…"
+		if lipgloss.Width(candidate) > width {
+			break
+		}
+		out.WriteRune(r)
+	}
+	return out.String() + "…"
 }
 
 func execLookPath(name string) (string, error) { return exec.LookPath(name) }

@@ -2,6 +2,7 @@ package onboarding
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,24 +26,106 @@ func TestWizardScreenViews(t *testing.T) {
 		step  int
 		wants []string
 	}{
-		{0, []string{"Step 1 of 6", "Welcome to GasaCLI", "Language:"}},
-		{1, []string{"Step 2 of 6", "Detected agents", "Codex", "1.2.3"}},
-		{2, []string{"Step 3 of 6", "Install missing tools", "Cursor CLI", "Command:"}},
-		{3, []string{"Step 4 of 6", "Trust this folder?", "Keep untrusted"}},
-		{4, []string{"Step 5 of 6", "Permission profile", "restricted"}},
-		{5, []string{"Step 6 of 6", "Dashboard mode:", "Community"}},
-		{6, []string{"Setup summary", "Review your choices", "Confirmed installs: none"}},
+		{0, []string{"Passo 1 de 6", "Idioma do terminal", "Português (Brasil)"}},
+		{1, []string{"Passo 2 de 6", "Agentes e ferramentas locais", "Codex", "1.2.3", "READY"}},
+		{2, []string{"Passo 3 de 6", "Instalar ferramentas ausentes", "Cursor CLI", "Command:"}},
+		{3, []string{"Confirmação de workspace", "Confirmação de pasta confiável", "Manter sem confiança"}},
+		{4, []string{"Passo 4 de 6", "Perfil de permissões", "restricted"}},
+		{5, []string{"Passo 5 de 6", "Modo do dashboard:", "Community"}},
+		{6, []string{"Passo 6 de 6", "Resumo da configuração", "Revise suas escolhas", "Instalações confirmadas: Nenhuma"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.wants[0], func(t *testing.T) {
 			model.step = tc.step
-			view := model.View()
-			for _, want := range tc.wants {
-				if !strings.Contains(view, want) {
-					t.Errorf("step %d missing %q: %s", tc.step, want, view)
+			for _, width := range []int{80, 120} {
+				model.width = width
+				view := model.View()
+				for _, want := range tc.wants {
+					if !strings.Contains(view, want) {
+						t.Errorf("step %d width %d missing %q: %s", tc.step, width, want, view)
+					}
 				}
 			}
 		})
+	}
+}
+
+func TestWizardGoldenTerminalSizes(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	for _, size := range []struct{ width, height int }{{80, 24}, {120, 36}} {
+		for _, screen := range []struct {
+			name string
+			step int
+		}{{"welcome", -1}, {"language", 0}, {"agents", 1}, {"installs", 2}, {"trust", 3}, {"permissions", 4}, {"dashboard", 5}, {"summary", 6}} {
+			name := fmt.Sprintf("%s-%dx%d.golden", screen.name, size.width, size.height)
+			t.Run(name, func(t *testing.T) {
+				model := wizardModel{
+					options: WizardOptions{ctx: context.Background(), Project: "C:/workspace", Home: t.TempDir()},
+					step:    screen.step,
+					width:   size.width,
+					height:  size.height,
+					missing: []Item{{ID: "cursor", Name: "Cursor CLI", URL: "https://example.com", Methods: map[string][]Method{"windows": {manual("manual", "install manually", "https://example.com")}}}},
+					results: []discovery.Result{{Name: "Codex", Version: "1.2.3", Status: discovery.Available, Path: "C:/tools/codex.exe"}},
+				}
+				got := normalizeWizardGolden(model.View())
+				path := filepath.Join("testdata", name)
+				if os.Getenv("UPDATE_GOLDEN") == "1" {
+					if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				want, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got != string(want) {
+					t.Fatalf("wizard %s view differs from %s\n--- got ---\n%s\n--- want ---\n%s", screen.name, path, got, want)
+				}
+			})
+		}
+	}
+}
+
+func normalizeWizardGolden(view string) string {
+	lines := strings.Split(view, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " \t")
+	}
+	return strings.Join(lines, "\n")
+}
+
+func TestWizardWelcomeAndBackNavigation(t *testing.T) {
+	model := wizardModel{options: WizardOptions{Project: "C:/workspace"}, step: -1, width: 80}
+	if view := model.View(); !strings.Contains(view, "Bem-vindo ao GasaCLI") || !strings.Contains(view, "Enter inicia a configuração") {
+		t.Fatalf("welcome view is incomplete: %s", view)
+	}
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updated.(wizardModel)
+	if model.step != 0 {
+		t.Fatalf("welcome Enter advanced to step %d, want 0", model.step)
+	}
+	model.step = 3
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+	if got := updated.(wizardModel).step; got != 2 {
+		t.Fatalf("h should go back in the wizard: step=%d", got)
+	}
+}
+
+func TestWizardAgentRowsUseBoundedStatusesAndPaths(t *testing.T) {
+	model := wizardModel{step: 1, width: 80, results: []discovery.Result{
+		{Name: "A very long agent name which must be shortened", Status: discovery.Available, Version: "version output that is much too long", Path: "C:/tools/a/very/long/path/agent.exe"},
+		{Name: "missing", Status: discovery.NotFound},
+		{Name: "installed", Status: discovery.VersionUnknown, Path: "C:/tools/installed.exe"},
+		{Name: "unknown", Status: discovery.Error},
+	}}
+	view := model.View()
+	for _, want := range []string{"READY", "AUSENTE", "INSTALADO", "DESCONHECIDO", "…"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("agent table missing %q: %s", want, view)
+		}
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/GasaTec/gasacli/internal/trust"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -58,9 +59,12 @@ type interactiveModel struct {
 	status         string
 	busy           bool
 	setupRequested bool
+	trustDenied    bool
+	agentsChecking bool
 }
 
 type commandResult struct{ text string }
+type readyAgentsResult struct{ count int }
 
 func newInteractiveModel(s *Session, project string, trusted bool) interactiveModel {
 	input := textarea.New()
@@ -69,7 +73,7 @@ func newInteractiveModel(s *Session, project string, trusted bool) interactiveMo
 	input.ShowLineNumbers = false
 	input.SetHeight(2)
 	input.CharLimit = 0
-	input.KeyMap.InsertNewline.SetKeys("enter")
+	input.KeyMap.InsertNewline.SetKeys("alt+enter", "ctrl+j", "shift+enter")
 	input.KeyMap.InsertNewline.SetEnabled(true)
 	input.Focus()
 	spin := spinner.New()
@@ -78,7 +82,8 @@ func newInteractiveModel(s *Session, project string, trusted bool) interactiveMo
 	return interactiveModel{
 		session: s, project: project, trusted: trusted, trustYes: false,
 		chat: input, view: viewport.New(80, 12), spinner: spin,
-		status: "Enter adds a line | Ctrl+S sends | Ctrl+D exits",
+		status:         "Enter envia | Alt+Enter/Ctrl+J quebra linha | Ctrl+D sai",
+		agentsChecking: s.DiscoverReady != nil,
 	}
 }
 
@@ -95,7 +100,6 @@ func (s *Session) runInteractive() error {
 	if !trusted {
 		m.append("This folder is not trusted yet. GasaCLI will not access project files until you approve it.")
 	} else {
-		m.append("Session ready. Type / to browse commands.")
 		if s.OnTrusted != nil {
 			if err := s.OnTrusted(); err != nil {
 				return err
@@ -107,6 +111,8 @@ func (s *Session) runInteractive() error {
 		programContext = context.Background()
 	}
 	for {
+		// /setup currently suspends this chat and runs the onboarding program in sequence.
+		// Keep chat state intact until the wizard can be embedded as a mode in this model.
 		program := tea.NewProgram(m, tea.WithInput(s.In), tea.WithOutput(s.Out), tea.WithAltScreen(), tea.WithContext(programContext))
 		final, err := program.Run()
 		if err != nil {
@@ -139,7 +145,13 @@ func (m *interactiveModel) append(text string) {
 	m.view.GotoBottom()
 }
 
-func (m interactiveModel) Init() tea.Cmd { return textarea.Blink }
+func (m interactiveModel) Init() tea.Cmd {
+	commands := []tea.Cmd{textarea.Blink}
+	if m.session.DiscoverReady != nil {
+		commands = append(commands, func() tea.Msg { return readyAgentsResult{count: m.session.DiscoverReady()} })
+	}
+	return tea.Batch(commands...)
+}
 
 func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := message.(type) {
@@ -148,7 +160,11 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.text != "" {
 			m.append("GasaCLI\n" + msg.text)
 		}
-		m.status = "Enter adds a line | Ctrl+S sends | Ctrl+D exits"
+		m.status = "Enter envia | Alt+Enter/Ctrl+J quebra linha | Ctrl+D sai"
+		return m, nil
+	case readyAgentsResult:
+		m.agentsChecking = false
+		m.session.ReadyAgents = msg.count
 		return m, nil
 	case spinner.TickMsg:
 		if m.busy {
@@ -164,6 +180,9 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		if !m.trusted {
+			if m.trustDenied {
+				return m, nil
+			}
 			switch msg.String() {
 			case "y", "Y":
 				m.trustYes = true
@@ -174,14 +193,15 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				if !m.trustYes {
 					m.quitErr = fmt.Errorf("project not trusted")
-					return m, tea.Quit
+					m.trustDenied = true
+					return m, tea.Tick(900*time.Millisecond, func(time.Time) tea.Msg { return tea.QuitMsg{} })
 				}
 				if err := m.session.TrustStore.Grant(m.project); err != nil {
 					m.quitErr = fmt.Errorf("grant project trust: %w", err)
 					return m, tea.Quit
 				}
 				m.trusted = true
-				m.append("Folder trusted. You can change this later with `gasa reset`.")
+				m.status = "Pasta confiável. Use `gasa setup` para rever a configuração."
 				if m.session.OnTrusted != nil {
 					if err := m.session.OnTrusted(); err != nil {
 						m.append("Dashboard unavailable: " + err.Error())
@@ -191,7 +211,8 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.status = "Trust was not granted. Press n then Enter to leave, or y then Enter to trust."
 			case "ctrl+d", "esc":
 				m.quitErr = fmt.Errorf("project not trusted")
-				return m, tea.Quit
+				m.trustDenied = true
+				return m, tea.Tick(900*time.Millisecond, func(time.Time) tea.Msg { return tea.QuitMsg{} })
 			}
 			return m, nil
 		}
@@ -223,11 +244,7 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = "Draft preserved. Use Ctrl+D to exit."
 			return m, nil
 		case "ctrl+d":
-			if strings.TrimSpace(m.chat.Value()) == "" {
-				return m, tea.Quit
-			}
-			m.status = "Draft preserved. Clear it before Ctrl+D to exit."
-			return m, nil
+			return m, tea.Quit
 		case "esc":
 			if strings.HasPrefix(strings.TrimSpace(m.chat.Value()), "/") {
 				m.chat.SetValue("")
@@ -236,7 +253,7 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.status = "Session state is preserved."
 			return m, nil
-		case "ctrl+s":
+		case "enter", "ctrl+s":
 			input := strings.TrimSpace(m.chat.Value())
 			if input == "/setup" {
 				m.history = append(m.history, input)
@@ -255,15 +272,7 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.status = "Discovering installed tools..."
 				return m, tea.Batch(m.runDiagnostic(input), m.spinner.Tick)
 			}
-			if input != "" {
-				m.submit(input)
-			}
-			m.chat.SetValue("")
-			m.palette = false
-			if m.closed || m.setupRequested {
-				return m, tea.Quit
-			}
-			return m, nil
+			return m.send(input)
 		case "ctrl+up":
 			if len(m.history) > 0 {
 				m.chat.SetValue(m.history[len(m.history)-1])
@@ -281,6 +290,18 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	m.view, _ = m.view.Update(message)
 	return m, cmd
+}
+
+func (m interactiveModel) send(input string) (tea.Model, tea.Cmd) {
+	if input != "" {
+		m.submit(input)
+	}
+	m.chat.SetValue("")
+	m.palette = false
+	if m.closed || m.setupRequested {
+		return m, tea.Quit
+	}
+	return m, nil
 }
 
 func (m interactiveModel) runDiagnostic(command string) tea.Cmd {
@@ -325,7 +346,7 @@ func (m *interactiveModel) submit(input string) {
 		case "/setup":
 			m.setupRequested = true
 		case "/status":
-			fmt.Fprintf(&output, "Project: %s\nTrust: granted\nDashboard: %s (%s)\nReady agents: %d\nNo active run; orchestration is planned (issue #11).", m.project, valueOr(m.session.Dashboard, "not started"), valueOr(m.session.DashboardState, "local"), m.session.ReadyAgents)
+			fmt.Fprintf(&output, "Project: %s\nTrust: granted\nDashboard: %s (%s)\nAgents ready: %s\nNo active run; orchestration is planned (issue #11).", m.project, valueOr(m.session.Dashboard, "not started"), valueOr(m.session.DashboardState, "local"), m.agentsReadyLabel())
 		case "/web":
 			if m.session.Web != nil {
 				if err := m.session.Web(&output, fields[1:]); err != nil {
@@ -377,14 +398,18 @@ func (m interactiveModel) View() string {
 	if !m.trusted {
 		return m.trustView()
 	}
-	border := lipgloss.RoundedBorder()
+	border := lipgloss.Border{Top: "─", Bottom: "─", Left: "│", Right: "│", TopLeft: "┌", TopRight: "┐", BottomLeft: "└", BottomRight: "┘"}
 	if os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != "" {
 		border = lipgloss.Border{Top: "-", Bottom: "-", Left: "|", Right: "|", TopLeft: "+", TopRight: "+", BottomLeft: "+", BottomRight: "+"}
 	}
-	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#16866d", Dark: "#1ECFA5"}).Render("G> GasaCLI")
-	meta := fmt.Sprintf("  %s  |  Trust: granted  |  Dashboard: %s (%s)  |  Agents ready: %d", filepath.Base(m.project), valueOr(m.session.Dashboard, "not started"), valueOr(m.session.DashboardState, "idle"), m.session.ReadyAgents)
-	box := lipgloss.NewStyle().Border(border).Padding(0, 1).Width(max(20, m.width-2)).Render(header + meta)
-	conversation := lipgloss.NewStyle().Border(border).Padding(0, 1).Width(max(20, m.width-2)).Height(max(4, m.height-13)).Render(m.view.View())
+	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#087E68", Dark: "#1ECFA5"}).Render(m.brandMark() + " gasacli")
+	meta := fmt.Sprintf("  Projeto: %s  |  Confiança: concedida  |  Dashboard: %s (%s)  |  Agentes prontos: %s", filepath.Base(m.project), valueOr(m.session.Dashboard, "não iniciado"), valueOr(m.session.DashboardState, "ocioso"), m.agentsReadyLabel())
+	box := lipgloss.NewStyle().Border(border).Foreground(lipgloss.AdaptiveColor{Light: "#172A46", Dark: "#F4F7FB"}).Padding(0, 1).Width(max(20, m.width-2)).Render(header + meta)
+	conversationContent := m.view.View()
+	if len(m.lines) == 0 {
+		conversationContent = m.welcomeCard()
+	}
+	conversation := lipgloss.NewStyle().Border(border).Padding(0, 1).Width(max(20, m.width-2)).Height(max(4, m.height-13)).Render(conversationContent)
 	input := lipgloss.NewStyle().Border(border).Padding(0, 1).Width(max(20, m.width-2)).Render(m.chat.View())
 	status := m.status
 	if m.busy {
@@ -399,26 +424,74 @@ func (m interactiveModel) View() string {
 			if index == m.selected {
 				marker = "> "
 			}
-			rows = append(rows, marker+command.name+"  "+command.description)
+			rows = append(rows, truncateLine(marker+command.name+"  "+command.description, max(16, m.width-10)))
 		}
 		input += "\n" + lipgloss.NewStyle().Border(border).Padding(0, 1).Render(strings.Join(rows, "\n"))
-		footer = "Tab completes | Up/Down selects | Esc closes suggestions"
+		footer = "Tab completa | ↑/↓ seleciona | Enter envia | Esc fecha sugestões"
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, box, conversation, input, footer)
 }
 
 func (m interactiveModel) trustView() string {
-	yes, no := "  Trust this folder", "  No, leave it untrusted"
-	if m.trustYes {
-		yes = "> Trust this folder"
-	} else {
-		no = "> No, leave it untrusted"
+	if m.trustDenied {
+		content := "Configuração encerrada\n\nEsta pasta continua sem confiança. O GasaCLI não acessou arquivos do projeto.\n\nPara revisar a confiança depois, execute `gasa setup`.\n\nVocê pode fechar este terminal."
+		return lipgloss.Place(max(40, m.width), max(12, m.height), lipgloss.Center, lipgloss.Center, lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(1, 2).Render(content))
 	}
-	content := "GasaCLI needs your approval\n\nTrusting allows GasaCLI to discover tools and, when you ask, read or change files in this project. Trust does not approve commands, installs, or network access.\n\nExact folder:\n" + m.project + "\n\n" + yes + "\n" + no + "\n\nUse left/right or y/n, then Enter. Default: No."
+	yes, no := "  Confiar nesta pasta", "  Manter sem confiança"
+	if m.trustYes {
+		yes = "> Confiar nesta pasta"
+	} else {
+		no = "> Manter sem confiança"
+	}
+	content := "Confirme a confiança do workspace\n\nA confiança permite descobrir ferramentas e acessar arquivos do projeto quando você solicitar. Ela não aprova comandos, instalações ou acesso à rede.\n\nPasta:\n" + m.project + "\n\n" + yes + "\n" + no + "\n\nUse ←/→ ou y/n e pressione Enter. Padrão: manter sem confiança."
 	border := lipgloss.RoundedBorder()
 	if os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != "" {
 		border = lipgloss.Border{Top: "-", Bottom: "-", Left: "|", Right: "|", TopLeft: "+", TopRight: "+", BottomLeft: "+", BottomRight: "+"}
 	}
 	style := lipgloss.NewStyle().Border(border).Padding(1, 2).Width(max(40, min(76, m.width-4))).BorderForeground(lipgloss.AdaptiveColor{Light: "#16866d", Dark: "#1ECFA5"})
 	return lipgloss.Place(max(40, m.width), max(12, m.height), lipgloss.Center, lipgloss.Center, style.Render(content))
+}
+
+func (m interactiveModel) brandMark() string {
+	if os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != "" {
+		return "+G>+"
+	}
+	return "╭G›╮"
+}
+
+func (m interactiveModel) agentsReadyLabel() string {
+	if m.agentsChecking {
+		return "checking..."
+	}
+	return fmt.Sprint(m.session.ReadyAgents)
+}
+
+func (m interactiveModel) welcomeCard() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s gasacli\n", m.brandMark())
+	fmt.Fprintf(&b, "Projeto: %s  |  Confiança: concedida\n", filepath.Base(m.project))
+	fmt.Fprintf(&b, "Agentes prontos: %s\n\n", m.agentsReadyLabel())
+	b.WriteString("Comece por aqui\n")
+	b.WriteString("/help       ver comandos e atalhos\n")
+	b.WriteString("/agents     conferir ferramentas instaladas\n")
+	b.WriteString("/doctor     executar diagnóstico local\n")
+	b.WriteString("Enter       enviar mensagem ou comando\n")
+	b.WriteString("Alt+Enter   inserir uma nova linha\n")
+	b.WriteString("/goal       planejado; nenhuma tarefa será iniciada\n")
+	return b.String()
+}
+
+func truncateLine(value string, width int) string {
+	if lipgloss.Width(value) <= width {
+		return value
+	}
+	var out strings.Builder
+	for _, r := range value {
+		candidate := out.String() + string(r) + "…"
+		if lipgloss.Width(candidate) > width {
+			break
+		}
+		out.WriteRune(r)
+	}
+	return out.String() + "…"
 }

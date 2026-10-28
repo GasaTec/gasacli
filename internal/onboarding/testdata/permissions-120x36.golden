@@ -1,0 +1,16 @@
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                │
+│  +G>+ gasacli                                                                                  │
+│                                                                                                │
+│  Passo 4 de 6                                                                                  │
+│                                                                                                │
+│  Perfil de permissões (←/→ para alterar: restricted)                                           │
+│                                                                                                │
+│  [x] restricted - Pergunta antes de gravar, executar comandos, instalar ou acessar a rede.     │
+│  [ ] balanced - Permite ações comuns; pergunta antes de ações arriscadas ou externas.          │
+│  [ ] autonomous - Permite ações comuns; operações sensíveis ainda exigem aprovação.            │
+│                                                                                                │
+│                                                                                                │
+│  ←: Voltar | Enter: Avançar | S: Pular                                                         │
+│                                                                                                │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘

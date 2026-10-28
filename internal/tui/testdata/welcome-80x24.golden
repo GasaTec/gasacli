@@ -1,0 +1,23 @@
++------------------------------------------------------------------------------+
+| +G>+ gasacli  Projeto: workspace  |  Confiança: concedida  |  Dashboard: não |
+| iniciado (ocioso)  |  Agentes prontos: 1                                     |
++------------------------------------------------------------------------------+
++------------------------------------------------------------------------------+
+| +G>+ gasacli                                                                 |
+| Projeto: workspace  |  Confiança: concedida                                  |
+| Agentes prontos: 1                                                           |
+|                                                                              |
+| Comece por aqui                                                              |
+| /help       ver comandos e atalhos                                           |
+| /agents     conferir ferramentas instaladas                                  |
+| /doctor     executar diagnóstico local                                       |
+| Enter       enviar mensagem ou comando                                       |
+| Alt+Enter   inserir uma nova linha                                           |
+| /goal       planejado; nenhuma tarefa será iniciada                          |
+|                                                                              |
++------------------------------------------------------------------------------+
++------------------------------------------------------------------------------+
+|   > Ask GasaCLI or type / for commands                                       |
+|   >                                                                          |
++------------------------------------------------------------------------------+
+Enter envia | Alt+Enter/Ctrl+J quebra linha | Ctrl+D sai

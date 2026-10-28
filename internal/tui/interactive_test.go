@@ -1,7 +1,10 @@
 package tui
 
 import (
+	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -15,7 +18,7 @@ func TestInteractiveTrustAndKeys(t *testing.T) {
 	model := newInteractiveModel(session, session.ProjectPath, false)
 	model.width, model.height = 80, 24
 	view := model.View()
-	for _, want := range []string{"GasaCLI needs your approval", "Exact folder:", "Default: No", "> No, leave it untrusted"} {
+	for _, want := range []string{"Confirme a confiança do workspace", "Pasta:", "Padrão: manter sem confiança", "> Manter sem confiança"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("trust view missing %q: %s", want, view)
 		}
@@ -39,7 +42,7 @@ func TestInteractiveChatGoldenAndCommandPalette(t *testing.T) {
 	model.width, model.height = 100, 28
 	model.append("Session ready. Type / to browse commands.")
 	view := model.View()
-	for _, want := range []string{"G> GasaCLI", "Trust: granted", "Agents ready: 2", "Session ready.", "Ctrl+S sends"} {
+	for _, want := range []string{"+G>+ gasacli", "Confiança: concedida", "Agentes prontos: 2", "Session ready.", "Enter envia"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("chat view missing %q: %s", want, view)
 		}
@@ -55,15 +58,16 @@ func TestInteractiveChatGoldenAndCommandPalette(t *testing.T) {
 	}
 }
 
-func TestSetupCommandRequestsWizardWithoutDroppingChat(t *testing.T) {
+func TestSetupCommandStillSuspendsChatBeforeSequentialWizard(t *testing.T) {
 	model := newInteractiveModel(&Session{}, t.TempDir(), true)
 	model.submit("/setup")
 	if !model.setupRequested || model.closed {
 		t.Fatalf("setup state=%+v", model)
 	}
+	// The wizard still runs as a second sequential Bubble Tea program; the chat model retains its state.
 }
 
-func TestInteractiveCtrlCAndCtrlDKeepDraft(t *testing.T) {
+func TestInteractiveCtrlCAndCtrlDKeepDraftAndExit(t *testing.T) {
 	model := newInteractiveModel(&Session{}, t.TempDir(), true)
 	model.chat.SetValue("unsent draft")
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
@@ -73,8 +77,74 @@ func TestInteractiveCtrlCAndCtrlDKeepDraft(t *testing.T) {
 	}
 	updated, command := model.Update(tea.KeyMsg{Type: tea.KeyCtrlD})
 	model = updated.(interactiveModel)
-	if model.chat.Value() != "unsent draft" || command != nil {
-		t.Fatal("Ctrl+D discarded the draft or exited")
+	if model.chat.Value() != "unsent draft" || command == nil {
+		t.Fatal("Ctrl+D must exit while retaining the in-memory draft")
+	}
+}
+
+func TestInteractiveWelcomeAndEnterSends(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	model := newInteractiveModel(&Session{ProjectPath: "C:/workspace", ReadyAgents: 1}, "C:/workspace", true)
+	model.width, model.height = 80, 24
+	view := model.View()
+	for _, want := range []string{"+G>+ gasacli", "Projeto: workspace", "Confiança: concedida", "Agentes prontos: 1", "/help", "/agents", "/doctor"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("welcome card missing %q: %s", want, view)
+		}
+	}
+	model.chat.SetValue("hello")
+	updated, command := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updated.(interactiveModel)
+	if command != nil || model.chat.Value() != "" || !strings.Contains(strings.Join(model.lines, "\n"), "Model chat is not connected yet") {
+		t.Fatalf("Enter did not send the message: model=%+v", model)
+	}
+}
+
+func TestInteractiveWelcomeGoldenTerminalSizes(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	for _, size := range []struct{ width, height int }{{80, 24}, {120, 36}} {
+		name := fmt.Sprintf("welcome-%dx%d.golden", size.width, size.height)
+		t.Run(name, func(t *testing.T) {
+			model := newInteractiveModel(&Session{ProjectPath: "C:/workspace", ReadyAgents: 1}, "C:/workspace", true)
+			model.width, model.height = size.width, size.height
+			got := normalizeInteractiveGolden(model.View())
+			path := filepath.Join("testdata", name)
+			if os.Getenv("UPDATE_GOLDEN") == "1" {
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			want, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != string(want) {
+				t.Fatalf("welcome view differs from %s\n--- got ---\n%s\n--- want ---\n%s", path, got, want)
+			}
+		})
+	}
+}
+
+func normalizeInteractiveGolden(view string) string {
+	lines := strings.Split(view, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " \t")
+	}
+	return strings.Join(lines, "\n")
+}
+
+func TestInteractiveAgentsStayCheckingUntilDiscoveryResult(t *testing.T) {
+	model := newInteractiveModel(&Session{ProjectPath: "C:/workspace", DiscoverReady: func() int { return 3 }}, "C:/workspace", true)
+	if !strings.Contains(model.welcomeCard(), "checking...") {
+		t.Fatal("discovery did not start in checking state")
+	}
+	updated, _ := model.Update(readyAgentsResult{count: 2})
+	model = updated.(interactiveModel)
+	if model.agentsChecking || !strings.Contains(model.welcomeCard(), "Agentes prontos: 2") {
+		t.Fatal("completed discovery result was not shown")
 	}
 }
 

@@ -27,6 +27,7 @@ type Session struct {
 	Dashboard      string
 	DashboardState string
 	ReadyAgents    int
+	DiscoverReady  func() int
 }
 
 func (s *Session) Run() error {
