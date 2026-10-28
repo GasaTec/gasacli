@@ -42,6 +42,6 @@ The SSE root cause was the server-wide `WriteTimeout` expiring the long-lived ev
 ## W12 transcript and diff polish (2026-10-28)
 
 - `w12-before-session-chat.png` records the real dashboard before the update; it showed literal Codex wrappers and the raw diff-stat blob.
-- `w12-after-codex-session.png` shows the real Codex transcript with wrappers hidden inside collapsed tool rows, a centered message column, and the file list without the diff-stat blob. This local session had 849 messages; the initial 100-message page reached its first rendered message in 341 ms.
+- `w12-after-codex-session.png` shows the real Codex transcript with wrappers hidden inside collapsed tool rows, a centered message column, and the file list without the diff-stat blob. This local session had 849 messages; loading the initial 100-message page took 1.85 s to first rendered content, and a repeat open took 341 ms.
 - `w12-after-claude-session.png` shows a real Claude transcript with one collapsed `tool_use` row and no raw wrapper text. `w12-after-claude-light.png` shows that transcript in the light theme.
 - Each W12 PNG is under 600 KB. The embedded Orca page remained 2633×1660 after `window.resizeTo(1280,900)`; 1280 px, 900 px, and 390 px viewport reflow was not verified.
