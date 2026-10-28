@@ -136,11 +136,14 @@ func scan(roots Roots, metadataOnly bool) []Session {
 			if filepath.Ext(path) != ".jsonl" || (root.agent == "Codex" && !strings.HasPrefix(filepath.Base(path), "rollout-")) {
 				return nil
 			}
-			if session, ok := readTranscript(root.agent, path); ok {
-				if metadataOnly {
-					session.Messages = nil
-					session.MessageOffset = 0
-				}
+			var session Session
+			var ok bool
+			if metadataOnly {
+				session, ok = readMetadata(root.agent, path)
+			} else {
+				session, ok = readTranscript(root.agent, path)
+			}
+			if ok {
 				out = append(out, session)
 				rootSessions++
 			}
@@ -174,6 +177,73 @@ func readTranscript(agent, path string) (Session, bool) {
 		return parseLines(agent, path, info, br)
 	}
 	return parseLines(agent, path, info, bufio.NewReader(file))
+}
+
+// readMetadata inspects only the beginning and end of a transcript. Session
+// discovery may find hundreds of large files; the full content is parsed only
+// when a user opens an individual session.
+func readMetadata(agent, path string) (Session, bool) {
+	info, err := os.Stat(path)
+	if err != nil || info.Size() == 0 {
+		return Session{}, false
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return Session{}, false
+	}
+	defer file.Close()
+	const headBytes = 64 << 10
+	const tailBytes = 96 << 10
+	s := Session{Agent: agent, ID: stableID(agent, path), SourcePath: path, Status: "done", UpdatedAt: info.ModTime(), StartedAt: info.ModTime()}
+	parseRange := func(offset, length int64) {
+		if _, err := file.Seek(offset, io.SeekStart); err != nil {
+			return
+		}
+		reader := bufio.NewReader(io.LimitReader(file, length))
+		if offset > 0 {
+			_, _ = reader.ReadString('\n')
+		}
+		for {
+			line, oversized, readErr := readLine(reader)
+			if readErr != nil && readErr != io.EOF {
+				return
+			}
+			if !oversized && len(line) > 0 {
+				var record map[string]any
+				if json.Unmarshal(line, &record) == nil {
+					if agent == "Claude Code" {
+						parseClaude(&s, record)
+					} else {
+						parseCodex(&s, record)
+					}
+				}
+			}
+			if readErr == io.EOF {
+				return
+			}
+		}
+	}
+	headLen := min(info.Size(), headBytes)
+	parseRange(0, headLen)
+	if info.Size() > headBytes {
+		tailLen := min(info.Size(), tailBytes)
+		parseRange(info.Size()-tailLen, tailLen)
+	}
+	if s.CWD == "" {
+		return Session{}, false
+	}
+	if s.UpdatedAt.IsZero() {
+		s.UpdatedAt = info.ModTime()
+	}
+	s.Status = classifyStatus(info.ModTime(), time.Now(), false)
+	if s.Title == "" {
+		s.Title = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	}
+	s.Title, s.Model, s.CWD, s.Branch = redact(s.Title), redact(s.Model), redact(s.CWD), redact(s.Branch)
+	s.Messages = nil
+	s.MessageCount = 0
+	s.MessageOffset = 0
+	return s, true
 }
 
 func parseLines(agent, path string, info os.FileInfo, reader *bufio.Reader) (Session, bool) {
@@ -342,7 +412,13 @@ func parseCodex(s *Session, r map[string]any) {
 		role = itemType
 	}
 	if itemType == "message" && text != "" {
-		appendMessage(s, Message{Role: role, Text: redact(text), TS: s.UpdatedAt})
+		text, tools := parseCodexToolBlocks(text)
+		if len(tools) > 0 {
+			appendMessage(s, Message{Role: "tool", ToolCalls: tools, TS: s.UpdatedAt})
+		}
+		if strings.TrimSpace(text) != "" {
+			appendMessage(s, Message{Role: role, Text: redact(text), TS: s.UpdatedAt})
+		}
 	}
 	if itemType == "function_call" || itemType == "tool_call" {
 		appendMessage(s, Message{Role: "tool", ToolCalls: []ToolCall{{Kind: str(payload["name"]), Summary: str(payload["name"]), Input: redact(str(payload["arguments"]))}}, TS: s.UpdatedAt})
@@ -350,6 +426,28 @@ func parseCodex(s *Session, r map[string]any) {
 	if text != "" && role == "user" && s.Title == "" {
 		s.Title = short(text, 80)
 	}
+}
+
+func parseCodexToolBlocks(text string) (string, []ToolCall) {
+	matches := codexToolBlock.FindAllStringSubmatch(text, -1)
+	if len(matches) == 0 {
+		return text, nil
+	}
+	var tools []ToolCall
+	for _, match := range matches {
+		kind, summary, body := match[1], strings.TrimSpace(match[2]), strings.TrimSpace(match[3])
+		if summary == "" {
+			summary = "tool"
+		}
+		call := ToolCall{Kind: summary, Summary: summary}
+		if kind == "tool_call" {
+			call.Input = redact(body)
+		} else {
+			call.Output = redact(body)
+		}
+		tools = append(tools, call)
+	}
+	return strings.TrimSpace(codexToolBlock.ReplaceAllString(text, "")), tools
 }
 
 func content(v any) (string, []ToolCall) {
@@ -439,6 +537,7 @@ var (
 	secretTokenPattern   = regexp.MustCompile(`(?i)(?:\bsk-[a-z0-9_-]{8,}|\b(?:gh[pousr]|github_pat)_[a-z0-9_]{20,}|\bxox[baprs]-[a-z0-9-]{10,}|\bAKIA[0-9A-Z]{16}\b)`)
 	authorizationPattern = regexp.MustCompile(`(?i)(\bauthorization\s*:\s*(?:bearer\s+)?|\bbearer\s+)([^\s,;]+)`)
 	envSecretPattern     = regexp.MustCompile(`(?i)^\s*([A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|PASSWD|API_KEY|PRIVATE_KEY|ACCESS_KEY)[A-Z0-9_]*)\s*=\s*(.+?)\s*$`)
+	codexToolBlock       = regexp.MustCompile(`(?s)\[external_agent_(tool_call|tool_result)(?::\s*([^\]]+))?\](.*?)\[/external_agent_(?:tool_call|tool_result)\]`)
 )
 
 func redact(s string) string {

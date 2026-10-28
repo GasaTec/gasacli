@@ -51,7 +51,7 @@ func TestScanClaudeDefensiveParsingAndRedaction(t *testing.T) {
 		t.Fatalf("message pagination metadata = %d/%d", s.MessageOffset, s.MessageCount)
 	}
 	metadata := ScanMetadata(Roots{Claude: root})
-	if len(metadata) != 1 || len(metadata[0].Messages) != 0 || metadata[0].SourcePath != path || metadata[0].MessageCount != 3 {
+	if len(metadata) != 1 || len(metadata[0].Messages) != 0 || metadata[0].SourcePath != path {
 		t.Fatalf("metadata scan retained transcript data or lost its index: %#v", metadata)
 	}
 	loaded, ok := LoadTranscript(metadata[0].Agent, metadata[0].SourcePath)
@@ -100,6 +100,22 @@ func TestScanCodexRecordsUnknownAndMissingRoots(t *testing.T) {
 	}
 	if empty := Scan(Roots{Claude: filepath.Join(root, "missing")}); len(empty) != 0 {
 		t.Fatal("missing roots should be skipped")
+	}
+}
+
+func TestParseCodexExternalAgentToolBlocks(t *testing.T) {
+	input := "[external_agent_tool_call: Bash]\ncommand: print sk-1234567890abcdefghijklmnop\n[/external_agent_tool_call]\n" +
+		"[external_agent_tool_result]\noutput: xoxb-1234567890-abcdef123456\n[/external_agent_tool_result]\n" +
+		"Final answer"
+	text, calls := parseCodexToolBlocks(input)
+	if text != "Final answer" || len(calls) != 2 {
+		t.Fatalf("parsed text/tools = %q/%#v", text, calls)
+	}
+	if calls[0].Kind != "Bash" || !strings.Contains(calls[0].Input, "[redacted]") || strings.Contains(calls[0].Input, "sk-123") {
+		t.Fatalf("tool call was not summarized and redacted: %#v", calls[0])
+	}
+	if calls[1].Output == "" || strings.Contains(calls[1].Output, "xoxb-") {
+		t.Fatalf("tool result was not redacted: %#v", calls[1])
 	}
 }
 
