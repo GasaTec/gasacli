@@ -222,6 +222,48 @@ func gitOutput(path string, args ...string) string {
 	}
 	return strings.TrimSpace(string(b))
 }
+
+func safeDiffPath(value string) bool {
+	if value == "" || strings.ContainsRune(value, 0) || strings.HasPrefix(value, "/") || strings.HasPrefix(value, `\`) || filepath.IsAbs(value) || filepath.VolumeName(value) != "" {
+		return false
+	}
+	for _, part := range strings.FieldsFunc(value, func(r rune) bool { return r == '/' || r == '\\' }) {
+		if part == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+type cappedOutput struct {
+	value strings.Builder
+	limit int
+	full  bool
+}
+
+func (b *cappedOutput) Write(p []byte) (int, error) {
+	remaining := b.limit - b.value.Len()
+	if remaining <= 0 {
+		b.full = true
+		return 0, fmt.Errorf("output limit reached")
+	}
+	if len(p) > remaining {
+		_, _ = b.value.Write(p[:remaining])
+		b.full = true
+		return remaining, fmt.Errorf("output limit reached")
+	}
+	return b.value.Write(p)
+}
+
+func gitOutputLimited(path string, limit int, args ...string) (string, bool) {
+	all := append([]string{"-C", path}, args...)
+	cmd := exec.Command("git", all...)
+	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
+	output := &cappedOutput{limit: limit}
+	cmd.Stdout = output
+	_ = cmd.Run()
+	return strings.TrimSpace(output.value.String()), output.full
+}
 func jsonResponse(w http.ResponseWriter, value any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(value)
@@ -301,9 +343,25 @@ func apiHandler(getSnapshot func() snapshot, w http.ResponseWriter, r *http.Requ
 			return true
 		}
 		status := sessions.Redact(gitOutput(worktree, "status", "--porcelain=v1"))
-		stat := sessions.Redact(gitOutput(worktree, "diff", "--stat"))
 		numstat := sessions.Redact(gitOutput(worktree, "diff", "--numstat"))
-		jsonResponse(w, map[string]string{"status": status, "stat": stat, "numstat": numstat})
+		jsonResponse(w, map[string]string{"status": status, "numstat": numstat})
+		return true
+	case r.URL.Path == "/api/git/diff" && r.Method == http.MethodGet:
+		id := r.URL.Query().Get("worktree")
+		file := r.URL.Query().Get("file")
+		s := getSnapshot()
+		worktree, ok := s.worktrees[id]
+		if !ok || !safeDiffPath(file) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return true
+		}
+		numstat := gitOutput(worktree, "diff", "--numstat", "--", file)
+		if numstat == "" || strings.HasPrefix(numstat, "-\t") {
+			jsonResponse(w, map[string]any{"diff": "", "binary": strings.HasPrefix(numstat, "-\t")})
+			return true
+		}
+		diff, truncated := gitOutputLimited(worktree, 64<<10, "diff", "--no-ext-diff", "--unified=3", "--", file)
+		jsonResponse(w, map[string]any{"diff": sessions.Redact(diff), "truncated": truncated})
 		return true
 	case r.URL.Path == "/api/events" && r.Method == http.MethodGet:
 		if _, ok := w.(http.Flusher); !ok {

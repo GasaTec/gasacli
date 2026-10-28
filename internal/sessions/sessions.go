@@ -28,11 +28,13 @@ const (
 )
 
 type ToolCall struct {
-	Kind    string   `json:"kind"`
-	Summary string   `json:"summary"`
-	Input   string   `json:"input,omitempty"`
-	Output  string   `json:"output,omitempty"`
-	Files   []string `json:"files,omitempty"`
+	Kind        string   `json:"kind"`
+	Summary     string   `json:"summary"`
+	Description string   `json:"description,omitempty"`
+	Command     string   `json:"command,omitempty"`
+	Input       string   `json:"input,omitempty"`
+	Output      string   `json:"output,omitempty"`
+	Files       []string `json:"files,omitempty"`
 }
 
 type Message struct {
@@ -443,25 +445,99 @@ func parseCodex(s *Session, r map[string]any) {
 }
 
 func parseCodexToolBlocks(text string) (string, []ToolCall) {
-	matches := codexToolBlock.FindAllStringSubmatch(text, -1)
-	if len(matches) == 0 {
-		return text, nil
-	}
+	var visible strings.Builder
 	var tools []ToolCall
-	for _, match := range matches {
-		kind, summary, body := match[1], strings.TrimSpace(match[2]), strings.TrimSpace(match[3])
-		if summary == "" {
-			summary = "tool"
+	for cursor := 0; cursor < len(text); {
+		start := codexToolOpen.FindStringSubmatchIndex(text[cursor:])
+		if start == nil {
+			visible.WriteString(text[cursor:])
+			break
 		}
-		call := ToolCall{Kind: summary, Summary: summary}
+		openStart, openEnd := cursor+start[0], cursor+start[1]
+		visible.WriteString(text[cursor:openStart])
+		kind := text[cursor+start[2] : cursor+start[3]]
+		summary := ""
+		if start[4] >= 0 {
+			summary = strings.TrimSpace(text[cursor+start[4] : cursor+start[5]])
+		}
+		bodyEnd, next := findCodexToolEnd(text, openEnd)
+		body := text[openEnd:bodyEnd]
+		body, nested := parseCodexToolBlocks(body)
+		tools = append(tools, nested...)
+		fields, plain := parseCodexToolFields(body)
+		call := ToolCall{Kind: summary, Description: fields["description"], Command: fields["command"]}
+		if call.Kind == "" {
+			call.Kind = firstNonEmpty(fields["kind"], fields["name"], "tool")
+		}
 		if kind == "tool_call" {
-			call.Input = redact(body)
+			call.Input = redact(firstNonEmpty(plain, call.Command))
 		} else {
-			call.Output = redact(body)
+			call.Output = redact(strings.TrimSpace(fields["output"] + plain))
 		}
+		call.Kind = redact(call.Kind)
+		call.Description = redact(call.Description)
+		call.Command = redact(call.Command)
+		call.Summary = redact(firstNonEmpty(call.Description, call.Command, call.Kind))
 		tools = append(tools, call)
+		cursor = next
 	}
-	return strings.TrimSpace(codexToolBlock.ReplaceAllString(text, "")), tools
+	return strings.TrimSpace(codexToolWhitespace.ReplaceAllString(visible.String(), "\n\n")), tools
+}
+
+func findCodexToolEnd(text string, bodyStart int) (bodyEnd, next int) {
+	depth := 1
+	for cursor := bodyStart; cursor < len(text); {
+		opener := codexToolOpen.FindStringIndex(text[cursor:])
+		closer := codexToolClose.FindStringIndex(text[cursor:])
+		if closer == nil {
+			return len(text), len(text)
+		}
+		closeStart, closeEnd := cursor+closer[0], cursor+closer[1]
+		if opener != nil && cursor+opener[0] < closeStart {
+			depth++
+			cursor += opener[1]
+			continue
+		}
+		depth--
+		if depth == 0 {
+			return closeStart, closeEnd
+		}
+		cursor = closeEnd
+	}
+	return len(text), len(text)
+}
+
+func parseCodexToolFields(body string) (map[string]string, string) {
+	fields := make(map[string]string)
+	matches := codexToolField.FindAllStringSubmatchIndex(body, -1)
+	if len(matches) == 0 {
+		return fields, body
+	}
+	var plain strings.Builder
+	plain.WriteString(body[:matches[0][0]])
+	for i, match := range matches {
+		end := len(body)
+		if i+1 < len(matches) {
+			end = matches[i+1][0]
+		}
+		name := strings.ToLower(body[match[2]:match[3]])
+		value := strings.TrimSpace(body[match[1]:end])
+		if fields[name] == "" {
+			fields[name] = value
+		} else {
+			plain.WriteString(value)
+		}
+	}
+	return fields, plain.String()
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 func content(v any) (string, []ToolCall) {
@@ -512,6 +588,8 @@ func appendMessage(s *Session, message Message) {
 		call := &message.ToolCalls[i]
 		call.Kind = boundedText(call.Kind)
 		call.Summary = boundedText(call.Summary)
+		call.Description = boundedText(call.Description)
+		call.Command = boundedText(call.Command)
 		call.Input = boundedText(call.Input)
 		call.Output = boundedText(call.Output)
 		if len(call.Files) > maxToolCalls {
@@ -551,7 +629,10 @@ var (
 	secretTokenPattern   = regexp.MustCompile(`(?i)(?:\bsk-[a-z0-9_-]{8,}|\b(?:gh[pousr]|github_pat)_[a-z0-9_]{20,}|\bxox[baprs]-[a-z0-9-]{10,}|\bAKIA[0-9A-Z]{16}\b)`)
 	authorizationPattern = regexp.MustCompile(`(?i)(\bauthorization\s*:\s*(?:bearer\s+)?|\bbearer\s+)([^\s,;]+)`)
 	envSecretPattern     = regexp.MustCompile(`(?i)^\s*([A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|PASSWD|API_KEY|PRIVATE_KEY|ACCESS_KEY)[A-Z0-9_]*)\s*=\s*(.+?)\s*$`)
-	codexToolBlock       = regexp.MustCompile(`(?s)\[external_agent_(tool_call|tool_result)(?::\s*([^\]]+))?\](.*?)\[/external_agent_(?:tool_call|tool_result)\]`)
+	codexToolOpen        = regexp.MustCompile(`\[external_agent_(tool_call|tool_result)(?::\s*([^\]]+))?\]`)
+	codexToolClose       = regexp.MustCompile(`\[/external_agent_(?:tool_call|tool_result)\]`)
+	codexToolField       = regexp.MustCompile(`(?m)^\s*(description|command|output|name|kind):\s*`)
+	codexToolWhitespace  = regexp.MustCompile(`\n{3,}`)
 )
 
 func redact(s string) string {

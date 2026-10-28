@@ -880,3 +880,21 @@ func TestLaunchURLRenewsAndExpiresAfter60Seconds(t *testing.T) {
 		t.Fatal("renewal after expiry failed")
 	}
 }
+func TestSafeDiffPath(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		want bool
+	}{
+		{path: "internal/web/app.js", want: true},
+		{path: "name with spaces.txt", want: true},
+		{path: "", want: false},
+		{path: "../outside", want: false},
+		{path: "nested/../../outside", want: false},
+		{path: "C:\\outside", want: false},
+		{path: "/etc/passwd", want: false},
+	} {
+		if got := safeDiffPath(tc.path); got != tc.want {
+			t.Errorf("safeDiffPath(%q) = %t, want %t", tc.path, got, tc.want)
+		}
+	}
+}

@@ -38,3 +38,10 @@ The SSE root cause was the server-wide `WriteTimeout` expiring the long-lived ev
 - Local Codex and Claude sessions were visible in the real browser; the browser reported `Conectado`, one trusted current project and seven local sessions. The Codex detail request loaded 100 messages and returned about 55 KB. Initial first-contentful-paint was 1.48 s; the page viewport was 2633×1660.
 - The narrow CSS path now includes a project selector and bottom navigation. Orca did not honor the requested viewport resize, so mobile and ~900 px screenshots and layout behavior remain unverified.
 - `gasa web status|stop|restart` was outside the allowed `internal/web`, `internal/sessions`, tests and screenshots paths; shell lifecycle behavior was not changed or reverified here.
+
+## W12 transcript and diff polish (2026-10-28)
+
+- `w12-before-session-chat.png` records the real dashboard before the update; it showed literal Codex wrappers and the raw diff-stat blob.
+- `w12-after-codex-session.png` shows the real Codex transcript with wrappers hidden inside collapsed tool rows, a centered message column, and the file list without the diff-stat blob. This local session had 849 messages; the initial 100-message page reached its first rendered message in 341 ms.
+- `w12-after-claude-session.png` shows a real Claude transcript with one collapsed `tool_use` row and no raw wrapper text. `w12-after-claude-light.png` shows that transcript in the light theme.
+- Each W12 PNG is under 600 KB. The embedded Orca page remained 2633×1660 after `window.resizeTo(1280,900)`; 1280 px, 900 px, and 390 px viewport reflow was not verified.

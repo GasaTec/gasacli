@@ -104,6 +104,7 @@ func TestScanCodexRecordsUnknownAndMissingRoots(t *testing.T) {
 }
 
 func TestParseCodexExternalAgentToolBlocks(t *testing.T) {
+	t.Setenv("GASACLI_LANG", "en")
 	input := "[external_agent_tool_call: Bash]\ncommand: print sk-1234567890abcdefghijklmnop\n[/external_agent_tool_call]\n" +
 		"[external_agent_tool_result]\noutput: xoxb-1234567890-abcdef123456\n[/external_agent_tool_result]\n" +
 		"Final answer"
@@ -116,6 +117,56 @@ func TestParseCodexExternalAgentToolBlocks(t *testing.T) {
 	}
 	if calls[1].Output == "" || strings.Contains(calls[1].Output, "xoxb-") {
 		t.Fatalf("tool result was not redacted: %#v", calls[1])
+	}
+}
+
+func TestParseCodexToolBlocksStructuredAndDamaged(t *testing.T) {
+	t.Setenv("GASACLI_LANG", "en")
+	for _, tc := range []struct {
+		name      string
+		input     string
+		wantText  string
+		wantCalls int
+	}{
+		{
+			name: "description command and markdown result",
+			input: "Before\n[external_agent_tool_call: Bash]\ndescription: List files\ncommand: git status --short\n" +
+				"[/external_agent_tool_call]\n[external_agent_tool_result]\noutput: **clean**\n- no changes\n[/external_agent_tool_result]\nAfter",
+			wantText: "Before\n\nAfter", wantCalls: 2,
+		},
+		{
+			name: "nested wrappers are extracted",
+			input: "[external_agent_tool_call: Bash]\ncommand: echo nested\n" +
+				"[external_agent_tool_result]\noutput: nested result\n[/external_agent_tool_result]\n[/external_agent_tool_call]",
+			wantCalls: 2,
+		},
+		{
+			name:     "unterminated wrapper is consumed",
+			input:    "Visible\n[external_agent_tool_result]\noutput: tail without close",
+			wantText: "Visible", wantCalls: 1,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			text, calls := parseCodexToolBlocks(tc.input)
+			if text != tc.wantText || len(calls) != tc.wantCalls {
+				t.Fatalf("parsed text/tools = %q/%#v, want %q/%d", text, calls, tc.wantText, tc.wantCalls)
+			}
+			if strings.Contains(text, "external_agent_") {
+				t.Fatalf("wrapper markup leaked into prose: %q", text)
+			}
+			if tc.name == "description command and markdown result" {
+				if calls[0].Description != "List files" || calls[0].Command != "git status --short" || !strings.Contains(calls[1].Output, "**clean**") {
+					t.Fatalf("structured fields or markdown output lost: %#v", calls)
+				}
+			}
+		})
+	}
+	large := strings.Repeat("x", maxMessageBytes+100)
+	_, calls := parseCodexToolBlocks("[external_agent_tool_result]\noutput: " + large + "\n[/external_agent_tool_result]")
+	s := Session{}
+	appendMessage(&s, Message{Role: "tool", ToolCalls: calls})
+	if len(s.Messages[0].ToolCalls[0].Output) > maxMessageBytes+20 {
+		t.Fatalf("oversized tool output was not bounded: %d bytes", len(s.Messages[0].ToolCalls[0].Output))
 	}
 }
 
