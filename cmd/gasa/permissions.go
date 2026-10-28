@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/GasaTec/gasacli/internal/permissions"
 )
@@ -36,7 +37,7 @@ func runPermissions(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	projectPath := *project
+	projectPath := project
 	if projectPath == "" && agent == "" {
 		projectPath = cwd
 	}
