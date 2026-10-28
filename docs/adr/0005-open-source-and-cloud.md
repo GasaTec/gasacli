@@ -1,6 +1,6 @@
 # ADR-0005: Open-source core and optional managed cloud
 
-Status: Product direction agreed; license and pricing pending review.
+Status: Accepted product direction, 2026-10-28. The repository is public and the chosen license is MIT; Cloud pricing and service are not yet available.
 
 ## Principles
 - GasaCLI core is open-source and local-first. Full native orchestration, interactive /goal, multiple installed agents, independent review, editable prompts/skills, local second brain, GitHub plugin and local SQLite remain free.
@@ -11,6 +11,6 @@ Status: Product direction agreed; license and pricing pending review.
 - Secrets stored in OS credential vault, not synced by default.
 - Clearly distinguish subscription billing metadata from synced content.
 - Validate pricing and retention costs before launch; no promise of unlimited storage.
-- Select a real OSI-approved license before public release; consider Apache-2.0 vs AGPL-3.0 with legal review. A public GitHub repository without a license is not automatically open-source.
-- Community: CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, discussions, issue templates, CI, release signing, clear governance and contributor review.
-- Keep repository private until secret scan, dependency/license review, documentation and a working minimum release.
+- The repository uses the MIT License in `LICENSE`; this records the chosen repository license and is not a legal opinion on ownership of every contribution.
+- Community governance, private vulnerability reporting, secret scanning, Discussions, branch protection and dependency license inventory are tracked in `docs/launch-checklist.md`. Repository configuration items remain unverified until a maintainer checks them.
+- The repository is already public. This ADR does not claim that secret scanning, private vulnerability reporting, Discussions, branch protection or any other GitHub setting is enabled.

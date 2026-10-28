@@ -16,7 +16,7 @@ Task DAG determines readiness; tasks with dependencies run sequentially, indepen
 Single-instance coordination via OS-appropriate lock and authenticated IPC/loopback handshake. Multiple TUI/web clients attach to same engine. Project IDs, scoped working directories and run IDs prevent cross-project context mixing. Never kill unrelated processes to claim port 3199.
 
 ## Permissions
-Profiles: restricted, balanced, autonomous. Each permission uses allow/ask/deny where applicable: read_project, write_project, run_tests, execute_commands, install_dependencies, network_access, git_mutations, read_vault, write_vault, issue_write, plugin_install, secret_access. Scope precedence: hard security policy > user restrictions > project restrictions > agent-specific grants. Agent cannot elevate its own permissions. Trusting a folder does not authorize all commands. Sensitive/destructive operations require separate approval regardless of autonomy profile.
+Profiles: restricted, balanced, autonomous. The canonical vocabulary, per-profile matrix, scope precedence, approval-event schema and `/permissions`/`/permissoes` UX are defined in [ADR-0019](0019-permission-policy-and-approval-events.md). Agent cannot elevate its own permissions. Trusting a folder does not authorize all commands. Sensitive/destructive operations remain subject to hard constraints and scoped approval regardless of autonomy profile.
 
 ## Background
 User opt-in for run continuation without an open TUI. Engine lifecycle independent of UI clients while runs are active; shutdown and resume safe. OS-specific process management to avoid orphaned workers, logs persisted locally. `gasa --no-browser` and headless use remain supported.
@@ -27,7 +27,7 @@ Explicit opt-in, device identity, scoped permissions, transport encryption, proj
 ## Acceptance criteria
 - Two independent tasks can run concurrently, dependent tasks wait.
 - Five project sessions share one engine and do not leak context.
-- /permissions shows effective rules and persists changes.
+- /permissions and /permissoes show effective rules and persist user-confirmed changes.
 - Autonomous agent cannot bypass hard restrictions.
 - Background run survives terminal exit and can be reattached.
 - Cloud absence never prevents local execution.
