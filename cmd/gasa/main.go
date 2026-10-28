@@ -48,7 +48,7 @@ func run(ctx context.Context, args []string) error {
 	if index, command := firstMaintenanceCommand(args); index >= 0 {
 		remaining := make([]string, 0, len(args)-1)
 		for i, arg := range args {
-			if i == index || arg == "--no-browser" || arg == "--no-onboarding" {
+			if i == index || arg == "--no-browser" || arg == "--no-onboarding" || arg == "--plain" {
 				continue
 			}
 			remaining = append(remaining, arg)
@@ -61,6 +61,7 @@ func run(ctx context.Context, args []string) error {
 	flags := flag.NewFlagSet("gasa", flag.ContinueOnError)
 	noBrowser := flags.Bool("no-browser", false, "Do not open the dashboard automatically")
 	noOnboarding := flags.Bool("no-onboarding", false, "Skip first-run onboarding")
+	plain := flags.Bool("plain", false, "Use line-oriented mode instead of the interactive terminal UI")
 	flags.Usage = help
 	// Accept the global switch on either side of a subcommand.
 	var positional []string
@@ -69,6 +70,8 @@ func run(ctx context.Context, args []string) error {
 			*noBrowser = true
 		} else if arg == "--no-onboarding" {
 			*noOnboarding = true
+		} else if arg == "--plain" {
+			*plain = true
 		} else {
 			positional = append(positional, arg)
 		}
@@ -97,7 +100,18 @@ func run(ctx context.Context, args []string) error {
 	if len(rest) > 0 {
 		switch {
 		case len(rest) == 1 && rest[0] == "setup":
-			interactive := onboarding.Interactive(os.Stdin, os.Stdout)
+			interactive := !*plain && onboarding.Interactive(os.Stdin, os.Stdout)
+			if interactive {
+				home, err := config.Home()
+				if err != nil {
+					return err
+				}
+				cwd, err := os.Getwd()
+				if err != nil {
+					return err
+				}
+				return onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: os.Stdout, GrantTrust: trust.NewStore(home).Grant})
+			}
 			if err := onboarding.Run(ctx, onboarding.Options{In: os.Stdin, Out: os.Stdout, InFile: os.Stdin, OutFile: os.Stdout, Interactive: interactive}); err != nil {
 				return err
 			}
@@ -130,87 +144,74 @@ func run(ctx context.Context, args []string) error {
 			return fmt.Errorf("unknown command %q (try gasa --help)", strings.Join(rest, " "))
 		}
 	}
-	if len(rest) == 0 && !*noOnboarding && os.Getenv("GASA_SKIP_ONBOARDING") != "1" && onboarding.Interactive(os.Stdin, os.Stdout) {
+	interactiveTerminal := !*plain && onboarding.Interactive(os.Stdin, os.Stdout)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	if len(rest) == 0 && !*noOnboarding && os.Getenv("GASA_SKIP_ONBOARDING") != "1" && interactiveTerminal {
 		home, err := config.Home()
 		if err != nil {
 			return err
 		}
-		state, stateWritable := loadStartupState(home, os.Stderr)
-		if !state.Onboarding.Completed {
-			if err := onboarding.Run(ctx, onboarding.Options{In: os.Stdin, Out: os.Stdout, InFile: os.Stdin, OutFile: os.Stdout, Interactive: true}); err != nil {
+		state, _ := loadStartupState(home, os.Stderr)
+		if !state.Onboarding.Completed || state.Onboarding.Version < 2 {
+			if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: os.Stdout, Resume: true, GrantTrust: trust.NewStore(home).Grant}); err != nil {
 				return err
 			}
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			if stateWritable {
-				if err := config.SaveOnboardingState(home, time.Now()); err != nil {
-					return fmt.Errorf("save onboarding state: %w", err)
-				}
+			cfg, err = config.Load()
+			if err != nil {
+				return fmt.Errorf("reload config after onboarding: %w", err)
 			}
 		}
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
 	}
 	home, err := config.Home()
 	if err != nil {
 		return err
 	}
-	fmt.Println("GasaCLI pre-alpha |", cwd)
-	fmt.Println("This build is a local chat shell; /goal is not implemented.")
 	var server *web.Server
 	defer func() { shutdown(server) }()
-	// Closing the pipe on cancellation unblocks the TUI even while stdin is idle.
-	input, writer := io.Pipe()
-	defer input.Close()
-	done := make(chan struct{})
-	defer close(done)
-	stdin := os.Stdin
-	setupBytes := make(chan byte, 256)
-	inputMode := make(chan bool, 4)
-	rawInput := false
-	go func() {
-		buffer := []byte{0}
-		for {
-			n, readErr := stdin.Read(buffer)
-			if n > 0 {
-				for {
-					select {
-					case raw := <-inputMode:
-						rawInput = raw
-					default:
-						goto modeReady
-					}
-				}
-			modeReady:
-				if rawInput {
-					select {
-					case setupBytes <- buffer[0]:
-					case <-ctx.Done():
-						_ = writer.CloseWithError(ctx.Err())
-						return
-					}
-				} else if _, err := writer.Write(buffer[:n]); err != nil {
-					return
-				}
-			}
-			if readErr != nil {
-				_ = writer.CloseWithError(readErr)
-				return
+	readyAgents := 0
+	if interactiveTerminal {
+		for _, result := range discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{}) {
+			if result.Status == discovery.Available {
+				readyAgents++
 			}
 		}
-	}()
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = writer.CloseWithError(ctx.Err())
-		case <-done:
-		}
-	}()
-	session := tui.Session{
-		In: input, Out: os.Stdout, ProjectPath: cwd, TrustStore: trust.NewStore(home),
+	}
+	var sessionInput io.Reader = os.Stdin
+	if !interactiveTerminal {
+		input, writer := io.Pipe()
+		defer input.Close()
+		done := make(chan struct{})
+		defer close(done)
+		go func() {
+			select {
+			case <-ctx.Done():
+				_ = writer.CloseWithError(ctx.Err())
+			case <-done:
+				_ = writer.Close()
+			}
+		}()
+		go func() {
+			_, copyErr := io.Copy(writer, os.Stdin)
+			if copyErr != nil {
+				_ = writer.CloseWithError(copyErr)
+			} else {
+				_ = writer.Close()
+			}
+		}()
+		sessionInput = input
+	}
+	var session tui.Session
+	session = tui.Session{
+		Context: ctx, In: sessionInput, Out: os.Stdout, ProjectPath: cwd, TrustStore: trust.NewStore(home),
+		Interactive:    interactiveTerminal,
+		DashboardState: "starting",
+		ReadyAgents:    readyAgents,
 		Agents: func(out io.Writer) {
 			if err := diagnostics(ctx, out); err != nil {
 				fmt.Fprintln(os.Stderr, "discovery:", err)
@@ -223,11 +224,18 @@ func run(ctx context.Context, args []string) error {
 		},
 		OnTrusted: func() error {
 			var err error
-			server, err = startDashboard(ctx, cfg)
+			if interactiveTerminal {
+				server, err = startDashboardQuiet(ctx, cfg)
+			} else {
+				server, err = startDashboard(ctx, cfg)
+			}
 			if err != nil {
+				session.DashboardState = "unavailable"
 				fmt.Fprintln(os.Stderr, "Warning: dashboard unavailable:", err)
 				return nil
 			}
+			session.Dashboard = server.URL()
+			session.DashboardState = "running"
 			if shouldOpen(cfg.Web.Mode, *noBrowser) {
 				launchBrowser(server.LaunchURL(), os.Stderr)
 			}
@@ -242,7 +250,7 @@ func run(ctx context.Context, args []string) error {
 				action = args[0]
 			}
 			if action != "open" && action != "status" {
-				return fmt.Errorf("%s: planejado (not implemented)", action)
+				return fmt.Errorf("%s is planned; see issue #22", action)
 			}
 			if server == nil {
 				return fmt.Errorf("dashboard unavailable")
@@ -254,23 +262,17 @@ func run(ctx context.Context, args []string) error {
 			return nil
 		},
 		Setup: func(out io.Writer) error {
-			interactive := onboarding.Interactive(os.Stdin, os.Stdout)
-			if !interactive {
-				return onboarding.Run(ctx, onboarding.Options{In: os.Stdin, Out: out, Interactive: false, PlanOnly: true})
+			if interactiveTerminal {
+				if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: out, GrantTrust: trust.NewStore(home).Grant}); err != nil {
+					return err
+				}
+				cfg, err = config.Load()
+				if err != nil {
+					return fmt.Errorf("reload config after setup: %w", err)
+				}
+				return nil
 			}
-			// Inside the chat the console is in line mode with a line read already pending, so single
-			// keystrokes would only arrive after Enter. Use the numbered prompt here; `gasa setup`
-			// (outside the chat) has the checkbox list with arrows and space.
-			select {
-			case inputMode <- true:
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-			defer func() { inputMode <- false }()
-			if err := onboarding.Run(ctx, onboarding.Options{In: channelByteReader{bytes: setupBytes}, Out: out, Interactive: true, Numbered: true, PlanOnly: true}); err != nil {
-				return err
-			}
-			return nil
+			return onboarding.Run(ctx, onboarding.Options{In: strings.NewReader(""), Out: out, Interactive: false, PlanOnly: true})
 		},
 	}
 	err = session.Run()
@@ -291,7 +293,7 @@ func loadStartupState(home string, errOut io.Writer) (config.State, bool) {
 
 func firstMaintenanceCommand(args []string) (int, string) {
 	for i, arg := range args {
-		if arg == "--no-browser" || arg == "--no-onboarding" {
+		if arg == "--no-browser" || arg == "--no-onboarding" || arg == "--plain" {
 			continue
 		}
 		if arg == "reset" || arg == "uninstall" {
@@ -300,20 +302,6 @@ func firstMaintenanceCommand(args []string) (int, string) {
 		return -1, ""
 	}
 	return -1, ""
-}
-
-type channelByteReader struct{ bytes <-chan byte }
-
-func (r channelByteReader) Read(buffer []byte) (int, error) {
-	if len(buffer) == 0 {
-		return 0, nil
-	}
-	value, ok := <-r.bytes
-	if !ok {
-		return 0, io.EOF
-	}
-	buffer[0] = value
-	return 1, nil
 }
 
 func printVersion(out io.Writer) {
@@ -327,11 +315,19 @@ func diagnostics(ctx context.Context, out io.Writer) error {
 }
 
 func startDashboard(ctx context.Context, cfg config.Config) (*web.Server, error) {
+	return startDashboardWithOutput(ctx, cfg, os.Stdout)
+}
+
+func startDashboardQuiet(ctx context.Context, cfg config.Config) (*web.Server, error) {
+	return startDashboardWithOutput(ctx, cfg, io.Discard)
+}
+
+func startDashboardWithOutput(ctx context.Context, cfg config.Config, out io.Writer) (*web.Server, error) {
 	server, err := web.Start(ctx, web.Options{Host: cfg.Web.Host, Port: cfg.Web.Port, Fallback: cfg.Web.FallbackPort})
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Dashboard:", server.URL())
+	fmt.Fprintln(out, "Dashboard:", server.URL())
 	go func() {
 		<-server.Done()
 		if err := server.ServeError(); err != nil {
@@ -385,6 +381,7 @@ func help() {
   gasa help | --help     Show this help
   --no-browser           Suppress browser launches, including /web open
   --no-onboarding        Skip first-run onboarding
+  --plain                Use line-oriented input instead of the terminal UI
   web.mode auto          Open browser at startup
   web.mode manual        Open browser only with /web open
   web.mode always        Background service not implemented; uses auto with warning

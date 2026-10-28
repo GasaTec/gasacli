@@ -3,6 +3,7 @@ package tui
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,20 +13,28 @@ import (
 )
 
 type Session struct {
-	In          io.Reader
-	Out         io.Writer
-	ProjectPath string
-	TrustStore  *trust.Store
-	Agents      func(io.Writer)
-	Doctor      func(io.Writer)
-	OnTrusted   func() error
-	Web         func(io.Writer, []string) error
-	Setup       func(out io.Writer) error
+	Context        context.Context
+	In             io.Reader
+	Out            io.Writer
+	ProjectPath    string
+	TrustStore     *trust.Store
+	Agents         func(io.Writer)
+	Doctor         func(io.Writer)
+	OnTrusted      func() error
+	Web            func(io.Writer, []string) error
+	Setup          func(out io.Writer) error
+	Interactive    bool
+	Dashboard      string
+	DashboardState string
+	ReadyAgents    int
 }
 
 func (s *Session) Run() error {
 	if s.In == nil || s.Out == nil || s.TrustStore == nil {
 		return fmt.Errorf("session requires input, output and trust store")
+	}
+	if s.Interactive {
+		return s.runInteractive()
 	}
 	project, err := trust.Canonical(s.ProjectPath)
 	if err != nil {

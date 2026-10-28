@@ -175,6 +175,14 @@ func TestCLI(t *testing.T) {
 		}
 		t.Log("real binary startup, /help, /status, /goal, /web status and persisted trust passed")
 	})
+	t.Run("PlainFlagKeepsLineMode", func(t *testing.T) {
+		_, home, project := newHome(t)
+		out := run(t, home, project, "y\n/help\n/exit\n", 0, "--plain")
+		contains(t, out, "[y/N]", "gasa> ", "/help")
+		if strings.Contains(out, "G> GasaCLI") {
+			t.Fatalf("--plain started the interactive renderer: %s", out)
+		}
+	})
 	t.Run("TrustRefusedAndEOF", func(t *testing.T) {
 		for _, input := range []string{"n\n", ""} {
 			_, home, project := newHome(t)
