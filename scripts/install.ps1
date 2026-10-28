@@ -33,6 +33,9 @@ function Test-PathReparseComponents {
 function Test-SafeInstallDirectory {
     param([string]$Directory, [string[]]$AllowedLeaves = @('bin', 'gasa*'), [string]$ReasonVariable = '')
     $reason = 'path must be an absolute local path'
+    $hasControl = $false
+    foreach ($character in $Directory.ToCharArray()) { $code = [int]$character; if ($code -lt 32 -or ($code -ge 0x7f -and $code -le 0x9f) -or $code -in @(0x200e,0x200f,0x2028,0x2029) -or ($code -ge 0x202a -and $code -le 0x202e) -or ($code -ge 0x2066 -and $code -le 0x2069)) { $hasControl = $true; break } }
+    if ($Directory -match '[;%*?"<>|]' -or $hasControl) { $reason = 'install directory contains a prohibited character'; if ($ReasonVariable) { Set-Variable -Name $ReasonVariable -Value $reason -Scope 1 }; return $false }
     $candidate = Get-CanonicalDirectory $Directory
     if (-not $candidate) { if ($ReasonVariable) { Set-Variable -Name $ReasonVariable -Value $reason -Scope 1 }; return $false }
     $reparse = Test-PathReparseComponents $candidate
@@ -64,32 +67,60 @@ function Test-RedirectUri {
 
 function Test-ReleaseVersion {
     param([string]$Version)
-    return $Version -cmatch '\Av[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?\z'
+    return $Version -cmatch '\Av[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?\z'
 }
 
 function Get-GitHubFile {
-    param([string]$Uri, [string]$OutFile, [string[]]$AllowedHosts = $script:GasaAllowedHosts, [switch]$AllowHttp, [int]$MaxBytes = 209715200, [int]$MaxTimeSeconds = 120, [int]$ConnectTimeoutSeconds = 20)
-    $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
-    if (-not (Test-Path -LiteralPath $curl -PathType Leaf)) { throw "curl.exe was not found at $curl; Windows 10 1803 or newer is required." }
-    $protocol = if ($AllowHttp) { '=http,https' } else { '=https' }
-    $protoRedirect = if ($AllowHttp) { '=http,https' } else { '=https' }
+    param([string]$Uri, [string]$OutFile, [string[]]$AllowedHosts = $script:GasaAllowedHosts, [switch]$AllowHttp, [switch]$AllowHttpFirstHopOnly, [int]$MaxBytes = 209715200, [int]$MaxTimeSeconds = 120, [int]$ConnectTimeoutSeconds = 20, [string]$CurlPath = '')
+    $priorErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $curl = if ($CurlPath) { $CurlPath } else { Join-Path $env:SystemRoot 'System32\curl.exe' }
+    if (-not (Test-Path -LiteralPath $curl -PathType Leaf)) { $ErrorActionPreference = $priorErrorActionPreference; throw "curl.exe was not found at $curl; Windows 10 1803 or newer is required." }
+    $stderrFile = [IO.Path]::GetTempFileName()
     try {
-        $result = & $curl --fail --silent --show-error --location --proto $protocol --proto-redir $protoRedirect --max-redirs 5 --max-filesize $MaxBytes --max-time $MaxTimeSeconds --connect-timeout $ConnectTimeoutSeconds -H 'User-Agent: gasacli-installer' -o $OutFile -w '%{url_effective}' $Uri 2>&1
-        if ($LASTEXITCODE -ne 0) { throw "curl.exe download failed (exit code $LASTEXITCODE): $($result -join ' ')" }
-        $effective = [string]($result | Select-Object -Last 1)
-        if (-not (Test-RedirectUri $effective -AllowedHosts $AllowedHosts -AllowHttp:$AllowHttp)) { throw "Untrusted final download URL: $effective" }
-        return $effective
+        $current = $Uri
+        for ($hop = 0; $hop -le 5; $hop++) {
+            $firstHopHttp = ($AllowHttpFirstHopOnly -and $hop -eq 0) -or $AllowHttp
+            if (-not (Test-RedirectUri $current -AllowedHosts $AllowedHosts -AllowHttp:($AllowHttp -or ($AllowHttpFirstHopOnly -and $hop -eq 0)))) { throw "Untrusted download URL: $current" }
+            $headers = "$OutFile.headers"; $body = "$OutFile.part"
+            Remove-Item $headers,$body -Force -ErrorAction SilentlyContinue
+            $proto = if ($firstHopHttp) { '=http,https' } else { '=https' }
+            $result = & $curl --silent --show-error --proto $proto --max-filesize $MaxBytes --max-time $MaxTimeSeconds --connect-timeout $ConnectTimeoutSeconds -D $headers -o $body -w '%{http_code}' -H 'User-Agent: gasacli-installer' --stderr $stderrFile $current
+            $curlExitCode = $LASTEXITCODE
+            if ($curlExitCode -ne 0) { $curlError = [IO.File]::ReadAllText($stderrFile); throw "curl.exe download failed (exit code $curlExitCode): $curlError" }
+            $status = [int]([string]($result | Select-Object -Last 1))
+            if ($status -notin @(301,302,303,307,308)) {
+                if ($status -ne 200) { throw "Download failed with HTTP $status." }
+                if (-not (Test-Path -LiteralPath $body -PathType Leaf)) { throw 'curl.exe reported success but did not create the downloaded file.' }
+                Move-Item -LiteralPath $body -Destination $OutFile -Force -ErrorAction Stop
+                if (-not (Test-Path -LiteralPath $OutFile -PathType Leaf)) { throw 'Downloaded file is missing after move.' }
+                Remove-Item $headers -Force -ErrorAction SilentlyContinue; return $current
+            }
+            if ($hop -eq 5) { throw 'Too many redirects while downloading release asset.' }
+            $location = Get-Content -LiteralPath $headers | Where-Object { $_ -match '^Location:' } | Select-Object -Last 1
+            if (-not $location) { throw 'Redirect response did not include Location.' }
+            $current = ([Uri]::new([Uri]$current, $location.Substring(9).Trim())).AbsoluteUri
+            if (-not (Test-RedirectUri $current -AllowedHosts $AllowedHosts -AllowHttp:$AllowHttp)) { throw "Untrusted redirect URL: $current" }
+            Remove-Item $headers,$body -Force -ErrorAction SilentlyContinue
+        }
     } catch {
-        Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $OutFile,"$OutFile.headers","$OutFile.part" -Force -ErrorAction SilentlyContinue
         throw
+    } finally {
+        Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
+        $ErrorActionPreference = $priorErrorActionPreference
     }
 }
 
 function Get-ArchiveSha256 {
     param([string]$Text, [string]$ArchiveName)
+    $Text = $Text.TrimStart([char]0xFEFF)
+    $found = @()
     foreach ($line in ($Text -split "`r?`n")) {
-        if ($line -match '^([0-9a-fA-F]{64})\s+\*?(.+?)\s*$' -and $Matches[2] -ceq $ArchiveName) { return $Matches[1].ToLowerInvariant() }
+        if ($line -match '^[ \t\v\f\r]*([0-9a-fA-F]{64})[ \t\v\f\r]+\*?([^ \t\v\f\r]+)[ \t\v\f\r]*$' -and [string]::Equals($Matches[2], $ArchiveName, [StringComparison]::Ordinal)) { $found += $Matches[1].ToLowerInvariant() }
     }
+    if (@($found | Select-Object -Unique).Count -gt 1) { throw "conflicting checksums for $ArchiveName" }
+    if ($found.Count) { return $found[0] }
     throw "Archive missing from checksums.txt: $ArchiveName"
 }
 
@@ -113,19 +144,45 @@ function Test-OrdinaryFile {
     return -not (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
 }
 
+function Copy-LimitedStream {
+    param([IO.Stream]$InputStream, [string]$Destination, [long]$MaxBytes = 104857600)
+    $created = $false
+    try {
+        $output = [IO.File]::Open($Destination, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        $created = $true
+        try {
+            $buffer = New-Object byte[] 81920; $total = 0L
+            while (($read = $InputStream.Read($buffer,0,$buffer.Length)) -gt 0) {
+                $total += $read
+                if ($total -gt $MaxBytes) { throw "Extracted executable exceeds $MaxBytes bytes." }
+                $output.Write($buffer,0,$read)
+            }
+        } finally { $output.Dispose() }
+    } catch { if ($created) { Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue }; throw }
+}
+
 function Get-ZipRootBinary {
     param([string]$ArchivePath, [string]$Destination)
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
     try {
-        $entries = @($zip.Entries | Where-Object { $_.FullName -ceq 'gasa.exe' })
+        $entries = @($zip.Entries)
+        $binaries = @($entries | Where-Object { [string]::Equals($_.FullName, 'gasa.exe', [StringComparison]::Ordinal) })
+        if ($binaries.Count -ne 1) { throw 'The release archive must contain exactly one case-sensitive gasa.exe at its root.' }
+        foreach ($candidate in $entries) {
+            $name = $candidate.FullName
+            $unixType = ($candidate.ExternalAttributes -shr 16) -band 0xF000
+            $regular = ($unixType -eq 0 -or $unixType -eq 0x8000)
+            if (-not $regular -or -not ([string]::Equals($name,'gasa.exe',[StringComparison]::Ordinal) -or [string]::Equals($name,'LICENSE',[StringComparison]::Ordinal) -or [string]::Equals($name,'README.md',[StringComparison]::Ordinal))) { throw "Unsafe or unexpected entry in release archive: $name" }
+        }
+        $entries = $binaries
         if ($entries.Count -ne 1) { throw 'The release archive must contain exactly one gasa.exe at its root.' }
         $entry = $entries[0]
         $unixType = ($entry.ExternalAttributes -shr 16) -band 0xF000
         if ($entry.FullName.Contains('..') -or $entry.FullName.Contains('/') -or $entry.FullName.Contains('\\') -or [IO.Path]::IsPathRooted($entry.FullName) -or ($unixType -ne 0 -and $unixType -ne 0x8000)) { throw 'Unsafe or non-regular path in release archive.' }
         if ($entry.Length -gt 104857600) { throw 'Extracted executable exceeds 100 MiB.' }
         $input = $entry.Open()
-        try { $output = [IO.File]::Open($Destination, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None); try { $input.CopyTo($output) } finally { $output.Dispose() } } finally { $input.Dispose() }
+        try { Copy-LimitedStream $input $Destination 104857600 } finally { $input.Dispose() }
     } finally { $zip.Dispose() }
     if (-not (Test-OrdinaryFile $Destination) -or (Get-Item -LiteralPath $Destination).Length -lt 1024) { throw 'Downloaded executable is missing, not a regular file, or too small.' }
 }
@@ -136,6 +193,62 @@ function Test-BinaryVersion {
     if ($LASTEXITCODE -ne 0) { throw "gasa --version failed for $Path" }
 }
 
+function Recover-InstallState {
+    param([string]$InstallDirectory)
+    New-Item -ItemType Directory -Path $InstallDirectory -Force | Out-Null
+    Get-ChildItem -LiteralPath $InstallDirectory -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '.gasa-*.exe' } | Remove-Item -Force -ErrorAction Stop
+    $target = Join-Path $InstallDirectory 'gasa.exe'
+    if (-not (Test-Path -LiteralPath $target)) {
+        $backup = Get-ChildItem -LiteralPath $InstallDirectory -Filter 'gasa.exe.old*' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($backup) { try { Move-Item -LiteralPath $backup.FullName -Destination $target -Force -ErrorAction Stop } catch { throw "Could not restore backup '$($backup.FullName)': $($_.Exception.Message)" } }
+    }
+}
+
+function Enter-InstallLock {
+    param([string]$InstallDirectory)
+    $path = Join-Path $InstallDirectory '.gasa-install.lock'
+    for ($attempt = 0; $attempt -lt 2; $attempt++) {
+        try {
+            $stream = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::ReadWrite, [IO.FileShare]::Read)
+            $owner = "$PID $([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
+            $bytes = [Text.Encoding]::UTF8.GetBytes("$owner`n")
+            $stream.Write($bytes, 0, $bytes.Length); $stream.Flush()
+            return [pscustomobject]@{ Path=$path; Owner=$owner; Stream=$stream }
+        } catch [IO.IOException] {
+            $parts = @(); try { $parts = [IO.File]::ReadAllText($path) -split '\s+' } catch { }
+            $ownerPid = 0; $stamp = 0L
+            if ($parts.Count -ge 2) { [void][int]::TryParse($parts[0], [ref]$ownerPid); [void][long]::TryParse($parts[1], [ref]$stamp) }
+            $age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - $stamp
+            $alive = $false; if ($ownerPid -gt 0) { try { $null = Get-Process -Id $ownerPid -ErrorAction Stop; $alive = $true } catch { } }
+            if ($attempt -eq 0 -and ($age -gt 1800 -or -not $alive)) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue; continue }
+            throw 'another installation is in progress'
+        }
+    }
+    throw 'another installation is in progress'
+}
+
+function Exit-InstallLock {
+    param($Lock)
+    if ($Lock) {
+        $Lock.Stream.Dispose()
+        try {
+            $currentOwner = [IO.File]::ReadAllText($Lock.Path).TrimEnd("`r","`n")
+            if ([string]::Equals($currentOwner, $Lock.Owner, [StringComparison]::Ordinal)) { Remove-Item -LiteralPath $Lock.Path -Force -ErrorAction Stop }
+        } catch { }
+    }
+}
+
+function New-UniqueBackupPath {
+    param([string]$Target)
+    return "$Target.old.$([DateTime]::UtcNow.ToString('yyyyMMddHHmmssfff')).$([guid]::NewGuid().ToString('N'))"
+}
+
+function Remove-OldBackups {
+    param([string]$InstallDirectory)
+    $cutoff = [DateTime]::UtcNow.AddMinutes(-10)
+    Get-ChildItem -LiteralPath $InstallDirectory -Filter 'gasa.exe.old*' -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTimeUtc -lt $cutoff } | ForEach-Object { $backup = $_; try { Remove-Item -LiteralPath $backup.FullName -Force -ErrorAction Stop } catch { Write-Warning "Could not remove backup $($backup.FullName): $($_.Exception.Message)" } }
+}
+
 function Normalize-PathEntry {
     param([string]$Value)
     $value = $Value.Trim().Replace('/', '\')
@@ -144,6 +257,8 @@ function Normalize-PathEntry {
 
 function Update-UserPath {
     param([string]$Directory, [bool]$Add, [bool]$ValidateLength = $true, $RegistryStore = $null)
+    foreach ($character in $Directory.ToCharArray()) { $code = [int]$character; if ($code -lt 32 -or ($code -ge 0x7f -and $code -le 0x9f) -or $code -in @(0x200e,0x200f,0x2028,0x2029) -or ($code -ge 0x202a -and $code -le 0x202e) -or ($code -ge 0x2066 -and $code -le 0x2069)) { throw 'PATH directory contains a prohibited character.' } }
+    if ($Directory -match '[;%*?"<>|]') { throw 'PATH directory contains a prohibited character.' }
     $canonical = Get-CanonicalDirectory $Directory
     if (-not $canonical) { throw 'PATH directory must be an absolute canonical path.' }
     if ($null -eq $RegistryStore) {
@@ -166,7 +281,8 @@ function Update-UserPath {
         $filtered = @($parts | Where-Object { -not [string]::Equals((Normalize-PathEntry $_), (Normalize-PathEntry $canonical), [StringComparison]::OrdinalIgnoreCase) })
         if ($Add) { $filtered += $canonical }
         $newPath = $filtered -join ';'
-        if ($Add -and $ValidateLength -and $newPath.Length -gt 2048) { throw 'User PATH would exceed 2048 characters; it was not changed.' }
+        if ($Add -and $ValidateLength -and $newPath.Length -gt 32000) { throw 'User PATH is near the 32767 character limit; it was not changed.' }
+        if ($Add -and $newPath.Length -gt 2048) { Write-Warning "User PATH is long ($($newPath.Length) characters)." }
         if (-not $newPath) { $RegistryStore.DeleteValue('Path') }
         else { $RegistryStore.SetValue('Path', $newPath, $kind) }
     } finally { if ($RegistryStore.PSObject.Properties['Key'] -and $RegistryStore.Key) { $RegistryStore.Key.Dispose() } }
@@ -205,13 +321,20 @@ function Invoke-GasaInstall {
     if ($env:GASA_UNINSTALL -eq '1') {
         $binary = Join-Path $installDir 'gasa.exe'
         if (-not (Test-OrdinaryFile $binary)) { throw "No ordinary gasa.exe found in $installDir; nothing was uninstalled." }
-        Remove-Item -LiteralPath $binary -Force
-        Remove-Item -LiteralPath (Join-Path $installDir 'gasa.exe.old') -Force -ErrorAction SilentlyContinue
-        if (@(Get-ChildItem -LiteralPath $installDir -Force -ErrorAction SilentlyContinue).Count -eq 0) { Remove-Item -LiteralPath $installDir -Force }
-        Update-UserPath $installDir $false $false
-        Write-Host 'Installation removed; data in %APPDATA%\gasacli was preserved.'
+        $installLock = Enter-InstallLock $installDir
+        try {
+            Remove-Item -LiteralPath $binary -Force -ErrorAction Stop
+            Remove-OldBackups $installDir
+            Update-UserPath $installDir $false $false
+            Write-Host 'Installation removed; data in %APPDATA%\gasacli was preserved.'
+        } finally { Exit-InstallLock $installLock }
         return
     }
+    New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+    $installLock = Enter-InstallLock $installDir
+    try {
+    Recover-InstallState $installDir
+    $target = Join-Path $installDir 'gasa.exe'
     $version = Get-ResolvedVersion
     if ($selectedMethod -eq 'npm') {
         $npm = Get-Command npm -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -232,7 +355,7 @@ function Invoke-GasaInstall {
         Assert-ArchiveChecksum $archive ([IO.File]::ReadAllText($checksums)) $archiveName | Out-Null
         $source = Join-Path $work 'gasa.exe'; Get-ZipRootBinary $archive $source; Test-BinaryVersion $source
         New-Item -ItemType Directory -Path $installDir -Force | Out-Null
-        $target = Join-Path $installDir 'gasa.exe'; $old = "$target.old"; $staged = Join-Path $installDir ('.gasa-' + [guid]::NewGuid().ToString('N') + '.exe')
+        $target = Join-Path $installDir 'gasa.exe'; $old = New-UniqueBackupPath $target; $staged = Join-Path $installDir ('.gasa-' + [guid]::NewGuid().ToString('N') + '.exe')
         $hadTarget = Test-Path -LiteralPath $target; $moved = $false
         try {
             [IO.File]::Copy($source, $staged, $false)
@@ -244,9 +367,11 @@ function Invoke-GasaInstall {
             if ($moved -and (Test-Path -LiteralPath $old)) { Move-Item -LiteralPath $old -Destination $target -Force }
             throw
         } finally { Remove-Item -LiteralPath $staged -Force -ErrorAction SilentlyContinue }
-        Remove-Item -LiteralPath $old -Force -ErrorAction SilentlyContinue
+        if ($moved) { Remove-Item -LiteralPath $old -Force -ErrorAction SilentlyContinue }
+        Remove-OldBackups $installDir
     } finally { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
     Write-Host 'Installed. Open a new terminal to refresh PATH.'
+    } finally { Exit-InstallLock $installLock }
 }
 
 if ($env:GASA_SOURCE_ONLY -ne '1') {

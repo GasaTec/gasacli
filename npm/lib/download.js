@@ -16,11 +16,17 @@ const MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024;
 const MAX_EXTRACTED_BINARY_BYTES = 100 * 1024 * 1024;
 const MIN_BINARY_BYTES = 1024;
 
+function normalizeHost(host) { return String(host).toLowerCase(); }
+
 function parseChecksum(text, archiveName) {
-  for (const line of text.split(/\r?\n/)) {
-    const match = /^([a-f\d]{64})\s+\*?(.+?)\s*$/i.exec(line);
-    if (match && match[2] === archiveName) return match[1].toLowerCase();
+  const matches = [];
+  const normalized = String(text).replace(/^\uFEFF/, '');
+  for (const line of normalized.split(/\r?\n/)) {
+    const match = /^[\t\n\v\f\r ]*([a-f\d]{64})[\t\n\v\f\r ]+\*?([^\t\n\v\f\r ]+)[\t\n\v\f\r ]*$/i.exec(line);
+    if (match && match[2] === archiveName) matches.push(match[1].toLowerCase());
   }
+  if (new Set(matches).size > 1) throw new Error(`conflicting checksums for ${archiveName}`);
+  if (matches.length) return matches[0];
   throw new Error(`Archive ${archiveName} is missing from checksums.txt`);
 }
 
@@ -34,9 +40,10 @@ function verifySha256(buffer, expected) {
 function requestBuffer(url, options = {}, redirects = 0, startedAt = Date.now()) {
   const parsed = new URL(url);
   const allowedHosts = options.allowedHosts || ALLOWED_HOSTS;
-  const protocolAllowed = parsed.protocol === 'https:' || (options.allowHttp && parsed.protocol === 'http:');
-  const portAllowed = !parsed.port || parsed.port === '443' || (options.allowHttp && parsed.protocol === 'http:');
-  if (!protocolAllowed || !portAllowed || !allowedHosts.has(parsed.hostname)) {
+  const allowed = new Set([...allowedHosts].map(normalizeHost));
+  const protocolAllowed = parsed.protocol === 'https:' || (options.allowHttp && redirects === 0 && parsed.protocol === 'http:');
+  const portAllowed = !parsed.port || parsed.port === '443' || (options.allowHttp && redirects === 0 && parsed.protocol === 'http:');
+  if (!protocolAllowed || !portAllowed || !allowed.has(normalizeHost(parsed.hostname))) {
     return Promise.reject(new Error(`Download host is not allowed: ${parsed.hostname}`));
   }
   const request = parsed.protocol === 'https:' ? https : require('node:http');
@@ -50,6 +57,7 @@ function requestBuffer(url, options = {}, redirects = 0, startedAt = Date.now())
       if (settled) return;
       settled = true;
       clearTimeout(totalTimer);
+      if (fn === reject) markNetworkError(value);
       fn(value);
     };
     const req = request.get(parsed, { headers: { 'User-Agent': 'gasacli-npm-installer' } }, (res) => {
@@ -59,16 +67,18 @@ function requestBuffer(url, options = {}, redirects = 0, startedAt = Date.now())
         const location = res.headers.location;
         if (!location) return finish(reject, new Error('Redirect response did not include a location'));
         const next = new URL(location, parsed);
-        const nextProtocolAllowed = next.protocol === 'https:' || (options.allowHttp && next.protocol === 'http:');
-        const nextPortAllowed = !next.port || next.port === '443' || (options.allowHttp && next.protocol === 'http:');
-        if (!allowedHosts.has(next.hostname) || !nextProtocolAllowed || !nextPortAllowed) {
+        const nextProtocolAllowed = next.protocol === 'https:';
+        const nextPortAllowed = !next.port || next.port === '443';
+        if (!allowed.has(normalizeHost(next.hostname)) || !nextProtocolAllowed || !nextPortAllowed) {
           return finish(reject, new Error(`Download redirect host is not allowed: ${next.hostname}`));
         }
         return finish(resolve, requestBuffer(next.href, options, redirects + 1, startedAt));
       }
       if (res.statusCode !== 200) {
         res.resume();
-        return finish(reject, new Error(`Download failed with HTTP ${res.statusCode}`));
+        const error = new Error(`Download failed with HTTP ${res.statusCode}`);
+        error.statusCode = res.statusCode;
+        return finish(reject, error);
       }
       const chunks = [];
       res.on('data', (chunk) => {
@@ -110,7 +120,7 @@ async function getResource(url, options, budget) {
 
 async function downloadBinary(options = {}) {
   const version = options.version || packageVersion();
-  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/.test(version)) throw new Error(`Invalid package release version: ${version}`);
+  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?$/.test(version)) throw new Error(`Invalid package release version: ${version}`);
   const target = options.vendorDir || path.resolve(__dirname, '..', 'vendor');
   const { os: platform, arch, extension, binary } = getPlatform(options.platform, options.arch);
   const archiveName = `gasa_${version}_${platform}_${arch}.${extension}`;
@@ -119,9 +129,11 @@ async function downloadBinary(options = {}) {
   const checksumUrl = `${prefix}/checksums.txt`;
   const archiveUrl = `${prefix}/${archiveName}`;
   const budget = { bytes: 0 };
-  const checksumsBuffer = await getResource(checksumUrl, options, budget);
+  let checksumsBuffer;
+  try { checksumsBuffer = await getResource(checksumUrl, options, budget); } catch (error) { markNetworkError(error); throw error; }
   const expectedHash = parseChecksum(checksumsBuffer.toString('utf8'), archiveName);
-  const archive = await getResource(archiveUrl, options, budget);
+  let archive;
+  try { archive = await getResource(archiveUrl, options, budget); } catch (error) { markNetworkError(error); throw error; }
   verifySha256(archive, expectedHash);
 
   const tempRoot = fs.mkdtempSync(path.join(options.tempDir || os.tmpdir(), 'gasacli-'));
@@ -130,6 +142,25 @@ async function downloadBinary(options = {}) {
     const extractedPath = path.join(tempRoot, 'extract');
     fs.writeFileSync(archivePath, archive, { mode: 0o600 });
     fs.mkdirSync(extractedPath);
+    const namesResult = spawnSync(tarCommand(), ['-tf', archivePath], { encoding: 'utf8', timeout: TIMEOUT_MS });
+    if (namesResult.error || namesResult.status !== 0) throw new Error(`Could not inspect release archive names: ${namesResult.error ? namesResult.error.message : namesResult.stderr}`);
+    const typesResult = spawnSync(tarCommand(), ['-tvf', archivePath], { encoding: 'utf8', timeout: TIMEOUT_MS });
+    if (typesResult.error || typesResult.status !== 0) throw new Error(`Could not inspect release archive types: ${typesResult.error ? typesResult.error.message : typesResult.stderr}`);
+    const names = namesResult.stdout.split(/\r?\n/).filter(Boolean);
+    const rows = typesResult.stdout.split(/\r?\n/).filter(Boolean);
+    if (names.length !== rows.length) throw new Error('Release archive contains ambiguous names');
+    const expected = platform === 'windows' ? 'gasa.exe' : 'gasa';
+    let binaryCount = 0;
+    for (let index = 0; index < names.length; index++) {
+      const name = names[index];
+      const row = rows[index];
+      const type = row[0];
+      if (type !== '-') throw new Error(`Release archive contains a non-regular entry: ${name}`);
+      if (name === expected) { binaryCount++; continue; }
+      if (name === 'LICENSE' || name === 'README.md') continue;
+      throw new Error(`Release archive contains an unexpected entry: ${name}`);
+    }
+    if (binaryCount !== 1) throw new Error(`Release archive must contain exactly one regular ${expected} at its root`);
     const result = spawnSync(tarCommand(), ['-xf', archivePath, '-C', extractedPath], { encoding: 'utf8', timeout: TIMEOUT_MS });
     if (result.error || result.status !== 0) throw new Error(`Could not extract release archive with tar: ${result.error ? result.error.message : result.stderr}`);
     const inspectEntries = (directory) => {
@@ -164,6 +195,11 @@ async function downloadBinary(options = {}) {
   }
 }
 
+function markNetworkError(error) {
+  if (['ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'ECONNREFUSED'].includes(error.code) || (error.statusCode >= 500 && error.statusCode <= 599) || /^(Download idle timeout|Total download timed out)$/.test(error.message)) error.network = true;
+  if (error.statusCode === 404) error.releaseNotReady = true;
+}
+
 // On Windows a bare `tar` can resolve to GNU tar (e.g. Git Bash), which reads `C:\path` as host:path and cannot
 // extract zip. Use the bsdtar that ships with Windows 10 1803+ explicitly.
 function tarCommand() {
@@ -176,4 +212,4 @@ function tarCommand() {
   return 'tar';
 }
 
-module.exports = { ALLOWED_HOSTS, MAX_DOWNLOAD_BYTES, MAX_EXTRACTED_BINARY_BYTES, MIN_BINARY_BYTES, RELEASE_BASE, downloadBinary, parseChecksum, requestBuffer, tarCommand, verifySha256 };
+module.exports = { ALLOWED_HOSTS, MAX_DOWNLOAD_BYTES, MAX_EXTRACTED_BINARY_BYTES, MIN_BINARY_BYTES, RELEASE_BASE, downloadBinary, normalizeHost, parseChecksum, requestBuffer, tarCommand, verifySha256 };
