@@ -1,5 +1,7 @@
 # GasaCLI Governance
 
+![GasaCLI logo](docs/img/logo.png)
+
 GasaCLI is maintained in the open under the MIT License. This document describes the current decision process; it does not grant repository access or change GitHub settings.
 
 ## Maintainer

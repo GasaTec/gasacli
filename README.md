@@ -1,5 +1,7 @@
 # GasaCLI
 
+<p align="center"><img src="docs/img/logo.png" alt="GasaCLI" width="420"></p>
+
 **Make your coding AIs work together.** A local-first, open-source terminal orchestrator for coding agents already installed on your machine.
 
 > **Status:** pre-alpha.
