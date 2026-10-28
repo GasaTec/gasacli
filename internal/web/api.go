@@ -92,6 +92,16 @@ func buildSnapshot(home string, roots sessions.Roots, current ...string) snapsho
 		if err != nil {
 			continue
 		}
+		if trusted {
+			root, err = trust.Canonical(root)
+			if err != nil {
+				continue
+			}
+			worktreeRoot, err = trust.Canonical(worktreeRoot)
+			if err != nil {
+				worktreeRoot = root
+			}
+		}
 		id := projectID(root)
 		if trusted {
 			session.Branch = sessions.Branch(session.CWD)

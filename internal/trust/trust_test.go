@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -58,11 +59,20 @@ func TestTrustedProjects(t *testing.T) {
 	if err := store.Grant(first); err != nil {
 		t.Fatal(err)
 	}
+	want := []string{first, second}
+	for i, path := range []string{first, second} {
+		canonicalPath, err := Canonical(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want[i] = canonicalPath
+	}
+	sort.Strings(want)
 	got, err := store.TrustedProjects()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 2 || got[0] != first && got[0] != second || got[1] != first && got[1] != second || got[0] >= got[1] {
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("TrustedProjects() = %#v, want sorted canonical paths", got)
 	}
 }

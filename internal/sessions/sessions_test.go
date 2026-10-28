@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,6 +100,37 @@ func TestScanCodexRecordsUnknownAndMissingRoots(t *testing.T) {
 	if empty := Scan(Roots{Claude: filepath.Join(root, "missing")}); len(empty) != 0 {
 		t.Fatal("missing roots should be skipped")
 	}
+}
+
+func TestScanKeepsCodexSessionsWhenClaudeRootIsFull(t *testing.T) {
+	claudeRoot, codexRoot := t.TempDir(), t.TempDir()
+	project := filepath.ToSlash(t.TempDir())
+	for i := 0; i < maxSessions/2+1; i++ {
+		path := filepath.Join(claudeRoot, fmt.Sprintf("session-%03d.jsonl", i))
+		row := `{"type":"user","cwd":"` + project + `","message":{"role":"user","content":"Claude session"}}`
+		if err := os.WriteFile(path, []byte(row), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	codexFile := filepath.Join(codexRoot, "rollout-test.jsonl")
+	rows := []string{
+		`{"type":"session_meta","payload":{"id":"codex-1","cwd":"` + project + `"}}`,
+		`{"type":"event_msg","payload":{"type":"user_message","message":"Codex session"}}`,
+	}
+	if err := os.WriteFile(codexFile, []byte(strings.Join(rows, "\n")), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got := ScanMetadata(Roots{Claude: claudeRoot, Codex: codexRoot})
+	want := maxSessions/2 + 1
+	if len(got) != want {
+		t.Fatalf("ScanMetadata returned %d sessions, want %d", len(got), want)
+	}
+	for _, session := range got {
+		if session.Agent == "Codex" {
+			return
+		}
+	}
+	t.Fatal("Codex session was omitted when Claude exceeded its scan share")
 }
 
 func TestRedactPrivateKeyBlock(t *testing.T) {

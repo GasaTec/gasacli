@@ -87,6 +87,17 @@ func scan(roots Roots, metadataOnly bool) []Session {
 	if roots.Claude == "" && roots.Codex == "" {
 		roots = DefaultRoots()
 	}
+	rootCount := 0
+	if roots.Claude != "" {
+		rootCount++
+	}
+	if roots.Codex != "" {
+		rootCount++
+	}
+	perRootLimit := maxSessions
+	if rootCount > 1 {
+		perRootLimit = maxSessions / rootCount
+	}
 	var out []Session
 	for _, root := range []struct{ agent, path string }{{"Claude Code", roots.Claude}, {"Codex", roots.Codex}} {
 		if len(out) >= maxSessions {
@@ -95,8 +106,9 @@ func scan(roots Roots, metadataOnly bool) []Session {
 		if root.path == "" {
 			continue
 		}
+		rootSessions := 0
 		_ = filepath.WalkDir(root.path, func(path string, entry os.DirEntry, err error) error {
-			if len(out) >= maxSessions {
+			if len(out) >= maxSessions || rootSessions >= perRootLimit {
 				return filepath.SkipAll
 			}
 			if err != nil {
@@ -117,6 +129,7 @@ func scan(roots Roots, metadataOnly bool) []Session {
 					session.MessageOffset = 0
 				}
 				out = append(out, session)
+				rootSessions++
 			}
 			return nil
 		})

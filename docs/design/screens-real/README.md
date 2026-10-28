@@ -1,0 +1,29 @@
+﻿# Real dashboard browser evidence
+
+All PNGs below came from the local Orca browser session against the temporary `GASACLI_HOME` and the real `gasa` binary. Files are under 600 KB. The session-chat capture contains real local transcript content with tool calls collapsed; it does not expose the single-use login code.
+
+| Design screen | Real view / evidence | Coverage |
+|---|---|---|
+| web-01 first-run connect code | Single-use `#code` exchange was exercised in the browser; transient login screen is not retained. | Login succeeded and authenticated API/SSE requests. |
+| web-02 workspace shell | `workspace-shell.png` | Three-pane shell, projects, tabs and status bar. |
+| web-03 project overview | `project-overview.png` | Current trusted project, session count, links and checklist. |
+| web-04 session chat | `session-chat.png` | Real Claude transcript and collapsed tool calls. |
+| web-05 run DAG; web-06 roles; web-07 message bus | Planned; no corresponding runtime data/view. | Intentionally not implemented. |
+| web-08 global analytics; web-09 project analytics | `analytics.png` | Honest unavailable/no-usage-data state; no fabricated metrics. |
+| web-10 monitor; web-11 logs; web-12 approvals; web-13 prompts; web-14 skills; web-15 plugins; web-16 brain; web-17 backup | Planned; no corresponding runtime data/view. | Intentionally not implemented. |
+| web-18 settings | `settings.png` | Existing launch mode, language and dark/light settings. |
+| web-19 cloud activation; web-20 sync | Planned; no cloud account or sync backend. | Intentionally not implemented. |
+| web-21 empty/loading/error/offline | `empty-state.png`, `disconnect-state.png` | Empty trusted project and SSE reconnect state. API permission/server error variants were not exercised. |
+| web-22 mobile/narrow | Responsive CSS inspected; no narrow-viewport browser capture. | Narrow/mobile browser behavior remains unverified. |
+
+## Defect evidence
+
+1. **SSE disconnected — fixed.** `TestLaunchCodeAuthenticatesProjectsAndSSE` exercises single-use login, cookie-authenticated projects and an SSE stream that remains open. In the real browser the status changed to `Conectado`; after stopping the local server it changed to `Reconectando`.
+2. **Trusted projects without sessions — fixed.** The browser listed `empty-project` with zero sessions and displayed its overview. The launched `gasacli` project was listed as current.
+3. **Empty center — fixed.** `empty-state.png` shows the project cards, quick links, zero-session message and checklist.
+4. **Analytics and Settings — fixed.** Both navigation items open real views; unknown analytics remain unavailable rather than zero. Settings uses the existing config writer.
+5. **Brand — fixed.** The sidebar mark and favicon use the local G+chevron asset; no external assets are loaded.
+6. **Workspace/session data — fixed for inspected paths.** The real browser displayed trusted project sessions, transcript messages and collapsed tool calls. Codex transcript rendering was not independently confirmed in this run; sensitive tool output is collapsed by default.
+7. **Light theme and narrow layout — partial.** Light/dark controls and responsive breakpoints exist in the implementation, but narrow/mobile behavior was not verified in a real narrow browser viewport.
+
+The SSE root cause was the server-wide `WriteTimeout` expiring the long-lived event stream. The server now leaves streaming writes open, the handler flushes each event and applies a bounded per-write deadline; the browser opens the authenticated stream and retries with backoff after disconnect.
