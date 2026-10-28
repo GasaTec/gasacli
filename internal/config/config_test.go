@@ -255,7 +255,7 @@ func TestEnsureAdoptsOnlyValidLegacyDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(invalidHome, 0700); err != nil {
+	if err := os.MkdirAll(invalidHome, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(invalidHome, "config.yaml"), []byte("web: {port: 0}\n"), 0600); err != nil {
