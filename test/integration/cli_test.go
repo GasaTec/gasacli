@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"net"
 	"os"
@@ -66,6 +67,44 @@ func TestCLI(t *testing.T) {
 		}
 		return out
 	}
+	if runtime.GOOS == "windows" {
+		t.Run("ResetSafetyProofs", func(t *testing.T) {
+			_, _, project := newHome(t)
+			programFiles := os.Getenv("ProgramFiles")
+			if programFiles != "" {
+				out := run(t, filepath.Join(programFiles, "DeskIn"), project, "", 1, "reset", "--dry-run")
+				if !strings.Contains(out, "refusing data directory") {
+					t.Fatalf("Program Files path was not refused: %s", out)
+				}
+			}
+			_, missing, _ := newHome(t)
+			if err := os.Mkdir(missing, 0700); err != nil {
+				t.Fatal(err)
+			}
+			out := run(t, missing, project, "", 1, "reset", "--dry-run")
+			if !strings.Contains(out, "missing .gasacli marker") {
+				t.Fatalf("unmarked home was not refused: %s", out)
+			}
+			foreign := filepath.Join(filepath.Dir(missing), "foreign")
+			if err := os.Mkdir(foreign, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(foreign, "config.yaml"), []byte("web: {}\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			before, _ := os.ReadDir(foreign)
+			out = run(t, foreign, project, "", 1, "--no-browser", "reset", "--dry-run")
+			after, _ := os.ReadDir(foreign)
+			if len(before) != len(after) || !strings.Contains(out, "missing .gasacli marker") {
+				t.Fatalf("pre-dispatch wrote to foreign home: before=%v after=%v out=%s", before, after, out)
+			}
+			nulHome := filepath.Join(filepath.Dir(missing), "reserved", "NUL")
+			out = run(t, nulHome, project, "", 1, "reset", "--dry-run")
+			if !strings.Contains(out, "reserved Windows path component") {
+				t.Fatalf("reserved component was not refused: %s", out)
+			}
+		})
+	}
 	contains := func(t *testing.T, out string, wants ...string) {
 		t.Helper()
 		for _, want := range wants {
@@ -74,9 +113,50 @@ func TestCLI(t *testing.T) {
 			}
 		}
 	}
+	t.Run("DoctorRejectsForeignHomeWithoutMutation", func(t *testing.T) {
+		for _, marker := range []string{"readme.txt", ".git"} {
+			t.Run(marker, func(t *testing.T) {
+				_, _, project := newHome(t)
+				home := filepath.Join(t.TempDir(), "foreign")
+				if err := os.Mkdir(home, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if marker == ".git" {
+					if err := os.Mkdir(filepath.Join(home, marker), 0700); err != nil {
+						t.Fatal(err)
+					}
+				} else if err := os.WriteFile(filepath.Join(home, marker), []byte("foreign"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				before := treeHash(t, home)
+				out := run(t, home, project, "", 1, "doctor")
+				if !strings.Contains(out, "not a GasaCLI data directory") || treeHash(t, home) != before {
+					t.Fatalf("foreign home changed or unclear: %s", out)
+				}
+			})
+		}
+	})
+	t.Run("ResetDryRunRejectsForeignHomeWithoutMutation", func(t *testing.T) {
+		_, _, project := newHome(t)
+		home := filepath.Join(t.TempDir(), "foreign")
+		if err := os.Mkdir(home, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(home, "readme.txt"), []byte("foreign"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		before := treeHash(t, home)
+		out := run(t, home, project, "", 1, "reset", "--dry-run")
+		if !strings.Contains(out, "missing .gasacli marker") || treeHash(t, home) != before {
+			t.Fatalf("reset dry-run mutated foreign home or was accepted: %s", out)
+		}
+	})
 	writeConfig := func(t *testing.T, home, mode string, fallback bool) {
 		t.Helper()
 		if err := os.MkdirAll(home, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(home, ".gasacli"), []byte(`{"app":"gasacli","schema":1}`), 0600); err != nil {
 			t.Fatal(err)
 		}
 		data := fmt.Sprintf("web:\n  mode: %s\n  host: 127.0.0.1\n  port: 3199\n  fallback_port: %t\n", mode, fallback)
@@ -108,7 +188,7 @@ func TestCLI(t *testing.T) {
 	t.Run("Doctor", func(t *testing.T) {
 		_, home, project := newHome(t)
 		out := run(t, home, project, "", 0, "doctor")
-		names := []string{"Claude Code", "Codex", "Gemini CLI", "Cursor", "OpenCode", "Orca", "GitHub CLI"}
+		names := []string{"Claude Code", "Codex", "Gemini CLI", "Cursor CLI", "OpenCode", "Orca", "Kimi Code CLI", "GitHub CLI"}
 		lines := strings.Split(strings.TrimSpace(out), "\n")
 		if len(lines) != len(names) {
 			t.Fatalf("doctor lines=%d\n%s", len(lines), out)
@@ -177,6 +257,38 @@ func TestCLI(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Run("OnboardingNeverPromptsOrCompletesInPipe", func(t *testing.T) {
+		_, home, project := newHome(t)
+		out := run(t, home, project, "y\n/exit\n", 0)
+		if strings.Contains(out, "Select what to install") || strings.Contains(out, "Run the automatic installs") {
+			t.Fatalf("first-run onboarding ran without TTY: %s", out)
+		}
+		if _, err := os.Stat(filepath.Join(home, "state.json")); !os.IsNotExist(err) {
+			t.Fatalf("non-TTY run wrote state: %v", err)
+		}
+	})
+	t.Run("SetupPrintsManualGuidanceWithoutTTY", func(t *testing.T) {
+		_, home, project := newHome(t)
+		out := run(t, home, project, "", 0, "setup")
+		contains(t, out, "Claude Code", "Cursor CLI", "Obsidian", "Suggested commands", "Comando:", "Origem oficial:")
+		if strings.Contains(out, "Run the automatic installs") {
+			t.Fatal("non-TTY setup prompted")
+		}
+		if _, err := os.Stat(filepath.Join(home, "state.json")); !os.IsNotExist(err) {
+			t.Fatalf("non-TTY setup wrote state: %v", err)
+		}
+	})
+	t.Run("ChatSetupIsPlanOnly", func(t *testing.T) {
+		_, home, project := newHome(t)
+		out := run(t, home, project, "y\n/setup\n/exit\n", 0)
+		contains(t, out, "Comando:", "Origem oficial:", "Para instalar, rode `gasa setup` fora do chat.")
+		if strings.Contains(out, "Run the automatic installs now?") {
+			t.Fatalf("chat setup offered execution: %s", out)
+		}
+		if _, err := os.Stat(filepath.Join(home, "state.json")); !os.IsNotExist(err) {
+			t.Fatalf("chat setup wrote completion state: %v", err)
+		}
+	})
 	t.Run("ManualAndAlways", func(t *testing.T) {
 		for _, mode := range []string{"manual", "always"} {
 			_, home, project := newHome(t)
@@ -202,4 +314,29 @@ func TestCLI(t *testing.T) {
 			contains(t, run(t, home, project, "", 0, arg), "gasa doctor", "gasa web open", "web.mode always")
 		}
 	})
+}
+
+func treeHash(t *testing.T, root string) string {
+	t.Helper()
+	var all []byte
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		all = append(all, []byte(filepath.ToSlash(rel))...)
+		if !d.IsDir() {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			sum := sha256.Sum256(data)
+			all = append(all, sum[:]...)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(all))
 }

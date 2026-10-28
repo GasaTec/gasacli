@@ -26,3 +26,6 @@ Never pass activation codes or auth tokens in CLI arguments, URLs or logs; enter
 
 ## Acceptance
 Community setup works fully offline from Gasatec services. Pro can be activated on an authorized device, reauthenticated and revoked; expired Pro leaves local sessions intact. Invalid/reused codes are rejected without leaking account information. Checkout cannot mint entitlements before verified payment.
+
+## Amendment 2026-10-27 — consent-based installs
+Onboarding may OFFER to install missing agents and the optional Obsidian app after the user explicitly selects them and confirms a plan that shows each exact command and its official source. Execution is limited to fixed catalog entries run through verified package managers (winget, brew, npm, flatpak) without a shell. Official install scripts (curl|sh, irm|iex) are shown as manual instructions and are never executed by GasaCLI. Nothing is installed silently, no license is accepted on the user's behalf, and sudo is never invoked automatically. Defaults pre-select Claude Code and Codex when missing; every selection is reversible before confirmation.

@@ -20,6 +20,7 @@ type Session struct {
 	Doctor      func(io.Writer)
 	OnTrusted   func() error
 	Web         func(io.Writer, []string) error
+	Setup       func(out io.Writer) error
 }
 
 func (s *Session) Run() error {
@@ -91,6 +92,14 @@ func (s *Session) Run() error {
 			} else {
 				response = "Doctor callback is not configured."
 			}
+		case "/setup":
+			if s.Setup != nil {
+				if err := s.Setup(s.Out); err != nil {
+					response = fmt.Sprintf("/setup: %v", err)
+				}
+			} else {
+				response = "Setup callback is not configured."
+			}
 		case "/status":
 			response = "sem run ativo; orquestração não implementada"
 		case "/web":
@@ -131,6 +140,7 @@ const help = `GasaCLI commands:
   /quit       Exit the session
   /agents     Discover installed agents
   /doctor     Run diagnostics
+  /setup      Reopen agent and app onboarding
   /status     Show session status
   /goal       planejado (not implemented)
   /permissions planejado (not implemented)

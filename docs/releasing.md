@@ -38,6 +38,8 @@ done
 
 Consulte também o [guia de instalação](install.md), que documenta os nomes e a verificação dos archives.
 
+Os instaladores verificam nomes e tipos permitidos antes de extrair: o binario regular exato na raiz e, como extras, LICENSE e README.md regulares.
+
 ## 4. Publicar o pacote npm manualmente
 
 O `version` `0.0.0` em `npm/package.json` é um placeholder do repositório. A versão publicada no npm deve ser igual à tag, removendo apenas o `v` (por exemplo, a tag `v1.2.3-alpha.1` corresponde à versão npm `1.2.3-alpha.1`). Não publique o placeholder.
@@ -72,7 +74,8 @@ Execute em uma máquina descartável ou ambiente isolado, pois o instalador Powe
 ```powershell
 $tag = 'v1.2.3'
 $env:GASA_VERSION = $tag
-$env:GASA_INSTALL_DIR = Join-Path $env:TEMP "gasa-smoke-$tag\bin"
+$tempRoot = (Get-Item $env:TEMP).FullName
+$env:GASA_INSTALL_DIR = Join-Path $tempRoot "gasa-smoke-$tag\bin"
 & .\scripts\install.ps1
 & (Join-Path $env:GASA_INSTALL_DIR 'gasa.exe') --version
 
@@ -86,15 +89,17 @@ No Linux ou macOS:
 
 ```sh
 tag=v1.2.3
-tmp_root=$(mktemp -d "${TMPDIR:-/tmp}/gasa-smoke.XXXXXX")
-tmp_dir="$tmp_root/bin"
-mkdir -p "$tmp_dir"
-GASA_VERSION="$tag" GASA_INSTALL_DIR="$tmp_dir" sh scripts/install.sh
-"$tmp_dir/gasa" --version
-rm -rf "$tmp_root"
+base=$(cd -P "${TMPDIR:-/tmp}" && pwd -P)
+smoke="$base/gasa-smoke/bin"
+GASA_VERSION="$tag" GASA_INSTALL_DIR="$smoke" sh scripts/install.sh
+"$smoke/gasa" --version
+GASA_UNINSTALL=1 GASA_VERSION="$tag" GASA_INSTALL_DIR="$smoke" sh scripts/install.sh
+rmdir "$smoke" "$(dirname "$smoke")" 2>/dev/null || true
 ```
 
 Confirme que a versão exibida é a tag sem `v`. O teste baixa os assets publicados da release e, portanto, só funciona depois que a release está disponível. O processo de instalação e os requisitos estão detalhados no [guia de instalação](install.md).
+
+Publique os assets da GitHub Release antes de publicar a versão correspondente do pacote npm. O `postinstall` tenta baixar esses assets; se for publicado primeiro, o pacote pode chegar antes de o checksum e o archive estarem disponíveis.
 
 ## 6. Rollback
 
