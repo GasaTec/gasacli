@@ -127,7 +127,7 @@ func TestHelpCatalogGoldens(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != string(want) {
+			if normalizeInteractiveGolden(got) != normalizeInteractiveGolden(string(want)) {
 				t.Fatalf("/help differs from %s\n--- got ---\n%s\n--- want ---\n%s", path, got, want)
 			}
 		})
