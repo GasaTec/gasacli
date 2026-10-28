@@ -6,7 +6,7 @@ GasaCLI commands:
   /config          Gerencia a configuração efetiva
   /doctor          Executa diagnósticos locais
   /exit            Encerra o GasaCLI
-  /github          Conecta ferramentas do GitHub (planejado; consulte a solicitação #11)
+  /github          Conecta ferramentas do GitHub
   /goal            Inicia uma tarefa orquestrada (planejado; consulte a solicitação #11)
   /help            Exibe comandos e atalhos
   /permissions     Configura permissões de execução (planejado; consulte a solicitação #31)

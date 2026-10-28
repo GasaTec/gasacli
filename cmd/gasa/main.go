@@ -150,6 +150,8 @@ func run(ctx context.Context, args []string) error {
 			return runSkills(ctx, rest[1:], os.Stdout)
 		case rest[0] == "brain":
 			return runBrain(ctx, rest[1:], os.Stdout)
+		case rest[0] == "github":
+			return runGitHub(ctx, rest[1:], os.Stdin, os.Stdout)
 		case rest[0] == "run":
 			return runOrchestration(ctx, rest[1:])
 		case rest[0] == "runs":

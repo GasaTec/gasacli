@@ -1,0 +1,11 @@
+[
+  {
+    "number": 13,
+    "title": "Add GitHub issue integration",
+    "body": "## Acceptance criteria\n- [ ] Require opt-in\n- [x] Keep tokens private",
+    "state": "OPEN",
+    "url": "https://github.com/acme/project/issues/13",
+    "labels": [],
+    "assignees": []
+  }
+]
