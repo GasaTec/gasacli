@@ -346,7 +346,11 @@ func writeTable(w io.Writer, rows []discovery.Result) error {
 		if r.ID == "obsidian" {
 			kind = i18n.T("onboarding.type.app")
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", r.Name, kind, status, r.Version, r.Note)
+		note := r.Note
+		if note == "authentication not checked" {
+			note = i18n.T("onboarding.note.auth_not_checked")
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", r.Name, kind, status, r.Version, note)
 	}
 	return nil
 }

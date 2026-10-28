@@ -90,5 +90,6 @@
     "onboarding.install.completed":  "%s: comando concluído.",
     "onboarding.install_outside_chat":  "Para instalar, rode `gasa setup` fora do chat.",
     "onboarding.plan.manual_reason":  "Motivo manual: %s",
-    "onboarding.note.app_auth_not_checked":  "aplicativo; autenticação não verificada"
+    "onboarding.note.app_auth_not_checked":  "aplicativo; autenticação não verificada",
+    "onboarding.note.auth_not_checked":  "autenticação não verificada"
 }
