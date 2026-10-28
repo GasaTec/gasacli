@@ -34,7 +34,7 @@ See [monorepo design](docs/monorepo.md), [interactive UX](docs/adr/0004-interact
 
 ## Install
 
-No release is published yet. The one-line installers and the `npm` package below start working with the first release; until then, build from source (it works today).
+Latest release: **v0.1.0**. Use the one-line installer for your system below, or build from source.
 
 ### Build from source (Windows, Linux, macOS)
 Needs [Go](https://go.dev/dl/) 1.24 or newer and Git.
