@@ -156,6 +156,8 @@ func helpGoldenFixture() []Command {
 		{Name: "/prompts", Summary: "command.prompts"},
 		{Name: "/quit", Summary: "command.exit"},
 		{Name: "/restore", Summary: "command.restore"},
+		{Name: "/send", Summary: "command.send"},
+		{Name: "/sessions", Summary: "command.sessions"},
 		{Name: "/resume", Summary: "command.resume", Planned: true, IssueRef: "#11"},
 		{Name: "/setup", Summary: "command.setup"},
 		{Name: "/skills", Summary: "command.skills"},
