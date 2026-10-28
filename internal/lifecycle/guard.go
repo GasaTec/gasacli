@@ -167,26 +167,88 @@ func rejectProtectedPath(home string) error {
 		if p == "" {
 			continue
 		}
-		resolved, err := filepath.Abs(p)
+		abs, err := filepath.Abs(p)
 		if err != nil {
 			continue
 		}
-		resolved, err = canonicalExistingPath(filepath.Clean(resolved))
-		if err != nil {
-			resolved = filepath.Clean(resolved)
+		abs = filepath.Clean(abs)
+		// Check both the literal path and every resolved form. A protected path that is itself a link
+		// (/bin -> usr/bin on merged-/usr Linux, /var -> private/var on macOS) must keep protecting
+		// BOTH names; never replace the literal path with an empty resolution result.
+		candidates := []string{abs}
+		if r, err := canonicalExistingPath(abs); err == nil && r != "" {
+			candidates = append(candidates, r)
 		}
-		if samePath(home, resolved) || isAncestor(home, resolved) || (isStrictProtectedRoot(resolved) && isAncestor(resolved, home) && !isTempException(home)) {
-			return fmt.Errorf("refusing data directory %s: it is equal to, above, or inside protected path %s", home, resolved)
+		if r, err := filepath.EvalSymlinks(abs); err == nil && r != "" {
+			candidates = append(candidates, filepath.Clean(r))
+		}
+		for _, resolved := range candidates {
+			if samePath(home, resolved) || isAncestor(home, resolved) || (isStrictProtectedRoot(resolved) && isAncestor(resolved, home) && !isTempException(home)) {
+				return fmt.Errorf("refusing data directory %s: it is equal to, above, or inside protected path %s", home, resolved)
+			}
 		}
 	}
 	return nil
 }
 
-func isTempException(home string) bool { return isAncestor(filepath.Clean(os.TempDir()), home) }
+func isTempException(home string) bool {
+	for _, root := range tempRoots() {
+		if isAncestor(root, home) {
+			return true
+		}
+	}
+	return false
+}
+
+// tempRoots returns the temporary directory in every spelling the guard may meet: as reported by the
+// OS, and canonicalized (Windows 8.3 short names such as RUNNER~1, macOS /var -> /private/var).
+func tempRoots() []string {
+	seen := map[string]bool{}
+	var roots []string
+	add := func(p string) {
+		if p == "" {
+			return
+		}
+		p = filepath.Clean(p)
+		if !seen[p] {
+			seen[p] = true
+			roots = append(roots, p)
+		}
+	}
+	for _, raw := range []string{os.TempDir(), os.Getenv("TMPDIR"), os.Getenv("TMP"), os.Getenv("TEMP")} {
+		if raw == "" {
+			continue
+		}
+		add(raw)
+		add(canonicalLoose(raw))
+	}
+	return roots
+}
+
+// canonicalLoose canonicalizes a path for comparison. It never fails: when the path cannot be
+// resolved it returns the cleaned absolute path.
+func canonicalLoose(p string) string {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return filepath.Clean(p)
+	}
+	abs = filepath.Clean(abs)
+	if r, err := canonicalExistingPath(abs); err == nil && r != "" {
+		return r
+	}
+	if r, err := filepath.EvalSymlinks(abs); err == nil && r != "" {
+		return filepath.Clean(r)
+	}
+	return abs
+}
 
 func isDefaultHome(home string) bool {
 	base, err := os.UserConfigDir()
-	return err == nil && samePath(home, filepath.Join(base, "gasacli"))
+	if err != nil {
+		return false
+	}
+	want := filepath.Join(base, "gasacli")
+	return samePath(home, want) || samePath(home, canonicalLoose(want))
 }
 
 func isStrictProtectedRoot(path string) bool {
