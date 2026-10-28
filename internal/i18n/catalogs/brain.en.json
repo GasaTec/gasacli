@@ -1,3 +1,13 @@
 {
-  "brain.not_connected": "No vault is connected. Run `gasa brain connect <path>` first."
+    "brain.not_connected":  "No vault is connected. Run `gasa brain connect \u003cpath\u003e` first.",
+    "brain.usage":  "Usage: gasa brain connect \u003cpath\u003e [--yes] | status | reindex | search \u003cquery\u003e | disconnect",
+    "brain.usage.connect":  "Usage: gasa brain connect \u003cpath\u003e [--yes]",
+    "brain.permission.denied":  "Vault access denied: %s",
+    "brain.permission.confirm":  "Vault access requires confirmation. Review the path and retry with --yes.",
+    "brain.permission.unknown":  "Unknown vault permission; access denied.",
+    "brain.connected":  "Connected read-only vault %s; indexed %d files (%d chunks, %d bytes) in %s.",
+    "brain.status":  "Vault: %s\nFiles: %d\nChunks: %d",
+    "brain.reindexed":  "Indexed %d changed files (%d chunks, %d skipped, %d bytes) in %s.",
+    "brain.search.empty":  "No matching notes.",
+    "brain.disconnected":  "Vault disconnected; local index removed."
 }

@@ -1,0 +1,11 @@
+{
+    "github.not_authenticated":  "Não autenticado no GitHub CLI. Execute `gh auth login`.",
+    "github.logged_in":  "Conectado ao GitHub como %s; escopos: %s",
+    "github.repository":  "Repositório: %s",
+    "github.missing_scopes":  "Escopos ausentes: %s",
+    "github.opt_in":  "Consentimento: %s",
+    "github.enabled":  "Integração GitHub ativada para este projeto.",
+    "github.disabled":  "Integração GitHub desativada para este projeto.",
+    "github.no_issues":  "Nenhuma solicitação encontrada.",
+    "github.issue_row":  "#%d [%s] %s\n%s"
+}

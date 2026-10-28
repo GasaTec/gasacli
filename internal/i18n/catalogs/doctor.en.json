@@ -1,15 +1,15 @@
 {
-  "doctor.row": "%s\t%s\t%s\t%s\t%s\t%s",
-  "doctor.status.ready": "ready",
-  "doctor.status.needs_login": "needs_login",
-  "doctor.status.installed": "installed",
-  "doctor.status.missing": "missing",
-  "doctor.status.version_unknown": "installed",
-  "doctor.status.error": "error",
-  "doctor.reason.ready": "Readiness check succeeded",
-  "doctor.reason.needs_login": "Sign in with the provider CLI",
-  "doctor.reason.installed": "Authentication readiness was not checked",
-  "doctor.reason.missing": "CLI not found in PATH",
-  "doctor.reason.version_unknown": "CLI found; version could not be checked",
-  "doctor.reason.error": "Local probe failed"
+    "doctor.row":  "%s\t%s\t%s\t%s\t%s\t%s",
+    "doctor.status.ready":  "ready",
+    "doctor.status.needs_login":  "needs_login",
+    "doctor.status.installed":  "installed",
+    "doctor.status.missing":  "missing",
+    "doctor.status.version_unknown":  "installed",
+    "doctor.status.error":  "error",
+    "doctor.reason.ready":  "Readiness check succeeded",
+    "doctor.reason.needs_login":  "Sign in with the provider CLI",
+    "doctor.reason.installed":  "Authentication readiness was not checked",
+    "doctor.reason.missing":  "CLI not found in PATH",
+    "doctor.reason.version_unknown":  "CLI found; version could not be checked",
+    "doctor.reason.error":  "Local probe failed"
 }

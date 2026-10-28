@@ -1,0 +1,11 @@
+{
+    "github.not_authenticated":  "Not authenticated with GitHub CLI. Run gh auth login.",
+    "github.logged_in":  "Logged in to GitHub as %s; scopes: %s",
+    "github.repository":  "Repository: %s",
+    "github.missing_scopes":  "Missing scopes: %s",
+    "github.opt_in":  "Opt-in: %s",
+    "github.enabled":  "GitHub integration enabled for this project.",
+    "github.disabled":  "GitHub integration disabled for this project.",
+    "github.no_issues":  "No issues found.",
+    "github.issue_row":  "#%d [%s] %s\n%s"
+}

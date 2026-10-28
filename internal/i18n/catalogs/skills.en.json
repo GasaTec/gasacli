@@ -1,0 +1,15 @@
+{
+    "skills.recommendations":  "Suggestions (not installed): Ponytail 5 — consider for concise instructions; Caveman — consider for token-efficient wording.",
+    "skills.usage":  "Usage: gasa skills [show \u003cname\u003e|install \u003csource\u003e|remove \u003cname\u003e --yes|recommendations|updates]",
+    "skills.install.pinned":  "Pinned source: %s",
+    "skills.install.preview":  "Skill: %s\nSHA-256: %s\nDestination: %s\nFiles:",
+    "skills.install.confirm":  "Review these exact files and rerun with --confirm %s",
+    "skills.permission.denied":  "plugin_install permission denied: %s",
+    "skills.permission.unknown":  "Unknown permission; refusing skill operation.",
+    "skills.network.denied":  "network_access permission denied: %s",
+    "skills.none":  "No local skills found.",
+    "skills.installed":  "Skill %s installed (SHA-256 %s).",
+    "skills.removed":  "Skill %s removed.",
+    "skills.updates.none":  "No updates available.",
+    "skills.updates.found":  "Updates available for: %s"
+}
