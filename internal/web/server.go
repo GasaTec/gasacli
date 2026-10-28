@@ -2,10 +2,8 @@
 package web
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/subtle"
 	"embed"
 	"encoding/base64"
@@ -15,46 +13,25 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/GasaTec/gasacli/internal/sessions"
 )
 
-//go:embed static/index.html
+//go:embed static/*
 var assets embed.FS
 
-// contentSecurityPolicy allows only the embedded bootstrap script. Its hash is
-// derived at startup from the embedded document, with line endings normalized the
-// way browsers do, so a CRLF checkout (core.autocrlf) keeps the script allowed.
-// If the script is missing, script-src is 'none' and the page fails closed.
-var contentSecurityPolicy = cspFor(mustReadDashboard())
-
-func mustReadDashboard() []byte {
-	content, _ := assets.ReadFile("static/index.html")
-	return content
-}
-
-func cspFor(document []byte) string {
-	const base = "default-src 'self'; style-src 'self' 'unsafe-inline'"
-	_, script, ok := bytes.Cut(document, []byte("<script>"))
-	if !ok {
-		return base + "; script-src 'none'"
-	}
-	script, _, ok = bytes.Cut(script, []byte("</script>"))
-	if !ok {
-		return base + "; script-src 'none'"
-	}
-	// HTML input preprocessing turns CRLF and CR into LF before the browser hashes
-	// the script text, so the hash must be computed over the normalized bytes.
-	script = bytes.ReplaceAll(bytes.ReplaceAll(script, []byte("\r\n"), []byte("\n")), []byte("\r"), []byte("\n"))
-	digest := sha256.Sum256(script)
-	return base + "; script-src 'sha256-" + base64.StdEncoding.EncodeToString(digest[:]) + "'"
-}
+const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 // Options configures the loopback listener. Zero Host and Port use the defaults.
 type Options struct {
-	Host     string
-	Port     int
-	Fallback bool
+	Host         string
+	Port         int
+	Fallback     bool
+	Home         string
+	SessionRoots sessions.Roots
 }
 
 // Server owns a loopback listener and its in-memory session secret.
@@ -187,11 +164,12 @@ func Start(ctx context.Context, options Options) (*Server, error) {
 	session := &launchSession{secret: token, code: launchCode, expires: time.Now().Add(60 * time.Second), now: time.Now}
 	srv := &Server{url: endpoint + "/", session: session, done: make(chan struct{})}
 	srv.http = &http.Server{
-		Handler:           handler(endpoint, actualPort, token, session),
+		Handler:           handler(endpoint, actualPort, token, session, options),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		// SSE keeps one response open; per-response write deadlines would close it.
+		WriteTimeout: 0,
+		IdleTimeout:  60 * time.Second,
 	}
 	go srv.serve(listener)
 	go func() {
@@ -231,7 +209,8 @@ func healthy(ctx context.Context, endpoint string) bool {
 // authenticateAPI protects all routes by default, including future non-API routes.
 func authenticateAPI(token string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		public := r.URL.Path == "/" || r.URL.Path == "/api/health" || (r.URL.Path == "/api/session" && r.Method == http.MethodPost)
+		_, assetErr := assets.ReadFile(strings.TrimPrefix(r.URL.Path, "/"))
+		public := r.URL.Path == "/" || (strings.HasPrefix(r.URL.Path, "/static/") && assetErr == nil) || r.URL.Path == "/api/health" || (r.URL.Path == "/api/session" && r.Method == http.MethodPost)
 		if !public {
 			valid := func(candidate string) bool {
 				return token != "" && subtle.ConstantTimeCompare([]byte(candidate), []byte(token)) == 1
@@ -280,7 +259,14 @@ func (s *launchSession) exchange(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, `{}`)
 }
 
-func handler(origin string, port int, token string, session *launchSession) http.Handler {
+func handler(origin string, port int, token string, session *launchSession, options ...Options) http.Handler {
+	home := ""
+	var roots sessions.Roots
+	if len(options) > 0 {
+		home, roots = options[0].Home, options[0].SessionRoots
+	}
+	cache := &snapshotCache{home: home, roots: roots}
+	getSnapshot := cache.get
 	allowed := map[string]bool{}
 	for _, host := range []string{"127.0.0.1", "localhost", "::1"} {
 		allowed[net.JoinHostPort(host, strconv.Itoa(port))] = true
@@ -308,6 +294,33 @@ func handler(origin string, port int, token string, session *launchSession) http
 				_, _ = w.Write(content)
 			}
 		default:
+			if strings.HasPrefix(r.URL.Path, "/static/") {
+				name := strings.TrimPrefix(r.URL.Path, "/")
+				if strings.Contains(name, "..") || strings.Contains(name, "\\") {
+					http.NotFound(w, r)
+					return
+				}
+				content, err := assets.ReadFile(name)
+				if err != nil {
+					http.NotFound(w, r)
+					return
+				}
+				switch {
+				case strings.HasSuffix(name, ".css"):
+					w.Header().Set("Content-Type", "text/css; charset=utf-8")
+				case strings.HasSuffix(name, ".svg"):
+					w.Header().Set("Content-Type", "image/svg+xml")
+				default:
+					w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+				}
+				if r.Method != http.MethodHead {
+					_, _ = w.Write(content)
+				}
+				return
+			}
+			if apiHandler(getSnapshot, w, r) {
+				return
+			}
 			http.NotFound(w, r)
 		}
 	}))
@@ -316,6 +329,7 @@ func handler(origin string, port int, token string, session *launchSession) http
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
 		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		if !allowed[r.Host] || (r.Method != http.MethodGet && r.Method != http.MethodHead && (len(r.Header.Values("Origin")) != 1 || r.Header.Get("Origin") != origin)) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return

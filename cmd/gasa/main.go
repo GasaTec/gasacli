@@ -323,7 +323,11 @@ func startDashboardQuiet(ctx context.Context, cfg config.Config) (*web.Server, e
 }
 
 func startDashboardWithOutput(ctx context.Context, cfg config.Config, out io.Writer) (*web.Server, error) {
-	server, err := web.Start(ctx, web.Options{Host: cfg.Web.Host, Port: cfg.Web.Port, Fallback: cfg.Web.FallbackPort})
+	home, err := config.Home()
+	if err != nil {
+		return nil, fmt.Errorf("resolve dashboard data home: %w", err)
+	}
+	server, err := web.Start(ctx, web.Options{Host: cfg.Web.Host, Port: cfg.Web.Port, Fallback: cfg.Web.FallbackPort, Home: home})
 	if err != nil {
 		return nil, err
 	}

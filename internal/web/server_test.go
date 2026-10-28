@@ -6,18 +6,24 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/GasaTec/gasacli/internal/sessions"
+	"github.com/GasaTec/gasacli/internal/trust"
 )
 
 func freePort(t *testing.T) int {
@@ -104,10 +110,21 @@ func TestPreferredPortAndEmbeddedDashboard(t *testing.T) {
 		t.Fatalf("endpoint = %s, want %s", endpoint, want)
 	}
 	body := get(t, s.URL())
-	for _, text := range []string{"pre-alpha", "Nenhum dado de tokens ou custo foi coletado."} {
+	for _, text := range []string{"GasaCLI", "Your workspace", "Changes", "Sending to a live agent is planned"} {
 		if !strings.Contains(body, text) {
 			t.Errorf("dashboard missing %q", text)
 		}
+	}
+	if static := get(t, s.URL()+"static/bootstrap.js"); !strings.Contains(static, "/api/session") {
+		t.Fatal("public embedded bootstrap asset unavailable before cookie exchange")
+	}
+	logoResp, err := http.Get(s.URL() + "static/mark.svg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	logoResp.Body.Close()
+	if logoResp.Header.Get("Content-Type") != "image/svg+xml" {
+		t.Fatalf("logo content type = %q", logoResp.Header.Get("Content-Type"))
 	}
 	var health map[string]string
 	if err := json.Unmarshal([]byte(get(t, endpoint+"/api/health")), &health); err != nil {
@@ -116,7 +133,7 @@ func TestPreferredPortAndEmbeddedDashboard(t *testing.T) {
 	if !reflect.DeepEqual(health, map[string]string{"app": "gasacli", "version": "pre-alpha"}) {
 		t.Fatalf("health = %#v", health)
 	}
-	if s.http.ReadHeaderTimeout != 5*time.Second || s.http.ReadTimeout == 0 || s.http.WriteTimeout == 0 {
+	if s.http.ReadHeaderTimeout != 5*time.Second || s.http.ReadTimeout == 0 || s.http.WriteTimeout != 0 {
 		t.Fatal("missing HTTP timeouts")
 	}
 }
@@ -590,32 +607,117 @@ func TestServeErrorObservable(t *testing.T) {
 	}
 }
 
-func TestBootstrapScriptAllowedByCSP(t *testing.T) {
+func TestDashboardUsesExternalScriptsAndStrictCSP(t *testing.T) {
 	content, err := assets.ReadFile("static/index.html")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Count(string(content), "<script>") != 1 {
-		t.Fatal("dashboard must embed exactly one bootstrap script")
+	if strings.Contains(string(content), "<script>") || !strings.Contains(string(content), `src="/static/bootstrap.js"`) {
+		t.Fatal("dashboard scripts must be external")
 	}
-	if cspFor(content) != contentSecurityPolicy {
-		t.Fatal("served CSP does not match the embedded bootstrap script")
+	if !strings.Contains(contentSecurityPolicy, "script-src 'self'") || strings.Contains(contentSecurityPolicy, "unsafe-inline") || strings.Contains(contentSecurityPolicy, "https:") {
+		t.Fatal("CSP must allow same-origin resources only")
 	}
-	if !strings.Contains(contentSecurityPolicy, "'sha256-") {
-		t.Fatal("CSP blocks bootstrap script")
+	bootstrap, err := assets.ReadFile("static/bootstrap.js")
+	if err != nil || !bytes.Contains(bootstrap, []byte("history.replaceState")) || !bytes.Contains(bootstrap, []byte("fetch('/api/session'")) {
+		t.Fatal("bootstrap must remove fragment before exchanging the single-use code")
 	}
-	// core.autocrlf checkouts write CRLF; HTML preprocessing makes the browser hash LF text,
-	// so the policy must be identical for both line endings.
-	crlf := bytes.ReplaceAll(content, []byte("\n"), []byte("\r\n"))
-	if cspFor(crlf) != cspFor(content) {
-		t.Fatal("CRLF checkout must yield the same script hash as LF, matching browser normalization")
+	app, err := assets.ReadFile("static/app.js")
+	if err != nil || bytes.Contains(app, []byte("innerHTML")) {
+		t.Fatal("frontend must build DOM without assigning untrusted HTML")
 	}
-	if !strings.Contains(cspFor(crlf), "'sha256-") {
-		t.Fatal("CRLF checkout must still allow the bootstrap script")
+}
+
+func TestSessionAPITrustRedactionAndTraversal(t *testing.T) {
+	project := filepath.Join(t.TempDir(), "trusted")
+	if err := os.MkdirAll(project, 0700); err != nil {
+		t.Fatal(err)
 	}
-	script := string(content)
-	if strings.Index(script, "history.replaceState") > strings.Index(script, "fetch(") {
-		t.Fatal("fragment must be removed before exchange")
+	home, claude := t.TempDir(), t.TempDir()
+	if err := trust.NewStore(home).Grant(project); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(claude, "project", "session.jsonl")
+	if err := os.MkdirAll(filepath.Dir(file), 0700); err != nil {
+		t.Fatal(err)
+	}
+	fixture := `{"type":"user","sessionId":"private-id","cwd":"` + filepath.ToSlash(project) + `","message":{"role":"user","content":"<script>alert(1)</script> sk-secret-value"}}`
+	if err := os.WriteFile(file, []byte(fixture), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Start(context.Background(), Options{Port: freePort(t), Home: home, SessionRoots: sessions.Roots{Claude: claude}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = s.Shutdown(ctx)
+	})
+	call := func(path string) (int, []byte) {
+		t.Helper()
+		req, _ := http.NewRequest(http.MethodGet, s.URL()+strings.TrimPrefix(path, "/"), nil)
+		req.Header.Set("X-Gasa-Token", s.session.secret)
+		resp, e := (&http.Client{Timeout: 15 * time.Second}).Do(req)
+		if e != nil {
+			t.Fatal(e)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, b
+	}
+	code, body := call("/api/projects")
+	if code != 200 || !bytes.Contains(body, []byte(`"name":"trusted"`)) || bytes.Contains(body, []byte("sk-secret-value")) {
+		t.Fatalf("trusted project response invalid: status=%d body=%s", code, body)
+	}
+	projects := buildSnapshot(home, sessions.Roots{Claude: claude}).projects
+	if len(projects) != 1 || len(projects[0].Sessions) != 1 {
+		t.Fatalf("unexpected projects: %#v", projects)
+	}
+	code, body = call("/api/sessions/" + projects[0].Sessions[0].ID)
+	if code != 200 || bytes.Contains(body, []byte("sk-secret-value")) || bytes.Contains(body, []byte("<script>")) {
+		t.Fatalf("session detail leaked unsafe input: status=%d body=%s", code, body)
+	}
+	code, _ = call("/api/git/status?worktree=../../etc")
+	if code != 404 {
+		t.Fatalf("traversal worktree status = %d, want 404", code)
+	}
+	code, _ = call("/api/sessions/../../etc/passwd")
+	if code == 200 {
+		t.Fatal("path traversal session id was accepted")
+	}
+}
+
+func TestSessionDetailPaginatesOlderMessages(t *testing.T) {
+	messages := make([]sessions.Message, 120)
+	for i := range messages {
+		messages[i] = sessions.Message{Role: "user", Text: fmt.Sprintf("Message %03d", i)}
+	}
+	current := snapshot{sessions: map[string]sessions.Session{"safe-id": {ID: "safe-id", Messages: messages, MessageCount: len(messages)}}}
+	get := func() snapshot { return current }
+	request := func(path string) sessions.Session {
+		t.Helper()
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/sessions/safe-id"+path, nil)
+		if !apiHandler(get, w, r) {
+			t.Fatal("session route not handled")
+		}
+		if w.Code != 200 {
+			t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+		}
+		var result sessions.Session
+		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	latest := request("")
+	if len(latest.Messages) != 100 || latest.MessageOffset != 20 || latest.MessageCount != 120 || latest.Messages[0].Text != "Message 020" {
+		t.Fatalf("unexpected latest page: %#v", latest)
+	}
+	older := request("?before=20")
+	if len(older.Messages) != 20 || older.MessageOffset != 0 || older.Messages[0].Text != "Message 000" || older.Messages[19].Text != "Message 019" {
+		t.Fatalf("unexpected older page: %#v", older)
 	}
 }
 

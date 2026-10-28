@@ -1,0 +1,277 @@
+package web
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/GasaTec/gasacli/internal/sessions"
+	"github.com/GasaTec/gasacli/internal/trust"
+)
+
+type projectView struct {
+	ID           string             `json:"id"`
+	Name         string             `json:"name"`
+	Path         string             `json:"path,omitempty"`
+	Branch       string             `json:"branch,omitempty"`
+	Sessions     []sessions.Session `json:"sessions,omitempty"`
+	Worktrees    []worktreeView     `json:"worktrees,omitempty"`
+	SessionCount int                `json:"sessionCount"`
+	Trusted      bool               `json:"trusted"`
+}
+
+type worktreeView struct {
+	ID           string `json:"id"`
+	Path         string `json:"path"`
+	Branch       string `json:"branch"`
+	SessionCount int    `json:"sessionCount"`
+}
+
+type snapshot struct {
+	projects  []projectView
+	byID      map[string]projectView
+	worktrees map[string]string
+	sessions  map[string]sessions.Session
+}
+
+type snapshotCache struct {
+	mu        sync.Mutex
+	value     snapshot
+	refreshed time.Time
+	home      string
+	roots     sessions.Roots
+}
+
+func (c *snapshotCache) get() snapshot {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if time.Since(c.refreshed) < 2*time.Second {
+		return c.value
+	}
+	c.value = buildSnapshot(c.home, c.roots)
+	c.refreshed = time.Now()
+	return c.value
+}
+
+func buildSnapshot(home string, roots sessions.Roots) snapshot {
+	s := snapshot{byID: map[string]projectView{}, worktrees: map[string]string{}, sessions: map[string]sessions.Session{}}
+	store := trust.NewStore(home)
+	grouped := map[string][]sessions.Session{}
+	paths := map[string]string{}
+	for _, session := range sessions.Scan(roots) {
+		worktreeRoot := sessions.WorktreeRoot(session.CWD)
+		root := sessions.ProjectRoot(session.CWD)
+		if root == "" {
+			continue
+		}
+		trusted, err := store.IsTrusted(root)
+		if err != nil {
+			continue
+		}
+		id := projectID(root)
+		if trusted {
+			session.Branch = sessions.Branch(session.CWD)
+			session.WorktreeID = projectID(filepath.Clean(worktreeRoot))
+			grouped[id] = append(grouped[id], session)
+			paths[id] = root
+			s.worktrees[session.WorktreeID] = worktreeRoot
+		} else {
+			session.Messages = nil
+			grouped["untrusted"] = append(grouped["untrusted"], session)
+		}
+	}
+	for id, list := range grouped {
+		if id == "untrusted" {
+			s.projects = append(s.projects, projectView{ID: id, Name: "Not trusted", SessionCount: len(list), Trusted: false})
+			continue
+		}
+		root := paths[id]
+		p := projectView{ID: id, Name: filepath.Base(root), Path: root, SessionCount: len(list), Trusted: true}
+		for _, session := range list {
+			s.sessions[session.ID] = session
+			session.Messages = nil
+			session.MessageCount = 0
+			session.MessageOffset = 0
+			p.Sessions = append(p.Sessions, session)
+		}
+		p.Branch = gitOutput(root, "branch", "--show-current")
+		for _, worktree := range sessions.ListWorktrees(root) {
+			worktreeID := projectID(filepath.Clean(worktree.Path))
+			p.Worktrees = append(p.Worktrees, worktreeView{ID: worktreeID, Path: worktree.Path, Branch: worktree.Branch})
+			s.worktrees[worktreeID] = worktree.Path
+		}
+		if len(p.Worktrees) == 0 {
+			worktreeID := projectID(filepath.Clean(root))
+			p.Worktrees = []worktreeView{{ID: worktreeID, Path: root, Branch: p.Branch}}
+			s.worktrees[worktreeID] = root
+		}
+		for i := range p.Worktrees {
+			for _, session := range list {
+				if session.WorktreeID == p.Worktrees[i].ID {
+					p.Worktrees[i].SessionCount++
+				}
+			}
+		}
+		s.projects = append(s.projects, p)
+		s.byID[id] = p
+	}
+	// The untrusted bucket is presented separately and last.
+	sortProjects(s.projects)
+	for _, p := range s.projects {
+		if p.ID == "untrusted" {
+			s.projects = append(removeProject(s.projects, "untrusted"), p)
+			break
+		}
+	}
+	return s
+}
+
+func sortProjects(projects []projectView) {
+	for i := 0; i < len(projects); i++ {
+		for j := i + 1; j < len(projects); j++ {
+			if projects[j].Name < projects[i].Name {
+				projects[i], projects[j] = projects[j], projects[i]
+			}
+		}
+	}
+}
+func removeProject(projects []projectView, id string) []projectView {
+	out := projects[:0]
+	for _, p := range projects {
+		if p.ID != id {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+func projectID(path string) string {
+	sum := sha256.Sum256([]byte(filepath.Clean(path)))
+	return hex.EncodeToString(sum[:12])
+}
+func gitOutput(path string, args ...string) string {
+	if path == "" {
+		return ""
+	}
+	all := append([]string{"-C", path}, args...)
+	c := exec.Command("git", all...)
+	c.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
+	b, e := c.Output()
+	if e != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+func jsonResponse(w http.ResponseWriter, value any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(value)
+}
+
+func apiHandler(getSnapshot func() snapshot, w http.ResponseWriter, r *http.Request) bool {
+	switch {
+	case r.URL.Path == "/api/projects" && r.Method == http.MethodGet:
+		jsonResponse(w, getSnapshot().projects)
+		return true
+	case r.URL.Path == "/api/sessions" && r.Method == http.MethodGet:
+		projectID := r.URL.Query().Get("project")
+		if projectID == "" {
+			http.Error(w, "project required", 400)
+			return true
+		}
+		s := getSnapshot()
+		project, ok := s.byID[projectID]
+		if !ok {
+			http.Error(w, "not found", 404)
+			return true
+		}
+		jsonResponse(w, project.Sessions)
+		return true
+	case strings.HasPrefix(r.URL.Path, "/api/sessions/") && r.Method == http.MethodGet:
+		id := strings.TrimPrefix(r.URL.Path, "/api/sessions/")
+		if id == "" || strings.Contains(id, "/") || strings.Contains(id, "\\") {
+			http.Error(w, "not found", 404)
+			return true
+		}
+		s := getSnapshot()
+		if session, ok := s.sessions[id]; ok {
+			const pageSize = 100
+			end := session.MessageOffset + len(session.Messages)
+			if value := r.URL.Query().Get("before"); value != "" {
+				parsed, err := strconv.Atoi(value)
+				if err != nil || parsed < 0 {
+					http.Error(w, "invalid cursor", 400)
+					return true
+				}
+				end = parsed
+			}
+			base := session.MessageOffset
+			end -= base
+			if end < 0 {
+				end = 0
+			}
+			if end > len(session.Messages) {
+				end = len(session.Messages)
+			}
+			start := end - pageSize
+			if start < 0 {
+				start = 0
+			}
+			session.MessageOffset = base + start
+			session.Messages = session.Messages[start:end]
+			jsonResponse(w, session)
+			return true
+		}
+		http.Error(w, "not found", 404)
+		return true
+	case r.URL.Path == "/api/git/status" && r.Method == http.MethodGet:
+		id := r.URL.Query().Get("worktree")
+		s := getSnapshot()
+		worktree, ok := s.worktrees[id]
+		if !ok {
+			http.Error(w, "not found", 404)
+			return true
+		}
+		status := sessions.Redact(gitOutput(worktree, "status", "--porcelain=v1"))
+		stat := sessions.Redact(gitOutput(worktree, "diff", "--stat"))
+		numstat := sessions.Redact(gitOutput(worktree, "diff", "--numstat"))
+		jsonResponse(w, map[string]string{"status": status, "stat": stat, "numstat": numstat})
+		return true
+	case r.URL.Path == "/api/events" && r.Method == http.MethodGet:
+		if _, ok := w.(http.Flusher); !ok {
+			http.Error(w, "stream unavailable", 500)
+			return true
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		flusher := w.(http.Flusher)
+		controller := http.NewResponseController(w)
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			data, err := json.Marshal(getSnapshot().projects)
+			if err != nil {
+				return true
+			}
+			_ = controller.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if _, err := fmt.Fprintf(w, "event: projects\ndata: %s\n\n", data); err != nil {
+				return true
+			}
+			flusher.Flush()
+			select {
+			case <-r.Context().Done():
+				return true
+			case <-ticker.C:
+			}
+		}
+	}
+	return false
+}
