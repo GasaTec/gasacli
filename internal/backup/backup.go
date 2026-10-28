@@ -382,14 +382,12 @@ func snapshotDB(ctx context.Context, path string) ([]byte, error) {
 		return nil, err
 	}
 	defer db.Close()
-	tmp, err := os.CreateTemp("", "gasacli-db-*.sqlite")
+	tmpDir, err := os.MkdirTemp("", "gasacli-db-*")
 	if err != nil {
 		return nil, err
 	}
-	dest := tmp.Name()
-	tmp.Close()
-	os.Remove(dest)
-	defer os.Remove(dest)
+	defer os.RemoveAll(tmpDir)
+	dest := filepath.Join(tmpDir, "snapshot.sqlite")
 	if _, err = db.ExecContext(ctx, "VACUUM INTO ?", dest); err != nil {
 		return nil, fmt.Errorf("snapshot database: %w", err)
 	}
