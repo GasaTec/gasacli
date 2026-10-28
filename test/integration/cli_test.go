@@ -203,7 +203,7 @@ func TestCLI(t *testing.T) {
 			t.Fatalf("doctor lines=%d\n%s", len(lines), out)
 		}
 		for i, name := range names {
-			contains(t, lines[i], name, "not_found", "authentication not checked")
+			contains(t, lines[i], name, "não encontrado", "autenticação não verificada")
 		}
 		t.Logf("real doctor output:\n%s", out)
 	})

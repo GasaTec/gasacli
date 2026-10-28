@@ -110,5 +110,6 @@
   "doctor.status.missing": "não encontrado",
   "doctor.status.needs_login": "login necessário",
   "doctor.status.ready": "pronto",
-  "doctor.status.version_unknown": "versão desconhecida"
+  "doctor.status.version_unknown": "versão desconhecida",
+  "doctor.row": "%s\t%s\t%s\t%s\t%s\t%s"
 }
