@@ -21,31 +21,34 @@ import (
 type commandInfo struct{ name, description string }
 
 type interactiveModel struct {
-	session        *Session
-	project        string
-	trusted        bool
-	trustYes       bool
-	chat           textarea.Model
-	spinner        spinner.Model
-	view           viewport.Model
-	lines          []string
-	history        []string
-	width          int
-	height         int
-	ready          bool
-	closed         bool
-	quitErr        error
-	palette        bool
-	selected       int
-	status         string
-	busy           bool
-	setupRequested bool
-	trustDenied    bool
-	agentsChecking bool
-	commandCancel  context.CancelFunc
-	lastCtrlC      time.Time
-	lastCtrlCValid bool
-	approval       *approvalPrompt
+	session          *Session
+	project          string
+	trusted          bool
+	trustYes         bool
+	chat             textarea.Model
+	spinner          spinner.Model
+	view             viewport.Model
+	lines            []string
+	history          []string
+	width            int
+	height           int
+	ready            bool
+	closed           bool
+	quitErr          error
+	palette          bool
+	selected         int
+	status           string
+	busy             bool
+	setupRequested   bool
+	trustDenied      bool
+	agentsChecking   bool
+	commandCancel    context.CancelFunc
+	lastCtrlC        time.Time
+	lastCtrlCValid   bool
+	approval         *approvalPrompt
+	pendingApprovals []approvalPrompt
+	quitConfirmation bool
+	quitYes          bool
 }
 
 type commandResult struct{ text string }
@@ -57,12 +60,12 @@ type handlerDone struct {
 }
 type approvalAskMsg struct {
 	request PermissionRequest
-	answer  chan bool
+	answer  chan ApprovalChoice
 }
 type approvalPrompt struct {
 	request PermissionRequest
-	answer  chan bool
-	yes     bool
+	answer  chan ApprovalChoice
+	choice  ApprovalChoice
 }
 
 func newInteractiveModel(s *Session, project string, trusted bool) interactiveModel {
@@ -184,6 +187,12 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.append("GasaCLI\n" + msg.err.Error())
 		}
 		if errors.Is(msg.err, errExitCommand) {
+			if hasActiveProjectRun(m.project) {
+				m.quitConfirmation = true
+				m.quitYes = false
+				m.status = i18n.T("tui.quit.active")
+				return m, nil
+			}
 			m.closed = true
 			return m, tea.Quit
 		}
@@ -194,7 +203,12 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = i18n.T("tui.status.ready")
 		return m, nil
 	case approvalAskMsg:
-		m.approval = &approvalPrompt{request: msg.request, answer: msg.answer}
+		prompt := approvalPrompt{request: msg.request, answer: msg.answer, choice: ApprovalDeny}
+		if m.approval == nil {
+			m.approval = &prompt
+		} else {
+			m.pendingApprovals = append(m.pendingApprovals, prompt)
+		}
 		return m, nil
 	case readyAgentsResult:
 		m.agentsChecking = false
@@ -213,20 +227,44 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.chat.SetWidth(max(20, msg.Width-9))
 		return m, nil
 	case tea.KeyMsg:
+		if m.quitConfirmation {
+			switch msg.String() {
+			case "y", "Y", "right", "l":
+				m.quitYes = true
+			case "n", "N", "left", "h":
+				m.quitYes = false
+			case "enter":
+				m.quitConfirmation = false
+				if m.quitYes {
+					cancelProjectRuns(m.project)
+					m.closed = true
+					return m, tea.Quit
+				}
+				m.status = i18n.T("tui.status.ready")
+			case "esc":
+				m.quitConfirmation = false
+				m.status = i18n.T("tui.status.ready")
+			}
+			return m, nil
+		}
 		if m.approval != nil {
 			switch msg.String() {
+			case "left", "h":
+				if m.approval.choice > ApprovalOnce {
+					m.approval.choice--
+				}
+			case "right", "l":
+				if m.approval.choice < ApprovalDeny {
+					m.approval.choice++
+				}
 			case "y", "Y":
-				m.approval.yes = true
+				m.approval.choice = ApprovalRun
 			case "n", "N":
-				m.approval.yes = false
-			case "left", "right", "h", "l":
-				m.approval.yes = !m.approval.yes
+				m.approval.choice = ApprovalDeny
 			case "enter":
-				m.approval.answer <- m.approval.yes
-				m.approval = nil
+				m.finishApproval(m.approval.choice)
 			case "esc", "ctrl+c":
-				m.approval.answer <- false
-				m.approval = nil
+				m.finishApproval(ApprovalDeny)
 			}
 			return m, nil
 		}
@@ -304,6 +342,12 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = i18n.T("tui.status.draft")
 			return m, nil
 		case "ctrl+d":
+			if hasActiveProjectRun(m.project) {
+				m.quitConfirmation = true
+				m.quitYes = false
+				m.status = i18n.T("tui.quit.active")
+				return m, nil
+			}
 			return m, tea.Quit
 		case "esc":
 			if strings.HasPrefix(strings.TrimSpace(m.chat.Value()), "/") {
@@ -332,6 +376,41 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	m.view, _ = m.view.Update(message)
 	return m, cmd
+}
+
+func (m *interactiveModel) finishApproval(choice ApprovalChoice) {
+	if m.approval == nil {
+		return
+	}
+	m.approval.answer <- choice
+	m.approval = nil
+	if len(m.pendingApprovals) > 0 {
+		next := m.pendingApprovals[0]
+		m.pendingApprovals = m.pendingApprovals[1:]
+		m.approval = &next
+	}
+}
+
+func hasActiveProjectRun(project string) bool {
+	active := false
+	activeRuns.Range(func(_, value any) bool {
+		if value.(activeRun).project == project {
+			active = true
+			return false
+		}
+		return true
+	})
+	return active
+}
+
+func cancelProjectRuns(project string) {
+	activeRuns.Range(func(_, value any) bool {
+		run := value.(activeRun)
+		if run.project == project {
+			run.cancel()
+		}
+		return true
+	})
 }
 
 func (m interactiveModel) send(input string) (tea.Model, tea.Cmd) {
@@ -397,14 +476,14 @@ func (m *interactiveModel) startCommand(input string) tea.Cmd {
 		go func() {
 			result, err := executeCommand(ctx, m.session, m.project, m.trusted, input, func(chunk string) {
 				sendMessage(handlerChunk{text: chunk})
-			}, func(askContext context.Context, request PermissionRequest) (bool, error) {
-				answer := make(chan bool, 1)
+			}, func(askContext context.Context, request PermissionRequest) (ApprovalChoice, error) {
+				answer := make(chan ApprovalChoice, 1)
 				sendMessage(approvalAskMsg{request: request, answer: answer})
 				select {
-				case approved := <-answer:
-					return approved, nil
+				case choice := <-answer:
+					return choice, nil
 				case <-askContext.Done():
-					return false, askContext.Err()
+					return ApprovalDeny, askContext.Err()
 				}
 			})
 			sendMessage(handlerDone{text: result, err: err})
@@ -486,13 +565,28 @@ func (m interactiveModel) View() string {
 		footer = i18n.T("tui.status.palette")
 	}
 	view := lipgloss.JoinVertical(lipgloss.Left, box, conversation, input, footer)
+	if m.quitConfirmation {
+		choices := []string{i18n.T("tui.quit.stay"), i18n.T("tui.quit.cancel")}
+		if !m.quitYes {
+			choices[0] = "> " + choices[0]
+		} else {
+			choices[1] = "> " + choices[1]
+		}
+		content := i18n.T("tui.quit.active") + "\n\n" + choices[0] + "    " + choices[1] + "\n\n" + i18n.T("goal.approval.help")
+		style := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#F59E0B")).Padding(1, 2).Width(max(40, min(76, m.width-4)))
+		return lipgloss.Place(max(40, m.width), max(12, m.height), lipgloss.Center, lipgloss.Center, style.Render(content))
+	}
 	if m.approval != nil {
 		request := m.approval.request
-		yes, no := "  "+i18n.T("tui.approval.yes"), "> "+i18n.T("tui.approval.no")
-		if m.approval.yes {
-			yes, no = "> "+i18n.T("tui.approval.yes"), "  "+i18n.T("tui.approval.no")
+		choices := []string{i18n.T("goal.approval.once"), i18n.T("goal.approval.run"), i18n.T("goal.approval.deny")}
+		for index := range choices {
+			prefix := "  "
+			if int(m.approval.choice) == index {
+				prefix = "> "
+			}
+			choices[index] = prefix + choices[index]
 		}
-		content := fmt.Sprintf("%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n\n%s    %s\n\n%s", i18n.T("tui.approval.title"), i18n.T("tui.approval.agent"), valueOr(request.Agent, "GasaCLI"), i18n.T("tui.approval.action"), i18n.T("permission."+request.Action), i18n.T("tui.approval.target"), request.Target, i18n.T("tui.approval.command"), request.ExactCommand, yes, no, i18n.T("tui.approval.help"))
+		content := fmt.Sprintf("%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n\n%s    %s    %s\n\n%s", i18n.T("tui.approval.title"), i18n.T("tui.approval.agent"), valueOr(request.Agent, "GasaCLI"), i18n.T("tui.approval.action"), i18n.T("permission."+request.Action), i18n.T("tui.approval.target"), request.Target, i18n.T("tui.approval.command"), request.ExactCommand, choices[0], choices[1], choices[2], i18n.T("goal.approval.help"))
 		border := lipgloss.RoundedBorder()
 		if os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != "" {
 			border = lipgloss.Border{Top: "-", Bottom: "-", Left: "|", Right: "|", TopLeft: "+", TopRight: "+", BottomLeft: "+", BottomRight: "+"}
@@ -548,7 +642,7 @@ func (m interactiveModel) welcomeCard() string {
 	b.WriteString("/doctor     executar diagnóstico local\n")
 	b.WriteString("Enter       enviar mensagem ou comando\n")
 	b.WriteString("Alt+Enter   inserir uma nova linha\n")
-	b.WriteString("/goal       planejado; nenhuma tarefa será iniciada\n")
+	b.WriteString("/goal       " + i18n.T("tui.goal.tip") + "\n")
 	return b.String()
 }
 

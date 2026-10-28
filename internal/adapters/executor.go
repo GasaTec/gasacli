@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -25,6 +26,7 @@ type Request struct {
 	Agent       string
 	Project     string
 	Prompt      string
+	RunID       string
 	Profile     string
 	Model       string
 	Timeout     time.Duration
@@ -96,11 +98,15 @@ func (e *Executor) Execute(ctx context.Context, request Request) (result Result,
 		command = path
 	}
 	actions := []permissions.Permission{"read_project"}
+	exactCommand := command
+	for _, arg := range args {
+		exactCommand += " " + strconv.Quote(arg)
+	}
 	if !request.ReadOnly {
-		actions = append(actions, "write_project", "execute_commands", "network_access")
+		actions = append(actions, "agent_run", "write_project")
 	}
 	for _, action := range actions {
-		req := permissions.Request{Agent: request.Agent, Action: action, Project: project, Target: "."}
+		req := permissions.Request{Agent: request.Agent, Action: action, Project: project, Target: project, Command: exactCommand, RunID: request.RunID}
 		decision := e.Policy.Decide(ctx, req)
 		if decision.Effect == permissions.Ask {
 			if e.Approver == nil {
@@ -241,19 +247,28 @@ func commandFor(request Request) (string, []string, error) {
 		}
 		if request.ReadOnly {
 			args = append(args, "--permission-mode", "plan")
-		} else if request.Profile == "restricted" {
-			args = append(args, "--permission-mode", "acceptEdits")
+		} else {
+			switch request.Profile {
+			case "restricted":
+				args = append(args, "--permission-mode", "acceptEdits", "--disallowedTools", "Bash", "WebFetch", "WebSearch")
+			case "balanced":
+				args = append(args, "--permission-mode", "acceptEdits")
+			case "autonomous":
+				args = append(args, "--permission-mode", "acceptEdits")
+			}
 		}
 		return "claude", args, nil
 	case "codex":
-		args := []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--skip-git-repo-check"}
+		args := []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--ask-for-approval", "on-request", "--skip-git-repo-check"}
 		if request.ReadOnly {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "read-only", "--skip-git-repo-check"}
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check"}
 		} else if request.Profile == "restricted" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write"}
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--ask-for-approval", "never"}
+		} else if request.Profile == "balanced" {
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--ask-for-approval", "on-request", "--skip-git-repo-check"}
 		}
 		if request.Profile == "autonomous" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "danger-full-access", "--skip-git-repo-check"}
+			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "danger-full-access", "--ask-for-approval", "on-request", "--skip-git-repo-check"}
 		}
 		args = append(args, request.Prompt)
 		return "codex", args, nil

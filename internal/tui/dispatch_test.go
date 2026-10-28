@@ -77,7 +77,11 @@ func TestHandlerDispatchCancellationAndPermissionDecisionLog(t *testing.T) {
 		return []string{"denied", "approved"}[boolIndex(approved)], err
 	}})
 	for _, approved := range []bool{false, true} {
-		got, err := executeCommand(context.Background(), &Session{ConfigHome: home, TrustStore: store}, project, true, "/test-dispatch-ask", nil, func(context.Context, PermissionRequest) (bool, error) { return approved, nil })
+		choice := ApprovalDeny
+		if approved {
+			choice = ApprovalOnce
+		}
+		got, err := executeCommand(context.Background(), &Session{ConfigHome: home, TrustStore: store}, project, true, "/test-dispatch-ask", nil, func(context.Context, PermissionRequest) (ApprovalChoice, error) { return choice, nil })
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -21,7 +21,7 @@ type sessionCommandContext struct {
 	trusted bool
 	command string
 	emit    func(string)
-	ask     func(context.Context, PermissionRequest) (bool, error)
+	ask     func(context.Context, PermissionRequest) (ApprovalChoice, error)
 }
 
 func (c *sessionCommandContext) ProjectPath() string { return c.project }
@@ -55,16 +55,22 @@ func (c *sessionCommandContext) Emit(message string) {
 	}
 }
 func (c *sessionCommandContext) Ask(request PermissionRequest) (bool, error) {
+	decision, err := c.AskScoped(c.ctx, request)
+	return decision.Effect == permissions.Allow, err
+}
+
+func (c *sessionCommandContext) AskContext(ctx context.Context, request PermissionRequest) (bool, error) {
+	decision, err := c.AskScoped(ctx, request)
+	return decision.Effect == permissions.Allow, err
+}
+
+func (c *sessionCommandContext) AskScoped(ctx context.Context, request PermissionRequest) (permissions.Decision, error) {
 	if request.ExactCommand == "" {
 		request.ExactCommand = c.command
 	}
 	engine := permissions.New(c.session.ConfigHome, c.session.TrustStore)
 	approver := sessionApprover{engine: engine, prompt: c.ask, project: c.project, request: request}
-	decision, err := approver.Ask(c.ctx, permissions.Request{Agent: request.Agent, Action: permissions.Permission(request.Action), Target: request.Target, Project: c.project})
-	if err != nil {
-		return false, err
-	}
-	return decision.Effect == permissions.Allow, nil
+	return approver.Ask(ctx, permissions.Request{Agent: request.Agent, Action: permissions.Permission(request.Action), Target: request.Target, Project: c.project, RunID: request.RunID})
 }
 
 func (c *sessionCommandContext) Confirm(request PermissionRequest) (bool, error) {
@@ -74,12 +80,13 @@ func (c *sessionCommandContext) Confirm(request PermissionRequest) (bool, error)
 	if request.ExactCommand == "" {
 		request.ExactCommand = c.command
 	}
-	return c.ask(c.ctx, request)
+	choice, err := c.ask(c.ctx, request)
+	return choice != ApprovalDeny, err
 }
 
 type sessionApprover struct {
 	engine  *permissions.Engine
-	prompt  func(context.Context, PermissionRequest) (bool, error)
+	prompt  func(context.Context, PermissionRequest) (ApprovalChoice, error)
 	project string
 	request PermissionRequest
 }
@@ -95,18 +102,25 @@ func (a sessionApprover) Ask(ctx context.Context, request permissions.Request) (
 		if a.prompt == nil {
 			return decision, fmt.Errorf("approval is unavailable")
 		}
-		approved, err := a.prompt(ctx, a.request)
+		choice, err := a.prompt(ctx, a.request)
 		if err != nil {
 			return decision, err
 		}
+		approved := choice != ApprovalDeny
 		event := permissions.ApprovalEvent{Decision: permissions.Deny, Permission: request.Action, PolicyRevision: "current"}
 		if approved {
 			event.Decision = permissions.Allow
 		}
 		event.Actor.Kind = "user"
 		event.Requester.AgentID = request.Agent
+		event.Requester.RunID = request.RunID
 		event.Scope.Kind = string(decision.Scope)
 		event.Scope.ID = a.project
+		if choice == ApprovalRun {
+			event.Scope.Kind = "run"
+			event.Scope.ID = request.RunID
+			decision.Scope = permissions.Scope("run")
+		}
 		event.Operation.Summary = a.request.ExactCommand
 		if event.Operation.Summary == "" {
 			event.Operation.Summary = string(request.Action) + " " + request.Target
@@ -187,7 +201,7 @@ func shellWords(input string) ([]string, error) {
 	return words, nil
 }
 
-func executeCommand(ctx context.Context, session *Session, project string, trusted bool, input string, emit func(string), ask func(context.Context, PermissionRequest) (bool, error)) (result string, err error) {
+func executeCommand(ctx context.Context, session *Session, project string, trusted bool, input string, emit func(string), ask func(context.Context, PermissionRequest) (ApprovalChoice, error)) (result string, err error) {
 	name, args, err := splitCommand(input)
 	if err != nil {
 		return "", err

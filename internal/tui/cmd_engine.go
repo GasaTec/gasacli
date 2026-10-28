@@ -2,11 +2,13 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/GasaTec/gasacli/internal/adapters"
 	"github.com/GasaTec/gasacli/internal/discovery"
@@ -52,8 +54,13 @@ func goalCommand(ctx context.Context, cc CommandContext, args []string) (string,
 		return "", err
 	}
 	reviewer := orchestration.SelectReviewer(discoveryResults(cc.DiscoveryResults()), agent)
-	cc.Emit(i18n.T("orchestration.plan", run.ID, agent, reviewer))
-	managerCtx, cancel := context.WithCancel(context.Background())
+	profile, _ := permissions.New(cc.ConfigHome(), trust.NewStore(cc.ConfigHome())).Profile()
+	cc.Emit(i18n.T("goal.plan", run.ID, goal, agent, reviewer, profile))
+	managerParent := context.Background()
+	if sessionContext, ok := cc.(*sessionCommandContext); ok && sessionContext.session != nil && sessionContext.session.Context != nil {
+		managerParent = sessionContext.session.Context
+	}
+	managerCtx, cancel := context.WithCancel(managerParent)
 	activeRuns.Store(run.ID, activeRun{cancel: cancel, project: project})
 	go func() {
 		defer closeStore()
@@ -61,23 +68,86 @@ func goalCommand(ctx context.Context, cc CommandContext, args []string) (string,
 		defer cancel()
 		runAsync(managerCtx, cc, core, run.ID, project, goal, agent, reviewer)
 	}()
-	return i18n.T("orchestration.started", run.ID, run.ID, run.ID), nil
+	return i18n.T("goal.started", run.ID, run.ID), nil
 }
 
 func runAsync(ctx context.Context, cc CommandContext, core *engine.Engine, runID, project, goal, agent, reviewer string) {
+	started := time.Now()
+	stopEvents := make(chan struct{})
+	eventsDone := make(chan struct{})
+	go func() {
+		defer close(eventsDone)
+		var after int64
+		ticker := time.NewTicker(250 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopEvents:
+				emitRunEvents(core, runID, &after, cc)
+				return
+			case <-ticker.C:
+				emitRunEvents(core, runID, &after, cc)
+			}
+		}
+	}()
 	policy := permissions.New(cc.ConfigHome(), trust.NewStore(cc.ConfigHome()))
+	runApprover := engineCommandApprover{cc: cc, agent: agent, approvals: &sync.Map{}}
 	err := orchestration.Run(ctx, runID, orchestration.Options{
-		Core: core, Policy: policy, Approver: engineCommandApprover{cc: cc, agent: agent}, Home: cc.ConfigHome(), Project: project,
+		Core: core, Policy: policy, Approver: runApprover, Home: cc.ConfigHome(), Project: project,
 		Goal: goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 3, MaxRetries: 2},
 		OnEvent: func(role string, event adapters.Event) {
 			cc.Emit(i18n.T("orchestration.event", runID, role, event.Type))
 		},
 	})
+	close(stopEvents)
+	<-eventsDone
 	if err != nil {
-		cc.Emit(i18n.T("orchestration.blocked", runID, statusAfter(core, runID), err))
+		cc.Emit(i18n.T("goal.blocked", runID, statusAfter(core, runID), err))
 		return
 	}
-	cc.Emit(i18n.T("orchestration.done", runID))
+	cc.Emit(i18n.T("goal.event", runID, fmt.Sprintf("elapsed %.1fs", time.Since(started).Seconds())))
+	cc.Emit(i18n.T("goal.done", runID))
+}
+
+func emitRunEvents(core *engine.Engine, runID string, after *int64, cc CommandContext) {
+	events, err := core.Events(context.Background(), runID, *after, 100)
+	if err != nil {
+		return
+	}
+	for _, event := range events {
+		*after = event.ID
+		if event.Type == "agent.event" {
+			continue
+		}
+		var data map[string]any
+		_ = json.Unmarshal(event.Payload, &data)
+		var detail string
+		switch event.Type {
+		case "agent.finished":
+			duration := number(data["duration_ms"]) / 1000
+			if data["cost_known"] == true {
+				detail = fmt.Sprintf("%s: %s, cost $%.4f, %.1fs", data["role"], data["agent"], data["cost_usd"], duration)
+			} else {
+				detail = fmt.Sprintf("%s: %s, cost unknown, %.1fs", data["role"], data["agent"], duration)
+			}
+		default:
+			detail = event.Type + " " + strings.TrimSpace(string(event.Payload))
+		}
+		cc.Emit(i18n.T("goal.event", runID, detail))
+	}
+}
+
+func number(value any) float64 {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case int64:
+		return float64(v)
+	case int:
+		return float64(v)
+	default:
+		return 0
+	}
 }
 
 func statusCommand(ctx context.Context, cc CommandContext, _ []string) (string, error) {
@@ -154,7 +224,11 @@ func resumeCommand(ctx context.Context, cc CommandContext, args []string) (strin
 		closeStore()
 		return "", errors.New("no supported coding CLI is installed")
 	}
-	managerCtx, cancel := context.WithCancel(context.Background())
+	managerParent := context.Background()
+	if sessionContext, ok := cc.(*sessionCommandContext); ok && sessionContext.session != nil && sessionContext.session.Context != nil {
+		managerParent = sessionContext.session.Context
+	}
+	managerCtx, cancel := context.WithCancel(managerParent)
 	activeRuns.Store(run.ID, activeRun{cancel: cancel, project: project})
 	go func() {
 		defer closeStore()
@@ -287,12 +361,47 @@ func statusAfter(core *engine.Engine, id string) engine.RunStatus {
 }
 
 type engineCommandApprover struct {
-	cc    CommandContext
-	agent string
+	cc        CommandContext
+	agent     string
+	approvals *sync.Map
 }
 
 func (a engineCommandApprover) Ask(ctx context.Context, request permissions.Request) (permissions.Decision, error) {
-	approved, err := a.cc.Ask(PermissionRequest{Agent: a.agent, Action: string(request.Action), Target: request.Target, ExactCommand: "coding agent execution"})
+	exactCommand := request.Command
+	if exactCommand == "" {
+		exactCommand = string(request.Action) + " " + request.Target
+	}
+	permissionRequest := PermissionRequest{Agent: a.agent, Action: string(request.Action), Target: request.Target, ExactCommand: exactCommand, RunID: request.RunID}
+	cacheKey := request.RunID + "\x00" + string(request.Action) + "\x00" + request.Target
+	if a.approvals != nil {
+		if _, ok := a.approvals.Load(cacheKey); ok {
+			return permissions.Decision{Effect: permissions.Allow, Reason: "approved for this run", Rule: request.Action, Scope: permissions.Scope("run")}, nil
+		}
+	}
+	var decision permissions.Decision
+	var err error
+	if scoped, ok := a.cc.(interface {
+		AskScoped(context.Context, PermissionRequest) (permissions.Decision, error)
+	}); ok {
+		decision, err = scoped.AskScoped(ctx, permissionRequest)
+		if err == nil {
+			if emitter, ok := a.cc.(interface{ Emit(string) }); ok {
+				emitter.Emit(i18n.T("goal.event", request.RunID, string(request.Action)+": "+string(decision.Effect)+" ("+string(decision.Scope)+")"))
+			}
+		}
+		if err == nil && decision.Scope == permissions.Scope("run") && a.approvals != nil {
+			a.approvals.Store(cacheKey, struct{}{})
+		}
+		return decision, err
+	}
+	var approved bool
+	if contextual, ok := a.cc.(interface {
+		AskContext(context.Context, PermissionRequest) (bool, error)
+	}); ok {
+		approved, err = contextual.AskContext(ctx, permissionRequest)
+	} else {
+		approved, err = a.cc.Ask(permissionRequest)
+	}
 	if err != nil {
 		return permissions.Decision{Effect: permissions.Deny, Reason: "approval failed", Rule: request.Action}, err
 	}
@@ -302,7 +411,8 @@ func (a engineCommandApprover) Ask(ctx context.Context, request permissions.Requ
 		effect = permissions.Allow
 		reason = "user approved operation"
 	}
-	return permissions.Decision{Effect: effect, Reason: reason, Rule: request.Action, Scope: permissions.ProjectScope}, nil
+	decision = permissions.Decision{Effect: effect, Reason: reason, Rule: request.Action, Scope: permissions.ProjectScope}
+	return decision, nil
 }
 
 func discoveryResults(value any) []discovery.Result {

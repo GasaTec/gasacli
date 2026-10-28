@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/GasaTec/gasacli/internal/config"
 	"github.com/GasaTec/gasacli/internal/discovery"
@@ -59,7 +60,7 @@ func runOrchestration(ctx context.Context, args []string) error {
 		return errors.New("no supported coding CLI is installed")
 	}
 	policy := permissions.New(home, trust.NewStore(home))
-	approver := interactiveApprover{in: os.Stdin, out: os.Stderr}
+	approver := interactiveApprover{in: os.Stdin, out: os.Stderr, policy: policy, approvals: &sync.Map{}}
 	return runGoal(ctx, core, policy, approver, home, project, goal, agent, orchestration.SelectReviewer(results, agent))
 }
 
@@ -68,7 +69,11 @@ func runGoal(ctx context.Context, core *engine.Engine, policy *permissions.Engin
 	if err != nil {
 		return err
 	}
-	fmt.Println(i18n.T("orchestration.cli.plan", run.ID))
+	profile, profileErr := policy.Profile()
+	if profileErr != nil {
+		return profileErr
+	}
+	fmt.Println(i18n.T("goal.plan", run.ID, goal, agent, reviewer, profile))
 	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: approver, Home: home, Project: project, Goal: goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
 }
 
@@ -152,7 +157,7 @@ func runResume(ctx context.Context, args []string) error {
 		return errors.New("no supported coding CLI is installed")
 	}
 	policy := permissions.New(home, trust.NewStore(home))
-	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: interactiveApprover{in: os.Stdin, out: os.Stderr}, Home: home, Project: project, Goal: run.Goal, Developer: agent, Reviewer: orchestration.SelectReviewer(results, agent), MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
+	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: interactiveApprover{in: os.Stdin, out: os.Stderr, policy: policy, approvals: &sync.Map{}}, Home: home, Project: project, Goal: run.Goal, Developer: agent, Reviewer: orchestration.SelectReviewer(results, agent), MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
 }
 
 func selectAgent(results []discovery.Result) string {
@@ -167,23 +172,62 @@ func selectAgent(results []discovery.Result) string {
 }
 
 type interactiveApprover struct {
-	in  *os.File
-	out *os.File
+	in        *os.File
+	out       *os.File
+	policy    *permissions.Engine
+	approvals *sync.Map
 }
 
 func (a interactiveApprover) Ask(ctx context.Context, request permissions.Request) (permissions.Decision, error) {
-	decision := permissions.Decision{Effect: permissions.Deny, Reason: "approval declined or unavailable", Rule: request.Action}
+	decision := permissions.Decision{Effect: permissions.Deny, Reason: i18n.T("goal.cli.no_tty", request.Action, permissions.RedactTarget(request.Project)), Rule: request.Action}
+	cacheKey := request.RunID + "\x00" + string(request.Action) + "\x00" + request.Target
+	if a.approvals != nil {
+		if _, ok := a.approvals.Load(cacheKey); ok {
+			return permissions.Decision{Effect: permissions.Allow, Reason: i18n.T("goal.approval.run"), Rule: request.Action, Scope: permissions.Scope("run")}, nil
+		}
+	}
 	if !term.IsTerminal(int(a.in.Fd())) {
+		if a.policy != nil {
+			_ = a.record(request, decision)
+		}
 		return decision, nil
 	}
-	fmt.Fprintf(a.out, "Allow %s for %s? [y/N] ", request.Action, permissions.RedactTarget(request.Project))
+	fmt.Fprint(a.out, i18n.T("goal.cli.approval", request.Action, permissions.RedactTarget(request.Project)))
 	line, err := bufio.NewReader(a.in).ReadString('\n')
 	if err != nil && ctx.Err() != nil {
 		return decision, ctx.Err()
 	}
-	if strings.EqualFold(strings.TrimSpace(line), "y") {
+	answer := strings.ToLower(strings.TrimSpace(line))
+	if answer == "o" || answer == "u" || answer == "y" {
 		decision.Effect = permissions.Allow
-		decision.Reason = "approved for this run"
+		decision.Reason = i18n.T("goal.approval.once")
+	} else if answer == "r" || answer == "e" {
+		decision.Effect = permissions.Allow
+		decision.Reason = i18n.T("goal.approval.run")
+		decision.Scope = permissions.Scope("run")
+		if a.approvals != nil {
+			a.approvals.Store(cacheKey, struct{}{})
+		}
+	}
+	if a.policy != nil {
+		if err := a.record(request, decision); err != nil {
+			return permissions.Decision{Effect: permissions.Deny, Reason: "approval log unavailable", Rule: request.Action}, err
+		}
 	}
 	return decision, nil
+}
+
+func (a interactiveApprover) record(request permissions.Request, decision permissions.Decision) error {
+	if a.policy == nil {
+		return nil
+	}
+	event := permissions.ApprovalEvent{Decision: decision.Effect, Permission: request.Action, PolicyRevision: "current", Reason: decision.Reason}
+	event.Actor.Kind = "user"
+	event.Requester.AgentID, event.Requester.RunID = request.Agent, request.RunID
+	event.Scope.Kind, event.Scope.ID = string(decision.Scope), request.Project
+	if decision.Scope == permissions.Scope("run") {
+		event.Scope.Kind, event.Scope.ID = "run", request.RunID
+	}
+	event.Operation.Summary = permissions.RedactTarget(string(request.Action) + " " + request.Target)
+	return a.policy.RecordApproval(event)
 }

@@ -63,7 +63,7 @@ func Run(ctx context.Context, runID string, options Options) error {
 	}
 	commands := gateCommands(gates)
 	if len(commands) == 0 {
-		err = errors.New(i18n.T("orchestration.gates.required"))
+		err = errors.New(i18n.T("goal.gates.none"))
 		_ = options.Core.Transition(context.Background(), runID, engine.Blocked, err.Error())
 		return err
 	}
@@ -95,6 +95,21 @@ func Run(ctx context.Context, runID string, options Options) error {
 		executor, recordErr := newExecutor("developer", options.Developer)
 		return developerWorker{executor: executor, agent: options.Developer, project: options.Project, prompt: prompt, core: options.Core, runID: runID, eventErr: recordErr}
 	}, func(gateCtx context.Context) ([]engine.GateResult, error) {
+		gateRequest := permissions.Request{Action: "run_tests", Project: options.Project, Target: "gasacli/config.yaml", RunID: runID}
+		decision := options.Policy.Decide(gateCtx, gateRequest)
+		if decision.Effect == permissions.Ask {
+			if options.Approver == nil {
+				return nil, errors.New("orchestration: configured gates require approval")
+			}
+			var approvalErr error
+			decision, approvalErr = options.Approver.Ask(gateCtx, gateRequest)
+			if approvalErr != nil {
+				return nil, approvalErr
+			}
+		}
+		if decision.Effect != permissions.Allow {
+			return nil, fmt.Errorf("orchestration: run_tests denied: %s", decision.Reason)
+		}
 		return options.Core.RunGates(gateCtx, runID, options.Project, commands)
 	}, func(reviewCtx context.Context) (engine.ReviewResult, error) {
 		before, err := snapshot(options.Project)
@@ -108,7 +123,7 @@ func Run(ctx context.Context, runID string, options Options) error {
 			"Reviewed change snapshot SHA-256: " + before,
 		}, "\n\n")
 		executor, eventErr := newExecutor("reviewer", options.Reviewer)
-		result, err := executor.Execute(reviewCtx, adapters.Request{Agent: options.Reviewer, Project: options.Project, Prompt: prompt, Timeout: 10 * time.Minute, ReadOnly: true})
+		result, err := executor.Execute(reviewCtx, adapters.Request{Agent: options.Reviewer, Project: options.Project, Prompt: prompt, RunID: runID, Timeout: 10 * time.Minute, ReadOnly: true})
 		metricsErr := options.Core.RecordAgentMetrics(context.Background(), runID, agentMetrics("reviewer", options.Reviewer, result))
 		if *eventErr != nil {
 			return engine.ReviewResult{}, *eventErr
@@ -154,7 +169,7 @@ type developerWorker struct {
 }
 
 func (w developerWorker) Run(ctx context.Context, _ engine.Task) error {
-	result, err := w.executor.Execute(ctx, adapters.Request{Agent: w.agent, Project: w.project, Prompt: w.prompt, Timeout: 30 * time.Minute})
+	result, err := w.executor.Execute(ctx, adapters.Request{Agent: w.agent, Project: w.project, Prompt: w.prompt, RunID: w.runID, Timeout: 30 * time.Minute})
 	metricsErr := w.core.RecordAgentMetrics(context.Background(), w.runID, agentMetrics("developer", w.agent, result))
 	if w.eventErr != nil && *w.eventErr != nil {
 		return *w.eventErr

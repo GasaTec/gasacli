@@ -1,0 +1,19 @@
+{
+  "tui.goal.tip": "runs with gates, review, and profile sandbox",
+  "goal.plan": "Run %s: %s via %s (reviewer: %s). Agent sandbox follows the %s profile; GasaCLI retains project, gate, network, and Git checks.",
+  "goal.started": "Run %s started. Use /status, /runs, or /cancel %s.",
+  "goal.event": "Run %s: %s",
+  "goal.blocked": "Run %s ended in %s: %s",
+  "goal.done": "Run %s completed.",
+  "goal.gates.none": "No verification gates are configured. Add test, build, or lint commands to gasacli/config.yaml, then start the run again.",
+  "goal.cli.approval": "Allow %s for %s? [o=once, r=this run, N=deny]: ",
+  "goal.cli.no_tty": "Approval required for %s on %s; run this command in an interactive terminal.",
+  "goal.approval.once": "Allow once",
+  "goal.approval.run": "Allow for this run",
+  "goal.approval.deny": "Deny",
+  "goal.approval.help": "Use left/right and Enter. Default: Deny.",
+  "tui.quit.active": "An orchestration run is active. Cancel it and quit?",
+  "tui.quit.stay": "Keep running",
+  "tui.quit.cancel": "Cancel run and quit",
+  "goal.agent.profile": "Agent execution uses the selected profile sandbox. GasaCLI still checks project writes, configured gates, network access, and Git mutations."
+}

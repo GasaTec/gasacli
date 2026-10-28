@@ -13,7 +13,7 @@
 | /doctor     executar diagnóstico local                                       |
 | Enter       enviar mensagem ou comando                                       |
 | Alt+Enter   inserir uma nova linha                                           |
-| /goal       planejado; nenhuma tarefa será iniciada                          |
+| /goal       executa com verificacoes, revisao e sandbox do perfil            |
 |                                                                              |
 +------------------------------------------------------------------------------+
 +------------------------------------------------------------------------------+

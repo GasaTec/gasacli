@@ -1,0 +1,19 @@
+{
+  "tui.goal.tip": "executa com verificacoes, revisao e sandbox do perfil",
+  "goal.plan": "Execucao %s: %s com %s (revisor: %s). O sandbox do agente segue o perfil %s; o GasaCLI mantem as verificacoes de projeto, gates, rede e Git.",
+  "goal.started": "Execucao %s iniciada. Use /status, /runs ou /cancel %s.",
+  "goal.event": "Execucao %s: %s",
+  "goal.blocked": "Execucao %s terminou em %s: %s",
+  "goal.done": "Execucao %s concluida.",
+  "goal.gates.none": "Nenhuma verificacao configurada. Adicione comandos test, build ou lint em gasacli/config.yaml e inicie a execucao novamente.",
+  "goal.cli.approval": "Permitir %s para %s? [u=uma vez, e=nesta execucao, N=negar]: ",
+  "goal.cli.no_tty": "A aprovacao de %s para %s e necessaria; execute este comando em um terminal interativo.",
+  "goal.approval.once": "Permitir uma vez",
+  "goal.approval.run": "Permitir nesta execucao",
+  "goal.approval.deny": "Negar",
+  "goal.approval.help": "Use esquerda/direita e Enter. Padrao: Negar.",
+  "tui.quit.active": "Ha uma execucao ativa. Cancelar e sair?",
+  "tui.quit.stay": "Continuar executando",
+  "tui.quit.cancel": "Cancelar e sair",
+  "goal.agent.profile": "A execucao do agente usa o sandbox do perfil selecionado. O GasaCLI continua verificando escritas no projeto, gates configurados, acesso a rede e mutacoes Git."
+}

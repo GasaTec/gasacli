@@ -12,8 +12,8 @@
  |  Alvo: vault/note.md                                                       |
  |  Comando: write note                                                       |
  |                                                                            |
- |    Sim    > Não                                                            |
+ |    Permitir uma vez      Permitir nesta execucao    > Negar                |
  |                                                                            |
- |  Use ←/→ ou y/n e pressione Enter. Padrão: Não.                            |
+ |  Use esquerda/direita e Enter. Padrao: Negar.                              |
  |                                                                            |
  +----------------------------------------------------------------------------+

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -13,13 +14,12 @@ import (
 )
 
 func TestScriptedSession(t *testing.T) {
-	t.Setenv("GASACLI_LANG", "pt-BR")
 	i18n.SetLanguage("pt-BR")
 	var out bytes.Buffer
 	store := trust.NewStore(t.TempDir())
 	project := t.TempDir()
 	agents, doctor := 0, 0
-	s := Session{In: strings.NewReader("y\n\n/help\n/agents\n/doctor\n/status\n/goal implement\nhello\n/unknown\n/exit\nignored\n"), Out: &out, Language: "pt-BR", ProjectPath: project, TrustStore: store,
+	s := Session{In: strings.NewReader("y\n\n/help\n/agents\n/doctor\n/status\n/goal implement\nhello\n/unknown\n/exit\nignored\n"), Out: &out, ProjectPath: project, TrustStore: store,
 		Agents: func(w io.Writer) { agents++; fmt.Fprintln(w, "agents callback") },
 		Doctor: func(w io.Writer) { doctor++; fmt.Fprintln(w, "doctor callback") },
 	}
@@ -98,6 +98,32 @@ func TestTrustedSessionSkipsQuestion(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "[y/N]") {
 		t.Fatal("asked again for trusted project")
+	}
+}
+
+func TestPermissionsCommandAndPortugueseAlias(t *testing.T) {
+	home, project := t.TempDir(), t.TempDir()
+	t.Setenv("GASACLI_HOME", home)
+	t.Setenv("GASACLI_LANG", "pt-BR")
+	i18n.SetLanguage("pt-BR")
+	store := trust.NewStore(home)
+	if err := store.Grant(project); err != nil {
+		t.Fatal(err)
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Grant(cwd); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	s := Session{In: strings.NewReader("/permissions\n/permissoes\n/exit\n"), Out: &out, ProjectPath: project, TrustStore: store}
+	if err := s.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); strings.Count(got, "Perfil ativo: balanced") != 2 || !strings.Contains(got, "read_project — Ler arquivos do projeto confiável: allow") {
+		t.Fatalf("permissions views did not render in both commands: %s", got)
 	}
 }
 

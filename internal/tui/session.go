@@ -102,17 +102,24 @@ func (s *Session) Run() error {
 			commandCtx, cancel := context.WithCancel(parent)
 			response, err = executeCommand(commandCtx, s, project, true, input, func(chunk string) {
 				_, _ = fmt.Fprintln(s.Out, chunk)
-			}, func(ctx context.Context, request PermissionRequest) (bool, error) {
-				if _, writeErr := fmt.Fprintf(s.Out, "Authorize %s on %s? [y/N]: ", request.Action, request.Target); writeErr != nil {
-					return false, writeErr
+			}, func(ctx context.Context, request PermissionRequest) (ApprovalChoice, error) {
+				if _, writeErr := fmt.Fprint(s.Out, i18n.T("goal.cli.approval", request.Action, request.Target)); writeErr != nil {
+					return ApprovalDeny, writeErr
 				}
 				if !scanner.Scan() {
 					if scanErr := scanner.Err(); scanErr != nil {
-						return false, scanErr
+						return ApprovalDeny, scanErr
 					}
-					return false, nil
+					return ApprovalDeny, nil
 				}
-				return strings.EqualFold(strings.TrimSpace(scanner.Text()), "y"), nil
+				switch strings.ToLower(strings.TrimSpace(scanner.Text())) {
+				case "o", "u", "y":
+					return ApprovalOnce, nil
+				case "r", "e":
+					return ApprovalRun, nil
+				default:
+					return ApprovalDeny, nil
+				}
 			})
 			cancel()
 			if errors.Is(err, errExitCommand) {

@@ -31,12 +31,12 @@ const (
 	ProfileScope Scope = "profile default"
 )
 
-var Canonical = []Permission{"read_project", "write_project", "run_tests", "execute_commands", "install_dependencies", "network_access", "git_mutations", "read_vault", "write_vault", "issue_write", "plugin_install", "secret_access"}
+var Canonical = []Permission{"read_project", "write_project", "run_tests", "agent_run", "execute_commands", "install_dependencies", "network_access", "git_mutations", "read_vault", "write_vault", "issue_write", "plugin_install", "secret_access"}
 
 var profiles = map[string]map[Permission]Effect{
-	"restricted": {"read_project": Allow, "write_project": Ask, "run_tests": Ask, "execute_commands": Deny, "install_dependencies": Deny, "network_access": Deny, "git_mutations": Deny, "read_vault": Deny, "write_vault": Deny, "issue_write": Deny, "plugin_install": Deny, "secret_access": Deny},
-	"balanced":   {"read_project": Allow, "write_project": Allow, "run_tests": Allow, "execute_commands": Ask, "install_dependencies": Ask, "network_access": Ask, "git_mutations": Ask, "read_vault": Ask, "write_vault": Ask, "issue_write": Ask, "plugin_install": Ask, "secret_access": Deny},
-	"autonomous": {"read_project": Allow, "write_project": Allow, "run_tests": Allow, "execute_commands": Allow, "install_dependencies": Ask, "network_access": Ask, "git_mutations": Ask, "read_vault": Ask, "write_vault": Ask, "issue_write": Ask, "plugin_install": Ask, "secret_access": Ask},
+	"restricted": {"read_project": Allow, "write_project": Ask, "run_tests": Ask, "agent_run": Allow, "execute_commands": Deny, "install_dependencies": Deny, "network_access": Deny, "git_mutations": Deny, "read_vault": Deny, "write_vault": Deny, "issue_write": Deny, "plugin_install": Deny, "secret_access": Deny},
+	"balanced":   {"read_project": Allow, "write_project": Allow, "run_tests": Allow, "agent_run": Allow, "execute_commands": Ask, "install_dependencies": Ask, "network_access": Ask, "git_mutations": Ask, "read_vault": Ask, "write_vault": Ask, "issue_write": Ask, "plugin_install": Ask, "secret_access": Deny},
+	"autonomous": {"read_project": Allow, "write_project": Allow, "run_tests": Allow, "agent_run": Allow, "execute_commands": Allow, "install_dependencies": Ask, "network_access": Ask, "git_mutations": Ask, "read_vault": Ask, "write_vault": Ask, "issue_write": Ask, "plugin_install": Ask, "secret_access": Ask},
 }
 
 type Policy struct {
@@ -47,6 +47,7 @@ type Request struct {
 	Agent   string     `json:"agent_id"`
 	Action  Permission `json:"permission"`
 	Target  string     `json:"target,omitempty"`
+	Command string     `json:"-"`
 	Project string     `json:"project,omitempty"`
 	RunID   string     `json:"run_id,omitempty"`
 }

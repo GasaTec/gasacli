@@ -1,6 +1,6 @@
 # ADR-0019 — Canonical permission policy and approvals
 
-Status: Accepted design, 2026-10-28. Implementation is pending.
+Status: Accepted design, 2026-10-28. `agent_run` profile enforcement is implemented in the local adapters; provider-mediated tools still depend on each CLI's sandbox behavior.
 
 ## Context
 
@@ -13,6 +13,7 @@ ADR-0013 and `docs/spec/03-seguranca-e-permissoes.md` use overlapping permission
 | `read_project` | Read files within the trusted project boundary. |
 | `write_project` | Create, edit or delete project files. |
 | `run_tests` | Run configured test, lint, typecheck and build checks. |
+| `agent_run` | Start the coding agent selected by the user for an explicitly approved run plan. It is constrained by the active profile's provider sandbox and does not grant arbitrary local command execution. |
 | `execute_commands` | Run other local commands and child processes. |
 | `install_dependencies` | Install or update project/runtime dependencies. |
 | `network_access` | Make network requests or allow network access to child processes. |
@@ -34,6 +35,7 @@ ADR-0013 and `docs/spec/03-seguranca-e-permissoes.md` use overlapping permission
 | `read_project` | allow | allow | allow |
 | `write_project` | ask | allow | allow |
 | `run_tests` | ask | allow | allow |
+| `agent_run` | allow | allow | allow |
 | `execute_commands` | deny | ask | allow |
 | `install_dependencies` | deny | ask | ask |
 | `network_access` | deny | ask | ask |
@@ -45,6 +47,8 @@ ADR-0013 and `docs/spec/03-seguranca-e-permissoes.md` use overlapping permission
 | `secret_access` | deny | deny | ask |
 
 These defaults are a design baseline, not a promise that arbitrary commands can safely be classified as tests. Destructive operations, credential disclosure, policy changes and actions outside the trusted project boundary remain subject to hard constraints and explicit approval regardless of profile.
+
+`agent_run` is `allow` in each profile because submitting `/goal` or `gasa run` is the user's approval to start that selected agent under the profile sandbox. The adapter still enforces `write_project` before launch and GasaCLI runs configured test/build/lint commands itself; provider tool prompts and their fine-grained network/Git enforcement depend on each CLI's sandbox behavior. Claude Code uses `acceptEdits` in all profiles and disallows `Bash`, `WebFetch`, and `WebSearch` in restricted mode; Codex uses `workspace-write` with `--ask-for-approval never` for restricted, `workspace-write` with `on-request` for balanced, and `danger-full-access` with `on-request` for autonomous. Reviewer sessions always use read-only sandboxes.
 
 ## Scope precedence and evaluation
 

@@ -11,9 +11,9 @@ import (
 
 func TestProfileMatrix(t *testing.T) {
 	want := map[string][]Effect{
-		"restricted": {Allow, Ask, Ask, Deny, Deny, Deny, Deny, Deny, Deny, Deny, Deny, Deny},
-		"balanced":   {Allow, Allow, Allow, Ask, Ask, Ask, Ask, Ask, Ask, Ask, Ask, Deny},
-		"autonomous": {Allow, Allow, Allow, Allow, Ask, Ask, Ask, Ask, Ask, Ask, Ask, Ask},
+		"restricted": {Allow, Ask, Ask, Allow, Deny, Deny, Deny, Deny, Deny, Deny, Deny, Deny, Deny},
+		"balanced":   {Allow, Allow, Allow, Allow, Ask, Ask, Ask, Ask, Ask, Ask, Ask, Ask, Deny},
+		"autonomous": {Allow, Allow, Allow, Allow, Allow, Ask, Ask, Ask, Ask, Ask, Ask, Ask, Ask},
 	}
 	for profile, effects := range want {
 		t.Run(profile, func(t *testing.T) {

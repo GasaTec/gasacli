@@ -27,7 +27,16 @@ type PermissionRequest struct {
 	Action       string
 	Target       string
 	ExactCommand string
+	RunID        string
 }
+
+type ApprovalChoice uint8
+
+const (
+	ApprovalOnce ApprovalChoice = iota
+	ApprovalRun
+	ApprovalDeny
+)
 
 // CommandHandler returns the user-visible result for a command.
 type CommandHandler func(context.Context, CommandContext, []string) (string, error)
