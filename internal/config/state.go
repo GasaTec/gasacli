@@ -17,6 +17,11 @@ type OnboardingState struct {
 	Completed   bool      `json:"completed"`
 	Version     int       `json:"version"`
 	CompletedAt time.Time `json:"completed_at"`
+	CurrentStep int       `json:"current_step,omitempty"`
+	Language    string    `json:"language,omitempty"`
+	Permissions string    `json:"permissions,omitempty"`
+	Dashboard   string    `json:"dashboard,omitempty"`
+	Edition     string    `json:"edition,omitempty"`
 }
 
 func LoadState(home string) (State, error) {
@@ -35,7 +40,27 @@ func LoadState(home string) (State, error) {
 }
 
 func SaveOnboardingState(home string, now time.Time) error {
-	state := State{Onboarding: OnboardingState{Completed: true, Version: 1, CompletedAt: now.UTC()}}
+	state, err := LoadState(home)
+	if err != nil {
+		return err
+	}
+	state.Onboarding.Completed = true
+	state.Onboarding.Version = 1
+	state.Onboarding.CompletedAt = now.UTC()
+	return saveState(home, state)
+}
+
+func SaveOnboardingProgress(home string, onboarding OnboardingState) error {
+	state, err := LoadState(home)
+	if err != nil {
+		return err
+	}
+	onboarding.Version = 2
+	state.Onboarding = onboarding
+	return saveState(home, state)
+}
+
+func saveState(home string, state State) error {
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode onboarding state: %w", err)

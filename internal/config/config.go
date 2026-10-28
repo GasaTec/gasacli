@@ -125,7 +125,11 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	f, err := os.Open(filepath.Join(home, "config.yaml"))
+	return loadConfigFile(filepath.Join(home, "config.yaml"))
+}
+
+func loadConfigFile(path string) (Config, error) {
+	f, err := os.Open(path)
 	if err != nil {
 		return Config{}, fmt.Errorf("open config: %w", err)
 	}
@@ -157,4 +161,45 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("invalid web.port: expected 1–65535")
 	}
 	return cfg, nil
+}
+
+func SaveWebMode(home, mode string) error {
+	if mode != "auto" && mode != "manual" && mode != "always" {
+		return fmt.Errorf("invalid web.mode: expected auto, manual or always")
+	}
+	path := filepath.Join(home, "config.yaml")
+	cfg, err := loadConfigFile(path)
+	if err != nil {
+		return err
+	}
+	cfg.Web.Mode = mode
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("encode config: %w", err)
+	}
+	tmp, err := os.CreateTemp(home, ".config-*")
+	if err != nil {
+		return fmt.Errorf("create temporary config: %w", err)
+	}
+	name := tmp.Name()
+	defer os.Remove(name)
+	if err := tmp.Chmod(0600); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(name, path); err != nil {
+		return fmt.Errorf("publish config: %w", err)
+	}
+	return nil
 }
