@@ -2,4 +2,5 @@
 *.sh text eol=lf
 *.ps1 text eol=crlf
 internal/web/static/* text eol=lf
+internal/tui/testdata/*.golden text eol=lf
 *.go text eol=lf
