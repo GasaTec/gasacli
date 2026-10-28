@@ -128,13 +128,14 @@ valid_version() (
     export LC_ALL
     version=$1
     case "$version" in v*) version=${version#v} ;; *) return 1 ;; esac
-    case "$version" in *-*) prerelease=${version#*-}; core=${version%%-*} ;; *) prerelease=; core=$version ;; esac
+    has_pre=0
+    case "$version" in *-*) has_pre=1; prerelease=${version#*-}; core=${version%%-*} ;; *) prerelease=; core=$version ;; esac
     case "$core" in *.*.*) major=${core%%.*}; remainder=${core#*.}; minor=${remainder%%.*}; patch=${remainder#*.} ;; *) return 1 ;; esac
     case "$patch" in *.*) return 1 ;; esac
     for number in "$major" "$minor" "$patch"; do
         case "$number" in ''|*[!0-9]*) return 1 ;; esac
     done
-    [ -n "$prerelease" ] || return 0
+    [ "$has_pre" -eq 1 ] || return 0
     while :; do
         case "$prerelease" in
             *.*) identifier=${prerelease%%.*}; prerelease=${prerelease#*.}; more=1 ;;
