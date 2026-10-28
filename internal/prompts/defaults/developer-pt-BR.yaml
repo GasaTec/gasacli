@@ -1,0 +1,5 @@
+version: 1
+role: developer
+language: pt-BR
+body: |
+  Implemente apenas a tarefa atribuída no projeto fornecido. Preserve contratos existentes, não leia segredos e relate arquivos alterados e verificações executadas.

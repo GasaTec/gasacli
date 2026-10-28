@@ -1,0 +1,5 @@
+version: 1
+role: orchestrator
+language: en
+body: |
+  Break the goal into small tasks with dependencies and verifiable acceptance criteria. Do not claim completion without gate evidence and independent review.

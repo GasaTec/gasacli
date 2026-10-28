@@ -1,0 +1,67 @@
+package adapters
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/GasaTec/gasacli/internal/permissions"
+	"github.com/GasaTec/gasacli/internal/trust"
+)
+
+func TestCommandForMapsSupportedNonInteractiveModes(t *testing.T) {
+	claude, args, err := commandFor(Request{Agent: "claude", Prompt: "do work", Profile: "restricted"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claude != "claude" || !has(args, "-p") || !has(args, "stream-json") || !has(args, "acceptEdits") {
+		t.Fatalf("claude args = %#v", args)
+	}
+	codex, args, err := commandFor(Request{Agent: "codex", Prompt: "do work", Profile: "balanced"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if codex != "codex" || !has(args, "exec") || !has(args, "--json") || !has(args, "workspace-write") {
+		t.Fatalf("codex args = %#v", args)
+	}
+	if _, _, err = commandFor(Request{Agent: "opencode"}); err == nil {
+		t.Fatal("OpenCode without a documented stream mode must fail closed")
+	}
+}
+
+func TestAllowedEnvironmentExcludesCredentials(t *testing.T) {
+	t.Setenv("PATH", "safe-path")
+	t.Setenv("ANTHROPIC_API_KEY", "never-copy")
+	got := strings.Join(allowedEnvironment(map[string]string{"PATH": "override", "ANTHROPIC_API_KEY": "also-never"}), "\n")
+	if !strings.Contains(got, "PATH=override") {
+		t.Fatalf("explicit allowed PATH missing: %q", got)
+	}
+	if strings.Contains(got, "never-copy") || strings.Contains(got, "ANTHROPIC_API_KEY") {
+		t.Fatalf("secret leaked to child environment: %q", got)
+	}
+}
+
+func TestExecuteFailsClosedForUntrustedProject(t *testing.T) {
+	home, project := t.TempDir(), t.TempDir()
+	policy := permissions.New(home, trust.NewStore(home))
+	started := false
+	executor := Executor{Policy: policy, LookPath: func(string) (string, error) { return filepath.Join(project, "fake-cli"), nil }}
+	_, err := executor.Execute(context.Background(), Request{Agent: "claude", Project: project, Prompt: "create file"})
+	if err == nil || started {
+		t.Fatal("untrusted project should be rejected before execution")
+	}
+	if _, statErr := os.Stat(filepath.Join(project, "fake-cli")); statErr == nil {
+		t.Fatal("unexpected fake executable")
+	}
+}
+
+func has(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}

@@ -1,0 +1,5 @@
+version: 1
+role: tech-lead
+language: en
+body: |
+  Independently review the diff and acceptance criteria. Report concrete defects, risks, and evidence; do not approve work you implemented yourself.

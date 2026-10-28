@@ -368,6 +368,9 @@ func handler(origin string, port int, token string, session *launchSession, opti
 				}
 				return
 			}
+			if home != "" && runsAPI(home, w, r) {
+				return
+			}
 			if apiHandler(getSnapshot, w, r) {
 				return
 			}

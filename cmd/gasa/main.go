@@ -146,6 +146,14 @@ func run(ctx context.Context, args []string) error {
 			return diagnostics(ctx, os.Stdout, *doctorJSON)
 		case rest[0] == "permissions":
 			return runPermissions(ctx, rest[1:], os.Stdout)
+		case rest[0] == "run":
+			return runOrchestration(ctx, rest[1:])
+		case rest[0] == "runs":
+			return runRuns(rest[1:])
+		case rest[0] == "prompts":
+			return runPrompts(ctx, rest[1:], os.Stdout)
+		case rest[0] == "resume":
+			return runResume(ctx, rest[1:])
 		case len(rest) == 2 && rest[0] == "web" && rest[1] == "open":
 			server, err := startDashboard(ctx, cfg)
 			if err != nil {
@@ -423,6 +431,11 @@ func help() {
   gasa --version         Show version and build information
   gasa [--no-browser]     Open terminal shell and local dashboard
   gasa doctor            Discover installed coding CLIs
+  gasa run <goal>        Start a local orchestration run
+  gasa runs              List saved orchestration runs
+  gasa resume <run-id>   Resume an interrupted run
+  gasa prompts show|path|reset [role]
+                         Inspect or reset built-in role prompts
   gasa setup             Reopen agent and app onboarding
   gasa web open          Start dashboard and wait for Ctrl+C
   gasa reset [--all] [--include-backups] [--dry-run] [--yes]
