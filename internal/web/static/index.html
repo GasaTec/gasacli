@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GasaCLI</title>
+<style>body{font:16px system-ui;background:#101722;color:#e9f1fa;max-width:760px;margin:12vh auto;padding:24px}section{border:1px solid #35465c;border-radius:16px;padding:24px}small{color:#aebed0}</style>
+<section><h1>GasaCLI</h1><p>Dashboard local — pre-alpha</p><small>Monitoramento, agentes e analytics ainda não implementados. Nenhum dado de tokens ou custo foi coletado.</small></section>
+<script>
+(() => {
+  const code = new URLSearchParams(location.hash.slice(1)).get('code');
+  history.replaceState(null, '', location.pathname + location.search);
+  if (!code) return;
+  fetch('/api/session', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  }).then(response => {
+    if (!response.ok) throw new Error('Session unavailable');
+  }).catch(() => {
+    const message = document.createElement('p');
+    message.textContent = 'Não foi possível iniciar a sessão. Abra o dashboard novamente pelo GasaCLI.';
+    document.querySelector('section').append(message);
+  });
+})();
+</script>
+</html>

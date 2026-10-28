@@ -1,0 +1,32 @@
+{
+  "name": "gasacli",
+  "version": "0.0.0",
+  "description": "Install and run the GasaCLI binary",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "gasa": "bin/gasa.js",
+    "gasacli": "bin/gasa.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js",
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GasaTec/gasacli.git"
+  },
+  "homepage": "https://github.com/GasaTec/gasacli#readme",
+  "bugs": {
+    "url": "https://github.com/GasaTec/gasacli/issues"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "scripts/postinstall.js",
+    "LICENSE",
+    "README.md"
+  ]
+}
