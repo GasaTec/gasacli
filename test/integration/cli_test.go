@@ -43,12 +43,12 @@ func TestCLI(t *testing.T) {
 		for _, entry := range os.Environ() {
 			key, _, _ := strings.Cut(entry, "=")
 			switch strings.ToUpper(key) {
-			case "GASACLI_HOME", "PATH", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME":
+			case "GASACLI_HOME", "GASACLI_LANG", "PATH", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME":
 				continue
 			}
 			cmd.Env = append(cmd.Env, entry)
 		}
-		cmd.Env = append(cmd.Env, "GASACLI_HOME="+home, "PATH="+filepath.Join(filepath.Dir(home), "empty-path"), "HOME="+filepath.Join(filepath.Dir(home), "user"), "USERPROFILE="+filepath.Join(filepath.Dir(home), "user"), "APPDATA="+filepath.Join(filepath.Dir(home), "appdata"), "LOCALAPPDATA="+filepath.Join(filepath.Dir(home), "localappdata"), "XDG_CONFIG_HOME="+filepath.Join(filepath.Dir(home), "xdg"))
+		cmd.Env = append(cmd.Env, "GASACLI_HOME="+home, "GASACLI_LANG=pt-BR", "PATH="+filepath.Join(filepath.Dir(home), "empty-path"), "HOME="+filepath.Join(filepath.Dir(home), "user"), "USERPROFILE="+filepath.Join(filepath.Dir(home), "user"), "APPDATA="+filepath.Join(filepath.Dir(home), "appdata"), "LOCALAPPDATA="+filepath.Join(filepath.Dir(home), "localappdata"), "XDG_CONFIG_HOME="+filepath.Join(filepath.Dir(home), "xdg"))
 		output, err := cmd.CombinedOutput()
 		if strings.Contains(string(output), "#token=") || strings.Contains(string(output), "#code=") {
 			t.Fatal("session credential leaked into terminal output")
