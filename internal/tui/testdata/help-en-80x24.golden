@@ -2,7 +2,7 @@ GasaCLI commands:
   /agents          Discover installed coding agents
   /backup          Create a local backup
   /backups         List local backups
-  /brain           Search the local knowledge base (planned; see issue #11)
+  /brain           Search the local knowledge base
   /config          Manage effective configuration
   /doctor          Run local diagnostics
   /exit            Close GasaCLI
@@ -15,6 +15,6 @@ GasaCLI commands:
   /restore         Restore local data
   /resume          Resume a saved run (planned; see issue #11)
   /setup           Review setup and install guidance
-  /skills          Manage local skills (planned; see issue #11)
+  /skills          Manage local skills
   /status          Show the current session
   /web             Open or inspect the local dashboard
