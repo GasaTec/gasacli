@@ -179,6 +179,11 @@ func (s *CLISender) Send(ctx context.Context, request SendRequest) (<-chan Event
 		timeout = defaultSendTimeout
 	}
 	sendCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer func() {
+		if !streamStarted {
+			cancel()
+		}
+	}()
 	commandFactory := s.Command
 	if commandFactory == nil {
 		commandFactory = exec.CommandContext
