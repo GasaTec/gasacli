@@ -82,7 +82,7 @@ func TestWizardGoldenTerminalSizes(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got != string(want) {
+				if got != normalizeWizardGolden(string(want)) {
 					t.Fatalf("wizard %s view differs from %s\n--- got ---\n%s\n--- want ---\n%s", screen.name, path, got, want)
 				}
 			})
@@ -91,6 +91,7 @@ func TestWizardGoldenTerminalSizes(t *testing.T) {
 }
 
 func normalizeWizardGolden(view string) string {
+	view = strings.ReplaceAll(view, "\r\n", "\n")
 	lines := strings.Split(view, "\n")
 	for i := range lines {
 		lines[i] = strings.TrimRight(lines[i], " \t")
