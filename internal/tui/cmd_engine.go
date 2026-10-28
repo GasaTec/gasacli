@@ -95,7 +95,7 @@ func statusCommand(ctx context.Context, cc CommandContext, _ []string) (string, 
 		return "", err
 	}
 	for _, run := range runs {
-		if run.Project == project {
+		if runBelongsToProject(run, project) {
 			return fmt.Sprintf("Run %s: %s — %s", run.ID, run.Status, run.Goal), nil
 		}
 	}
@@ -127,7 +127,7 @@ func resumeCommand(ctx context.Context, cc CommandContext, args []string) (strin
 			return "", listErr
 		}
 		for _, candidate := range runs {
-			if candidate.Project == project && (candidate.Status == engine.Blocked || candidate.Status == engine.Running || candidate.Status == engine.Planning || candidate.Status == engine.Fixing || candidate.Status == engine.Gates || candidate.Status == engine.Review) {
+			if runBelongsToProject(candidate, project) && (candidate.Status == engine.Blocked || candidate.Status == engine.Running || candidate.Status == engine.Planning || candidate.Status == engine.Fixing || candidate.Status == engine.Gates || candidate.Status == engine.Review) {
 				run = candidate
 				break
 			}
@@ -141,7 +141,7 @@ func resumeCommand(ctx context.Context, cc CommandContext, args []string) (strin
 		closeStore()
 		return "", err
 	}
-	if run.Project != project {
+	if !runBelongsToProject(run, project) {
 		closeStore()
 		return "", errors.New("run belongs to another project")
 	}
@@ -187,7 +187,7 @@ func cancelCommand(ctx context.Context, cc CommandContext, args []string) (strin
 			return "", err
 		}
 		for _, run := range runs {
-			if run.Project == project && (run.Status == engine.Running || run.Status == engine.Planning || run.Status == engine.TrustPending || run.Status == engine.Fixing || run.Status == engine.Gates || run.Status == engine.Review) {
+			if runBelongsToProject(run, project) && (run.Status == engine.Running || run.Status == engine.Planning || run.Status == engine.TrustPending || run.Status == engine.Fixing || run.Status == engine.Gates || run.Status == engine.Review) {
 				id = run.ID
 				break
 			}
@@ -200,7 +200,7 @@ func cancelCommand(ctx context.Context, cc CommandContext, args []string) (strin
 	if err != nil {
 		return "", err
 	}
-	if run.Project != project {
+	if !runBelongsToProject(run, project) {
 		return "", errors.New("run belongs to another project")
 	}
 	if value, ok := activeRuns.Load(id); ok {
@@ -233,7 +233,7 @@ func runsCommand(ctx context.Context, cc CommandContext, args []string) (string,
 	}
 	lines := []string{}
 	for _, run := range runs {
-		if run.Project == project {
+		if runBelongsToProject(run, project) {
 			lines = append(lines, fmt.Sprintf("%s  %-12s  %s", run.ID, run.Status, run.Goal))
 		}
 	}
@@ -241,6 +241,11 @@ func runsCommand(ctx context.Context, cc CommandContext, args []string) (string,
 		return "No orchestration runs.", nil
 	}
 	return strings.Join(lines, "\n"), nil
+}
+
+func runBelongsToProject(run engine.Run, project string) bool {
+	canonical, err := trust.Canonical(run.Project)
+	return err == nil && canonical == project
 }
 
 func openCommandEngine(cc CommandContext) (*engine.Engine, func(), error) {
