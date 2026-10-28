@@ -2,7 +2,7 @@
     "promptFile":  "docs/design/prompts/web-03-project-overview.md",
     "stitchScreenId":  "2abbbbdb1234427ba79d8abc1b84f31d",
     "generatedAt":  "2026-10-28",
-    "status":  "ok",
+    "status":  "failed",
     "externalResources":  false,
     "qualityReview":  {
                           "iterations":  2,

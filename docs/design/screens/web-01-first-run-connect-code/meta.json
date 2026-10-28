@@ -1,17 +1,17 @@
 {
-  "promptFile": "docs/design/prompts/web-01-first-run-connect-code.md",
-  "stitchScreenId": "31a1afc597984e2bbd2b24f316752947",
-  "generatedAt": "2026-10-28 08:54:33 UTC",
-  "status": "ok",
-  "externalResources": false,
-  "qualityReview": {
-    "iterations": 1,
-    "reviewed": true,
-    "defectsResolved": [
-      "removed simulated code expiry, authentication state, extra onboarding steps and unsupported account/telemetry guarantees"
-    ],
-    "remainingDefects": [
-      "side-pane description expands Community offline to a locally-on-device claim beyond sample copy"
-    ]
-  }
+    "promptFile":  "docs/design/prompts/web-01-first-run-connect-code.md",
+    "stitchScreenId":  "31a1afc597984e2bbd2b24f316752947",
+    "generatedAt":  "2026-10-28 08:54:33 UTC",
+    "status":  "failed",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "removed simulated code expiry, authentication state, extra onboarding steps and unsupported account/telemetry guarantees"
+                                              ],
+                          "remainingDefects":  [
+                                                   "side-pane description expands Community offline to a locally-on-device claim beyond sample copy"
+                                               ]
+                      }
 }

@@ -2,7 +2,7 @@
     "promptFile":  "docs/design/prompts/web-09-project-analytics.md",
     "stitchScreenId":  "ed63caea555d4abbaa2bda088ab07962",
     "generatedAt":  "2026-10-28",
-    "status":  "ok",
+    "status":  "failed",
     "externalResources":  false,
     "qualityReview":  {
                           "iterations":  2,

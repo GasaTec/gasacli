@@ -2,7 +2,7 @@
     "promptFile":  "docs/design/prompts/web-20-sync-status.md",
     "stitchScreenId":  "c6ae73b83d3945f3a57c1c6bfb514bb5",
     "generatedAt":  "2026-10-28",
-    "status":  "ok",
+    "status":  "failed",
     "externalResources":  false,
     "qualityReview":  {
                           "iterations":  2,

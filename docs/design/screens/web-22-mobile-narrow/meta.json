@@ -1,0 +1,20 @@
+{
+    "promptFile":  "docs/design/prompts/web-22-mobile-narrow.md",
+    "stitchScreenId":  "fd9c8d03af3144e88dec04a37d30a852",
+    "generatedAt":  "2026-10-28",
+    "status":  "ok",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  0,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "uses narrow single-pane layout with details drawer",
+                                                  "uses only vitrine-api, session, working, gpt-6-luna and drawer values; other fields N/D",
+                                                  "no prompt/meta copy or external resources; exact pt-BR privacy sentence present",
+                                                  "PNG within 600 KiB"
+                                              ],
+                          "remainingDefects":  [
+
+                                               ]
+                      }
+}

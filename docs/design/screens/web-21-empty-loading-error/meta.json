@@ -1,0 +1,21 @@
+{
+    "promptFile":  "docs/design/prompts/web-21-empty-loading-error.md",
+    "stitchScreenId":  "a8d66bf38fe346e18c2daa7641b45d74",
+    "generatedAt":  "2026-10-28",
+    "status":  "failed",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  1,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "kept five requested state variants and only specified sample values",
+                                                  "left retained data, error details, permission cause, and network status as N/D",
+                                                  "removed unsupported recovery, buffer, check, and guarantee claims",
+                                                  "removed external HTML resources",
+                                                  "PNG below 600 KiB and exact pt-BR privacy sentence present"
+                                              ],
+                          "remainingDefects":  [
+                                                   "A left-rail note still mentions search filters and keyboard shortcuts, which are not specified."
+                                               ]
+                      }
+}

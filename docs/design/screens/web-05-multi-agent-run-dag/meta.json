@@ -2,7 +2,7 @@
     "promptFile":  "docs/design/prompts/web-05-multi-agent-run-dag.md",
     "stitchScreenId":  "11cb21d0f42c4c2a848919cb7bbd8a07",
     "generatedAt":  "2026-10-28",
-    "status":  "ok",
+    "status":  "failed",
     "externalResources":  false,
     "qualityReview":  {
                           "iterations":  2,

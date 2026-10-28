@@ -2,7 +2,7 @@
     "promptFile":  "docs/design/prompts/web-17-backup-restore.md",
     "stitchScreenId":  "48711a259997473cad1941cbc6c13338",
     "generatedAt":  "2026-10-28",
-    "status":  "ok",
+    "status":  "failed",
     "externalResources":  false,
     "qualityReview":  {
                           "iterations":  2,

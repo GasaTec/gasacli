@@ -1,18 +1,18 @@
 {
-  "promptFile": "docs/design/prompts/tui-14-goal-run-dag.md",
-  "stitchScreenId": "facc9be3fc87446d8facb8c4cbb69209",
-  "generatedAt": "2026-10-28 07:08:52 UTC",
-  "status": "ok",
-  "externalResources": false,
-  "qualityReview": {
-    "iterations": 2,
-    "reviewed": true,
-    "defectsResolved": [
-      "removed invented activity, gate outcomes, task descriptions, goal text, event entries, and unsafe-exit claim",
-      "fixed header overlap and restored exact pt-BR privacy sentence"
-    ],
-    "remainingDefects": [
-      "terminal metadata UTF-8/NO_COLOR and topological ordering label remain beyond stated sample facts"
-    ]
-  }
+    "promptFile":  "docs/design/prompts/tui-14-goal-run-dag.md",
+    "stitchScreenId":  "facc9be3fc87446d8facb8c4cbb69209",
+    "generatedAt":  "2026-10-28 07:08:52 UTC",
+    "status":  "failed",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "removed invented activity, gate outcomes, task descriptions, goal text, event entries, and unsafe-exit claim",
+                                                  "fixed header overlap and restored exact pt-BR privacy sentence"
+                                              ],
+                          "remainingDefects":  [
+                                                   "terminal metadata UTF-8/NO_COLOR and topological ordering label remain beyond stated sample facts"
+                                               ]
+                      }
 }

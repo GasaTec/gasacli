@@ -2,7 +2,7 @@
     "promptFile":  "docs/design/prompts/web-13-prompts-editor.md",
     "stitchScreenId":  "cd39007e260b4fa1a1c945db316dbe0c",
     "generatedAt":  "2026-10-28",
-    "status":  "ok",
+    "status":  "failed",
     "externalResources":  false,
     "qualityReview":  {
                           "iterations":  2,

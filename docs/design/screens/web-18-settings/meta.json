@@ -2,7 +2,7 @@
     "promptFile":  "docs/design/prompts/web-18-settings.md",
     "stitchScreenId":  "117f09a225b849f68cb563cbe7505b6c",
     "generatedAt":  "2026-10-28",
-    "status":  "ok",
+    "status":  "failed",
     "externalResources":  false,
     "qualityReview":  {
                           "iterations":  1,

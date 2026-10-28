@@ -1,17 +1,17 @@
 {
-  "promptFile": "docs/design/prompts/tui-25-errors-empty-states.md",
-  "stitchScreenId": "599ff70485a84d5daeac94b61d42252a",
-  "generatedAt": "2026-10-28 08:43:23 UTC",
-  "status": "ok",
-  "externalResources": false,
-  "qualityReview": {
-    "iterations": 2,
-    "reviewed": true,
-    "defectsResolved": [
-      "removed fabricated runtime/project data, diagnostics, recovery actions, claims and zero execution count"
-    ],
-    "remainingDefects": [
-      "the selected variant still contains one meta-description sentence and a static-variant label after two edit rounds"
-    ]
-  }
+    "promptFile":  "docs/design/prompts/tui-25-errors-empty-states.md",
+    "stitchScreenId":  "599ff70485a84d5daeac94b61d42252a",
+    "generatedAt":  "2026-10-28 08:43:23 UTC",
+    "status":  "failed",
+    "externalResources":  false,
+    "qualityReview":  {
+                          "iterations":  2,
+                          "reviewed":  true,
+                          "defectsResolved":  [
+                                                  "removed fabricated runtime/project data, diagnostics, recovery actions, claims and zero execution count"
+                                              ],
+                          "remainingDefects":  [
+                                                   "the selected variant still contains one meta-description sentence and a static-variant label after two edit rounds"
+                                               ]
+                      }
 }

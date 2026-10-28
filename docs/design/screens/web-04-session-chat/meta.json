@@ -2,7 +2,7 @@
     "promptFile":  "docs/design/prompts/web-04-session-chat.md",
     "stitchScreenId":  "1565dc674ff54afc8eafd0b9eef621fc",
     "generatedAt":  "2026-10-28",
-    "status":  "ok",
+    "status":  "failed",
     "externalResources":  false,
     "qualityReview":  {
                           "iterations":  2,
