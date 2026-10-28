@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Erros e Estados Vazios (120x36)</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background-color: #06090e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    color: #F4F7FB;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Terminal Frame 120x36 character cell emulation */
+  .terminal-window {
+    width: 1160px;
+    height: 740px;
+    background-color: #0B1220;
+    border: 1px solid #596982;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    line-height: 1.25;
+    font-size: 13px;
+    user-select: none;
+  }
+  /* Top Bar */
+  .term-topbar {
+    height: 24px;
+    background-color: #111C2E;
+    border-bottom: 1px solid #596982;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    color: #9AAAC0;
+    font-size: 12px;
+  }
+  .term-topbar .title {
+    color: #C3CFDF;
+  }
+  .term-topbar .keys {
+    display: flex;
+    gap: 12px;
+  }
+  .key-badge {
+    color: #1ECFA5;
+  }
+  /* Brand and Header */
+  .term-header {
+    padding: 6px 12px;
+    border-bottom: 1px solid #1B2A40;
+    background-color: #0B1220;
+  }
+  .brand-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .brand-logo {
+    font-weight: bold;
+    color: #1ECFA5;
+    letter-spacing: 0.5px;
+  }
+  .brand-title {
+    color: #F4F7FB;
+    font-weight: bold;
+  }
+  .privacy-line {
+    color: #9AAAC0;
+    font-size: 11px;
+    margin-top: 3px;
+  }
+  /* Subbar Context */
+  .context-bar {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 12px;
+    background-color: #111C2E;
+    border-bottom: 1px solid #596982;
+    font-size: 11px;
+    color: #9AAAC0;
+  }
+  .context-bar span strong {
+    color: #1ECFA5;
+    font-weight: normal;
+  }
+  .context-bar span b {
+    color: #F4F7FB;
+    font-weight: normal;
+  }
+  /* Main Split View */
+  .term-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    background-color: #0B1220;
+    overflow: hidden;
+  }
+  /* Left Panel: Catalog of Empty States & Errors */
+  .catalog-pane {
+    border-right: 1px solid #596982;
+    display: flex;
+    flex-direction: column;
+    background-color: #0B1220;
+  }
+  .pane-header {
+    background-color: #111C2E;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: #9AAAC0;
+    border-bottom: 1px solid #1B2A40;
+    display: flex;
+    justify-content: space-between;
+  }
+  .pane-header-title {
+    color: #1ECFA5;
+    font-weight: bold;
+  }
+  .variant-list {
+    list-style: none;
+    padding: 4px 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+  .variant-item {
+    padding: 6px 8px;
+    border-bottom: 1px solid #111C2E;
+    cursor: default;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .variant-item.active {
+    background-color: #172A46;
+    border-left: 3px solid #1ECFA5;
+    padding-left: 5px;
+  }
+  .variant-item .row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .variant-item .item-title {
+    color: #F4F7FB;
+    font-size: 12px;
+  }
+  .variant-item.active .item-title {
+    color: #1ECFA5;
+    font-weight: bold;
+  }
+  .variant-item .tag {
+    font-size: 10px;
+    padding: 0 4px;
+    border-radius: 0px;
+  }
+  .tag-empty {
+    color: #9AA3B2;
+    border: 1px solid #596982;
+  }
+  .tag-warn {
+    color: #F2B84B;
+    border: 1px solid #8A5600;
+  }
+  .tag-err {
+    color: #FF7272;
+    border: 1px solid #B4232F;
+  }
+  .tag-off {
+    color: #79B8FF;
+    border: 1px solid #145FA8;
+  }
+  .variant-item .item-desc {
+    color: #9AAAC0;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .left-summary {
+    padding: 6px 8px;
+    border-top: 1px solid #1B2A40;
+    background-color: #111C2E;
+    font-size: 11px;
+    color: #9AAAC0;
+  }
+  /* Right Panel: Detail & Safe Action */
+  .detail-pane {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 14px;
+    gap: 10px;
+    overflow-y: auto;
+    background-color: #0B1220;
+  }
+  .card-box {
+    border: 1px solid #596982;
+    background-color: #111C2E;
+    padding: 8px 10px;
+  }
+  .card-title {
+    color: #1ECFA5;
+    font-size: 11px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #1B2A40;
+    padding-bottom: 3px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .ascii-box-card {
+    border: 1px solid #596982;
+    background-color: #0B1220;
+    padding: 10px;
+    margin-bottom: 4px;
+  }
+  .ascii-mark-row {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .ascii-mark {
+    color: #1ECFA5;
+    font-size: 12px;
+    line-height: 1.1;
+    white-space: pre;
+  }
+  .banner-text-block {
+    flex: 1;
+  }
+  .banner-headline {
+    color: #F4F7FB;
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  .banner-status-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .badge-blocked {
+    background-color: rgba(242, 184, 75, 0.15);
+    color: #F2B84B;
+    border: 1px solid #8A5600;
+  }
+  .badge-empty {
+    background-color: rgba(154, 163, 178, 0.15);
+    color: #9AA3B2;
+    border: 1px solid #596982;
+  }
+  .badge-error {
+    background-color: rgba(255, 114, 114, 0.15);
+    color: #FF7272;
+    border: 1px solid #B4232F;
+  }
+  .field-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+    font-size: 12px;
+  }
+  .field-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #1B2A40;
+    vertical-align: top;
+  }
+  .field-table .label-col {
+    width: 130px;
+    color: #9AAAC0;
+  }
+  .field-table .val-col {
+    color: #F4F7FB;
+  }
+  .field-table .val-muted {
+    color: #9AAAC0;
+  }
+  .field-table .val-accent {
+    color: #1ECFA5;
+  }
+  .field-table .val-warn {
+    color: #F2B84B;
+  }
+  .field-table .val-err {
+    color: #FF7272;
+  }
+  /* Action Selection Box */
+  .action-box {
+    border: 1px solid #1ECFA5;
+    background-color: #111C2E;
+    padding: 8px 10px;
+  }
+  .action-prompt-text {
+    color: #1ECFA5;
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .tui-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    border: 1px solid #596982;
+    background-color: #0B1220;
+    color: #C3CFDF;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .tui-btn.primary {
+    background-color: #1ECFA5;
+    color: #0B1220;
+    border-color: #1ECFA5;
+    font-weight: bold;
+  }
+  .tui-btn.secondary {
+    border-color: #596982;
+    color: #F4F7FB;
+  }
+  .tui-btn.disabled {
+    border-color: #1B2A40;
+    color: #596982;
+    cursor: not-allowed;
+  }
+  .matrix-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .matrix-item {
+    border: 1px solid #1B2A40;
+    padding: 5px 8px;
+    background-color: #0B1220;
+    font-size: 11px;
+  }
+  .matrix-label {
+    color: #9AAAC0;
+    margin-bottom: 2px;
+  }
+  .matrix-value {
+    color: #C3CFDF;
+  }
+  /* Footer keyboard shortcuts */
+  .term-footer {
+    height: 26px;
+    background-color: #111C2E;
+    border-top: 1px solid #596982;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 11px;
+    color: #9AAAC0;
+  }
+  .footer-keys {
+    display: flex;
+    gap: 12px;
+  }
+  .footer-status {
+    color: #1ECFA5;
+  }
+</style>
+</head>
+<body>
+<div class="terminal-window">
+<!-- Top Bar -->
+<div class="term-topbar">
+<span class="title">Terminal 120x36 • gasacli</span>
+<div class="keys">
+<span><span class="key-badge">[Tab]</span> Alternar Painel</span>
+<span><span class="key-badge">[Esc]</span> Voltar ao Chat</span>
+<span><span class="key-badge">[F1]</span> Ajuda (/help)</span>
+</div>
+</div>
+<!-- Header & Brand -->
+<div class="term-header">
+<div class="brand-row"><div>
+<span class="brand-logo">G&gt; gasacli</span>
+<span class="brand-title"> | CATÁLOGO DE VARIANTES DE ERROS E ESTADOS VAZIOS</span>
+</div></div>
+<div class="privacy-line">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+</div>
+<!-- Context Bar -->
+<div class="context-bar"><span>PROJETO: <b>N/D</b> | WORKTREE: <b>N/D</b></span>
+<span>CONFIANÇA: <b>N/D</b> | RUN: <b>N/D</b></span>
+<span>DISPATCH: <b>N/D</b> | AGENTES: <b>N/D</b></span></div>
+<!-- Main Body: Two Column Monospace Layout -->
+<div class="term-body">
+<!-- Left Pane: Catalog of 6 Documented Scenarios -->
+<div class="catalog-pane">
+<div class="pane-header">
+<span class="pane-header-title">ESTADOS DE ERRO E VAZIO</span>
+<span>[use ?/?]</span>
+</div>
+<ul class="variant-list"><!-- Variant 1: Pasta Não Confiável (Selected) -->
+<li class="variant-item active">
+<div class="row-head">
+<span class="item-title">&gt; [1] PASTA NÃO CONFIÁVEL</span>
+<span class="tag tag-empty">VARIANTE</span>
+</div>
+<div class="item-desc">Nenhum arquivo foi lido</div>
+</li>
+<!-- Variant 2: Sem Agentes Detectados -->
+<li class="variant-item">
+<div class="row-head">
+<span class="item-title">  [2] SEM AGENTES DETECTADOS</span>
+<span class="tag tag-empty">VARIANTE</span>
+</div>
+<div class="item-desc">Nenhum agente encontrado</div>
+</li>
+<!-- Variant 3: Nenhum Run Disparado -->
+<li class="variant-item">
+<div class="row-head">
+<span class="item-title">  [3] NENHUM RUN DISPARADO</span>
+<span class="tag tag-empty">VARIANTE</span>
+</div>
+<div class="item-desc">Nenhum run disparado</div>
+</li>
+<!-- Variant 4: Web Dashboard Offline -->
+<li class="variant-item">
+<div class="row-head">
+<span class="item-title">  [4] WEB DASHBOARD OFFLINE</span>
+<span class="tag tag-empty">VARIANTE</span>
+</div>
+<div class="item-desc">Dashboard indisponível</div>
+</li>
+<!-- Variant 5: Falha de Leitura Local -->
+<li class="variant-item">
+<div class="row-head">
+<span class="item-title">  [5] FALHA DE LEITURA LOCAL</span>
+<span class="tag tag-empty">VARIANTE</span>
+</div>
+<div class="item-desc">Falha de leitura local</div>
+</li>
+<!-- Variant 6: Histórico de Runs Vazio -->
+<li class="variant-item">
+<div class="row-head">
+<span class="item-title">  [6] HISTÓRICO DE RUNS VAZIO</span>
+<span class="tag tag-empty">VARIANTE</span>
+</div>
+<div class="item-desc">Histórico de runs vazio</div>
+</li></ul>
+<div class="left-summary">[i] Selecione uma variante com as setas para inspecionar rótulo e especificações da interface estática.</div>
+</div>
+<!-- Right Pane: Active Variant Detail (Scenario 1 Selected) -->
+<div class="detail-pane"><!-- Variant Header Card -->
+<div class="card-box">
+<div class="card-title">
+<span>VARIANTE: PASTA NÃO CONFIÁVEL</span>
+<span style="color: #9AAAC0; font-weight: normal;">[VARIANTE ESTÁTICA 1/6]</span>
+</div>
+<div style="font-size: 13px; color: #1ECFA5; font-weight: bold; margin-bottom: 4px;">
+          "Nenhum arquivo foi lido"
+        </div>
+<div style="font-size: 11px; color: #9AAAC0;">
+          Especificação de interface estática documentando o estado inicial sem aprovação.
+        </div>
+</div>
+<!-- Factual Breakdown: Label, Cause, Recovery strictly N/D -->
+<div class="card-box">
+<div class="card-title">
+<span>DIAGNÓSTICO E FATOS DO ESTADO</span>
+</div>
+<table class="field-table">
+<tr>
+<td class="label-col">Rótulo Exibido:</td>
+<td class="val-col"><span class="val-accent">PASTA NÃO CONFIÁVEL</span></td>
+</tr>
+<tr>
+<td class="label-col">Causa Factual:</td>
+<td class="val-col val-muted">N/D</td>
+</tr>
+<tr>
+<td class="label-col">Garantia / Estado:</td>
+<td class="val-col val-muted">N/D</td>
+</tr>
+<tr>
+<td class="label-col">Ação de Recuperação:</td>
+<td class="val-col val-muted">N/D</td>
+</tr>
+<tr>
+<td class="label-col">Métricas / Telemetria:</td>
+<td class="val-col val-muted">N/D</td>
+</tr>
+</table>
+</div>
+<!-- Matrix of the other 5 categories neutrally -->
+<div class="card-box">
+<div class="card-title">
+<span>MATRIZ DE DEMAIS VARIANTES DO CATÁLOGO</span>
+<span style="color: #9AAAC0; font-weight: normal;">5 VARIANTES REGISTRADAS</span>
+</div>
+<div class="matrix-box">
+<div class="matrix-item">
+<div class="matrix-label">[2] Sem Agentes: Rótulo 'Nenhum agente encontrado'</div>
+<div class="matrix-value"><b>Causa:</b> N/D | <b>Recuperação:</b> N/D</div>
+</div>
+<div class="matrix-item">
+<div class="matrix-label">[3] Nenhum Run: Rótulo 'Nenhum Run disparado'</div>
+<div class="matrix-value"><b>Causa:</b> N/D | <b>Recuperação:</b> N/D</div>
+</div>
+<div class="matrix-item">
+<div class="matrix-label">[4] Web Offline: Rótulo 'Dashboard indisponível'</div>
+<div class="matrix-value"><b>Causa:</b> N/D | <b>Recuperação:</b> N/D</div>
+</div>
+<div class="matrix-item">
+<div class="matrix-label">[5] Falha de Leitura Local: Rótulo 'Falha de leitura local'</div>
+<div class="matrix-value"><b>Causa:</b> N/D | <b>Recuperação:</b> N/D</div>
+</div>
+<div class="matrix-item" style="grid-column: span 2;">
+<div class="matrix-label">[6] Histórico de Runs Vazio: Rótulo 'Histórico vazio'</div>
+<div class="matrix-value"><b>Causa:</b> N/D | <b>Recuperação:</b> N/D</div>
+</div>
+</div>
+</div>
+<!-- Operator Actions Box -->
+<div class="action-box">
+<div class="action-prompt-text">
+          &gt; Navegação no catálogo de variantes de interface:
+        </div>
+<div class="action-buttons">
+<div class="tui-btn primary">
+            [Enter] Inspecionar Variante
+          </div>
+<div class="tui-btn secondary">
+            [Tab] Alternar Painel
+          </div>
+<div class="tui-btn secondary">
+            [Esc] Voltar ao Chat (/chat)
+          </div>
+</div>
+</div></div>
+</div>
+<!-- Keyboard Shortcuts & Status Footer -->
+<div class="term-footer"><div class="footer-keys">
+<span><span class="key-badge">[? / ?]</span> Selecionar Variante</span>
+<span><span class="key-badge">[Enter]</span> Detalhes</span>
+<span><span class="key-badge">[Tab]</span> Alternar Painel</span>
+<span><span class="key-badge">[Esc]</span> Voltar</span>
+<span><span class="key-badge">[Ctrl+C]</span> Sair</span>
+</div>
+<div class="footer-status">
+      CATÁLOGO: 6 VARIANTES
+    </div></div>
+</div>
+</body>
+</html>

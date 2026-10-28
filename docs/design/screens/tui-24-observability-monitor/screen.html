@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Monitor de Observabilidade (120x36)</title>
+<style>
+    /* Reset & terminal canvas */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #05080f;
+      color: #F4F7FB;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13.5px;
+      line-height: 1.25;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Terminal Window Frame 120 cols x 36 rows */
+    .terminal-container {
+      width: 1080px;
+      height: 720px;
+      background-color: #0B1220;
+      border: 1px solid #596982;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      user-select: none;
+    }
+
+    /* Color Tokens from DESIGN.md */
+    .c-navy { color: #172A46; }
+    .c-teal { color: #1ECFA5; }
+    .c-text-primary { color: #F4F7FB; }
+    .c-text-secondary { color: #C3CFDF; }
+    .c-text-muted { color: #9AAAC0; }
+    .c-border { color: #596982; }
+    .c-warning { color: #F2B84B; }
+    .c-success { color: #43D19E; }
+    .c-danger { color: #FF7272; }
+    .c-info { color: #79B8FF; }
+
+    .bg-surface { background-color: #111C2E; }
+    .bg-elevated { background-color: #1B2A40; }
+    .bg-teal { background-color: #1ECFA5; }
+    .text-on-teal { color: #0B1220; font-weight: bold; }
+
+    /* Terminal Grid Sections */
+    .term-line {
+      display: flex;
+      white-space: pre;
+      height: 20px;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 13.5px;
+    }
+
+    .header-line-1 {
+      border-bottom: 1px solid #1B2A40;
+      justify-content: space-between;
+      color: #9AAAC0;
+      font-size: 12.5px;
+      height: 22px;
+    }
+
+    .brand-line {
+      height: 24px;
+      font-weight: bold;
+      color: #F4F7FB;
+      gap: 8px;
+    }
+
+    .privacy-line {
+      color: #9AAAC0;
+      border-bottom: 1px solid #1B2A40;
+      height: 22px;
+      font-size: 12.5px;
+    }
+
+    .context-bar {
+      background-color: #111C2E;
+      border-bottom: 1px solid #596982;
+      justify-content: space-between;
+      font-size: 12.5px;
+      height: 24px;
+      color: #C3CFDF;
+    }
+
+    /* Filters line */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #1B2A40;
+      padding: 0 12px;
+      height: 28px;
+      gap: 16px;
+      background-color: #0D1627;
+      font-size: 12.5px;
+    }
+
+    .filter-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-btn {
+      padding: 1px 6px;
+      border: 1px solid #596982;
+      color: #C3CFDF;
+      background: #111C2E;
+    }
+
+    .filter-btn.active {
+      border-color: #1ECFA5;
+      background-color: #1B2A40;
+      color: #1ECFA5;
+      font-weight: bold;
+    }
+
+    /* Main Body Area */
+    .main-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 8px 12px;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    /* Cards Grid */
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      height: 98px;
+    }
+
+    .stat-card {
+      border: 1px solid #596982;
+      background-color: #111C2E;
+      display: flex;
+      flex-direction: column;
+      padding: 6px 10px;
+      position: relative;
+    }
+
+    .stat-card.focused {
+      border-color: #1ECFA5;
+      background-color: #132238;
+    }
+
+    .card-title {
+      font-size: 12px;
+      color: #9AAAC0;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #1B2A40;
+      padding-bottom: 3px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .card-metric {
+      font-size: 19px;
+      font-weight: bold;
+      color: #F4F7FB;
+      margin: 2px 0;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .card-metric .c-teal {
+      color: #1ECFA5;
+    }
+
+    .card-subtext {
+      font-size: 11.5px;
+      color: #C3CFDF;
+      margin-top: auto;
+    }
+
+    .provenance-tag {
+      font-size: 10.5px;
+      padding: 1px 4px;
+      border: 1px solid #596982;
+      color: #9AAAC0;
+    }
+
+    .provenance-tag.measured {
+      border-color: #1ECFA5;
+      color: #1ECFA5;
+    }
+
+    .provenance-tag.reported {
+      border-color: #79B8FF;
+      color: #79B8FF;
+    }
+
+    /* Central Split: Process Tree + Detail/Coverage */
+    .content-row {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 7fr 5fr;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .panel {
+      border: 1px solid #596982;
+      background-color: #111C2E;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      background-color: #1B2A40;
+      border-bottom: 1px solid #596982;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: #F4F7FB;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-content {
+      flex: 1;
+      padding: 8px 10px;
+      overflow-y: auto;
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    /* Tree View */
+    .tree-row {
+      display: flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 4px;
+      white-space: pre;
+    }
+
+    .tree-row.selected {
+      background-color: #1B2A40;
+      border-left: 3px solid #1ECFA5;
+    }
+
+    .cursor-marker {
+      color: #1ECFA5;
+      font-weight: bold;
+      margin-right: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0 4px;
+      font-size: 11px;
+      line-height: 1.3;
+      border: 1px solid;
+    }
+
+    .badge-teal {
+      border-color: #1ECFA5;
+      color: #1ECFA5;
+    }
+
+    .badge-yellow {
+      border-color: #F2B84B;
+      color: #F2B84B;
+    }
+
+    .badge-gray {
+      border-color: #596982;
+      color: #9AAAC0;
+    }
+
+    /* Detail Table inside Right Panel */
+    .kv-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8px;
+    }
+
+    .kv-table td {
+      padding: 3px 4px;
+      font-size: 12px;
+      border-bottom: 1px solid #1B2A40;
+    }
+
+    .kv-table td.key {
+      color: #9AAAC0;
+      width: 160px;
+    }
+
+    .kv-table td.val {
+      color: #F4F7FB;
+    }
+
+    .box-block {
+      border: 1px dashed #596982;
+      padding: 6px 8px;
+      margin-top: 6px;
+      background-color: #0D1627;
+      font-size: 11.5px;
+    }
+
+    /* Action Question Bar */
+    .action-prompt-bar {
+      border: 1px solid #1ECFA5;
+      background-color: #0E1A2C;
+      padding: 6px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .action-question {
+      font-size: 12.5px;
+      color: #F4F7FB;
+    }
+
+    .action-buttons-strip {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .action-btn {
+      padding: 3px 10px;
+      border: 1px solid #596982;
+      background-color: #111C2E;
+      color: #F4F7FB;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .action-btn.primary {
+      background-color: #1ECFA5;
+      color: #0B1220;
+      border-color: #1ECFA5;
+      font-weight: bold;
+    }
+
+    .action-btn.disabled {
+      color: #596982;
+      border-color: #1B2A40;
+      cursor: not-allowed;
+    }
+
+    /* Footer Shortcut Bar */
+    .footer-bar {
+      height: 24px;
+      background-color: #0B1220;
+      border-top: 1px solid #596982;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 12px;
+      color: #9AAAC0;
+    }
+
+    .footer-shortcuts {
+      display: flex;
+      gap: 12px;
+    }
+
+    .key-hint {
+      color: #C3CFDF;
+    }
+
+    .key-hint span {
+      color: #1ECFA5;
+    }
+  </style>
+</head>
+<body>
+<div aria-label="Terminal 120x36 Observability Monitor" class="terminal-container" role="region">
+<!-- Linha 1: Cabeçalho superior padronizado -->
+<div class="term-line header-line-1">
+<span>Terminal 120x36 • gasacli</span>
+<span>[Esc] Voltar  [F1] Ajuda</span>
+</div>
+<!-- Linha 2: Marca canônica G> gasacli e título da tela -->
+<div class="term-line brand-line"><span class="c-teal" style="font-weight:bold;">G&gt; gasacli</span>
+<span class="c-border">|</span>
+<span>MONITOR DE OBSERVABILIDADE (/metrics)</span></div>
+<!-- Linha 3: Sentença de privacidade literal inviolável -->
+<div class="term-line privacy-line">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+<!-- Linha 4: Barra de contexto do projeto e worktree do wireframe -->
+<div class="term-line context-bar">
+<span>PROJETO: <strong class="c-teal">vitrine-api</strong>  |  WORKTREE: <strong class="c-text-primary">feature/catalogo</strong></span>
+<span>RUN ATIVO: <strong class="c-text-secondary">N/D</strong>  |  DISPATCH: <strong class="c-text-secondary">N/D</strong>  |  COBERTURA: <strong class="c-teal">1/2</strong></span>
+</div>
+<!-- Linha 5: Barra de Filtros de Execução e Tempo -->
+<div class="filter-bar"><div class="filter-item">
+<span class="c-text-muted">FILTRO RUN:</span>
+<span class="filter-btn">[TODOS]</span>
+<span class="filter-btn">[N/D]</span>
+</div>
+<span class="c-border">|</span>
+<div class="filter-item">
+<span class="c-text-muted">INTERVALO:</span>
+<span class="filter-btn">[N/D]</span>
+</div>
+<span class="c-border">|</span>
+<div class="filter-item">
+<span class="c-text-muted">SONDA:</span>
+<span class="c-text-secondary">N/D</span>
+</div></div>
+<!-- Corpo Principal -->
+<div class="main-body">
+<!-- Linha de Cards de Recursos: RAM GasaCLI, RAM Agente, Tokens, Custo -->
+<div class="cards-row"><!-- Card 1: Memória GasaCLI -->
+<div class="stat-card">
+<div class="card-title">
+<span>MEMÓRIA GASACLI</span>
+<span class="provenance-tag measured">[MEDIDO]</span>
+</div>
+<div class="card-metric">
+<span class="c-teal">38</span> <span style="font-size: 13px; color: #C3CFDF;">MB</span>
+</div>
+<div class="card-subtext">Processo GasaCLI</div>
+</div>
+<!-- Card 2: Memória do Agente / Worker (Codex) -->
+<div class="stat-card focused">
+<div class="card-title">
+<span>MEMÓRIA WORKER (CODEX)</span>
+<span class="provenance-tag measured">[MEDIDO]</span>
+</div>
+<div class="card-metric">
+<span class="c-warning">420</span> <span style="font-size: 13px; color: #C3CFDF;">MB</span>
+</div>
+<div class="card-subtext">N/D</div>
+</div>
+<!-- Card 3: Consumo de Tokens -->
+<div class="stat-card">
+<div class="card-title">
+<span>TOKENS DE SESSÃO</span>
+<span class="provenance-tag reported">[REPORTADO]</span>
+</div>
+<div class="card-metric">
+<span>18.420</span>
+</div>
+<div class="card-subtext">provider-reported</div>
+</div>
+<!-- Card 4: Custo Financeiro -->
+<div class="stat-card">
+<div class="card-title">
+<span>CUSTO FINANCEIRO</span>
+<span class="provenance-tag">N/D</span>
+</div>
+<div class="card-metric">
+<span class="c-text-muted">N/D</span>
+</div>
+<div class="card-subtext">N/D</div>
+</div></div>
+<!-- Área Central: Gráfico de Processos Pai/Filho + Detalhes de Cobertura -->
+<div class="content-row">
+<!-- Painel Esquerdo: Árvore de Processos Pai/Filho -->
+<div class="panel">
+<div class="panel-header">
+<span>HIERARQUIA DE PROCESSOS (PROCESSO PAI / FILHO)</span>
+<span style="font-size: 11px; color: #9AAAC0;">[use ?/? para navegar]</span>
+</div>
+<div class="panel-content"><div style="color: #9AAAC0; font-size: 11.5px; margin-bottom: 6px; border-bottom: 1px dashed #1B2A40; padding-bottom: 4px;">
+              COMPONENTE / PROCESSO             TIPO         MEMÓRIA     CPU       ESTADO
+            </div>
+<!-- Linha 1: Processo Pai (GasaCLI) -->
+<div class="tree-row">
+<span class="cursor-marker">  </span>
+<span><strong>GasaCLI</strong></span>
+<span style="margin-left: 112px;"><span class="badge badge-teal">pai</span></span>
+<span style="margin-left: 36px;">38 MB</span>
+<span style="margin-left: 32px; color: #9AAAC0;">N/D</span>
+<span style="margin-left: 38px; color: #9AAAC0;">N/D</span>
+</div>
+<!-- Linha 2: Processo Filho (Codex) -->
+<div class="tree-row selected">
+<span class="cursor-marker">&gt; </span>
+<span class="c-border">+-- </span>
+<span><strong>Codex</strong></span>
+<span style="margin-left: 104px;"><span class="badge badge-yellow">filho</span></span>
+<span style="margin-left: 30px; color: #F2B84B; font-weight: bold;">420 MB</span>
+<span style="margin-left: 24px; color: #9AAAC0;">N/D</span>
+<span style="margin-left: 38px; color: #9AAAC0;">N/D</span>
+</div>
+<!-- Nota de Limite Neutra -->
+<div class="box-block" style="margin-top: 56px;">
+<span class="c-teal">[ HIERARQUIA: 2 PROCESSOS IDENTIFICADOS NA AMOSTRA ]</span>
+<div style="color: #9AAAC0; margin-top: 4px;">CPU: N/D | ESTADO: N/D | Medição de ciclo contínuo não informada.</div>
+</div></div>
+</div>
+<!-- Painel Direito: Cobertura de Agentes e Detalhes da Sonda -->
+<div class="panel">
+<div class="panel-header">
+<span>COBERTURA DE AGENTES E AUDITORIA</span>
+<span class="badge badge-teal">COBERTURA: 1/2</span>
+</div>
+<div class="panel-content"><table class="kv-table">
+<tbody>
+<tr>
+<td class="key">Agentes no Ambiente:</td>
+<td class="val"><span class="c-text-muted">N/D</span></td>
+</tr>
+<tr>
+<td class="key">Cobertura Ativa:</td>
+<td class="val"><strong class="c-teal">1/2</strong></td>
+</tr>
+<tr>
+<td class="key">Uso de CPU:</td>
+<td class="val"><span class="c-text-muted">N/D</span></td>
+</tr>
+<tr>
+<td class="key">Tokens Reportados:</td>
+<td class="val"><strong>18.420</strong> <span class="c-text-muted">(provider-reported)</span></td>
+</tr>
+<tr>
+<td class="key">Custo Calculado:</td>
+<td class="val"><span class="c-text-muted">N/D</span></td>
+</tr>
+<tr>
+<td class="key">Estado da Sonda:</td>
+<td class="val"><span class="c-text-muted">N/D</span></td>
+</tr>
+<tr>
+<td class="key">Isolamento de Memória:</td>
+<td class="val"><span class="c-text-muted">N/D</span></td>
+</tr>
+</tbody>
+</table>
+<!-- Bloco Informativo de Auditoria Neutro -->
+<div class="box-block" style="margin-top: 14px;">
+<span style="color: #9AAAC0; text-transform: uppercase; font-size: 10.5px; display: block; margin-bottom: 2px;">AUDITORIA E IDENTIFICAÇÃO</span>
+<span style="color: #C3CFDF;">Agente 1: Codex | Agente 2: N/D. Métricas informadas conforme provedor de modelo e sonda local.</span>
+</div></div>
+</div>
+</div>
+<!-- Barra de Ação e Próximo Passo Seguro do Operador -->
+<div class="action-prompt-bar"><div class="action-question">
+          &gt; Ações disponíveis para inspeção de métricas no workspace vitrine-api:
+        </div>
+<div class="action-buttons-strip">
+<div class="action-btn primary">[Enter] Inspecionar Métricas</div>
+<div class="action-btn">[r] Atualizar Sonda (Refresh)</div>
+<div class="action-btn">[Esc] Voltar ao Chat (/chat)</div>
+</div></div>
+</div>
+<!-- Barra Inferior de Atalhos Padronizada -->
+<div class="footer-bar"><div class="footer-shortcuts">
+<span class="key-hint"><span>[? / ?]</span> Navegar</span>
+<span class="key-hint"><span>[Enter]</span> Detalhes</span>
+<span class="key-hint"><span>[r]</span> Atualizar</span>
+<span class="key-hint"><span>[/]</span> Filtrar</span>
+<span class="key-hint"><span>[Esc]</span> Voltar</span>
+<span class="key-hint"><span>[Ctrl+C]</span> Sair</span>
+</div>
+<div>
+<span class="c-text-muted">COBERTURA:</span> <strong class="c-teal">1/2</strong>  |  <span class="c-text-muted">PROJETO:</span> <strong>vitrine-api</strong>
+</div></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Variantes de Terminal Estreita e Larga (80x24 e 120x36)</title>
+<style>
+    /* Reset & Base Terminal Constraints */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: none;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background-color: #070c14;
+      color: #F4F7FB;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.25;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      gap: 32px;
+    }
+
+    /* Terminal Window Container */
+    .terminal-frame {
+      background-color: #0B1220;
+      border: 1px solid #596982;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* 120x36 Dimension (approx 120 cols x 36 lines) */
+    .terminal-120x36 {
+      width: 1060px;
+      height: 650px;
+    }
+
+    /* 80x24 Dimension (approx 80 cols x 24 lines) */
+    .terminal-80x24 {
+      width: 760px;
+      height: 460px;
+    }
+
+    /* Chrome / Titlebar of Terminal Frame */
+    .terminal-titlebar {
+      height: 26px;
+      background-color: #111C2E;
+      border-bottom: 1px solid #596982;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+      color: #9AAAC0;
+      user-select: none;
+    }
+
+    .terminal-titlebar-title {
+      color: #C3CFDF;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terminal-content {
+      flex: 1;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      background-color: #0B1220;
+    }
+
+    /* Typography & Token utilities */
+    .text-teal { color: #1ECFA5; }
+    .text-navy { color: #172A46; }
+    .text-muted { color: #9AAAC0; }
+    .text-secondary { color: #C3CFDF; }
+    .text-warning { color: #F2B84B; }
+    .text-danger { color: #FF7272; }
+    .text-success { color: #43D19E; }
+    .text-primary { color: #F4F7FB; }
+
+    .bg-teal { background-color: #1ECFA5; }
+    .bg-surface { background-color: #111C2E; }
+    .bg-elevated { background-color: #1B2A40; }
+
+    .border-subtle { border: 1px solid #596982; }
+    .border-b-subtle { border-bottom: 1px solid #596982; }
+    .border-t-subtle { border-top: 1px solid #596982; }
+
+    /* ASCII/Box-drawing layout blocks */
+    .header-block {
+      border-bottom: 1px solid #596982;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+
+    .wordmark {
+      font-weight: 700;
+      color: #1ECFA5;
+      letter-spacing: 0.5px;
+    }
+
+    .privacy-notice {
+      color: #9AAAC0;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 4px 8px;
+      background-color: #111C2E;
+      border: 1px solid #596982;
+      font-size: 11px;
+      margin-top: 6px;
+    }
+
+    .meta-item {
+      display: flex;
+      gap: 4px;
+    }
+
+    .meta-label { color: #9AAAC0; }
+    .meta-val { color: #F4F7FB; }
+
+    /* Layout Grids */
+    .grid-wide {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+      margin: 8px 0;
+    }
+
+    .grid-narrow {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+      margin: 6px 0;
+    }
+
+    .box-panel {
+      border: 1px solid #596982;
+      background-color: #111C2E;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-title {
+      font-weight: 600;
+      color: #1ECFA5;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed #596982;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* List items */
+    .task-item {
+      padding: 4px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-left: 2px solid transparent;
+      margin-bottom: 3px;
+    }
+
+    .task-item.active {
+      background-color: #1B2A40;
+      border-left: 2px solid #1ECFA5;
+    }
+
+    .task-item.done {
+      color: #9AAAC0;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 1px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+
+    .badge-running {
+      color: #172A46;
+      background-color: #F2B84B;
+      border-color: #F2B84B;
+    }
+
+    .badge-done {
+      color: #43D19E;
+      border-color: #43D19E;
+    }
+
+    .badge-queued {
+      color: #9AAAC0;
+      border-color: #596982;
+    }
+
+    .badge-teal {
+      color: #172A46;
+      background-color: #1ECFA5;
+      border-color: #1ECFA5;
+    }
+
+    /* Detailed view in 120x36 */
+    .details-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+
+    .details-table td {
+      padding: 3px 6px;
+      vertical-align: top;
+    }
+
+    .details-table td:first-child {
+      color: #9AAAC0;
+      width: 180px;
+      border-right: 1px solid #596982;
+    }
+
+    .details-table td:last-child {
+      color: #F4F7FB;
+      padding-left: 10px;
+    }
+
+    /* Events feed in Wide */
+    .event-feed {
+      border-top: 1px dashed #596982;
+      padding-top: 6px;
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 11px;
+    }
+
+    .event-row {
+      display: grid;
+      grid-template-columns: 80px 100px 1fr 100px;
+      color: #C3CFDF;
+      padding: 2px 0;
+    }
+
+    .event-row.header {
+      color: #9AAAC0;
+      border-bottom: 1px solid rgba(89, 105, 130, 0.4);
+      padding-bottom: 2px;
+      font-size: 10px;
+    }
+
+    /* Prompt / Action Bar */
+    .action-bar {
+      border: 1px solid #1ECFA5;
+      background-color: #111C2E;
+      padding: 6px 10px;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    .button-primary {
+      background-color: #1ECFA5;
+      color: #172A46;
+      font-weight: 700;
+      padding: 3px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .button-ghost {
+      border: 1px solid #596982;
+      color: #C3CFDF;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+
+    /* Footer / Keyboard Strip */
+    .terminal-footer {
+      border-top: 1px solid #596982;
+      padding-top: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #9AAAC0;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .shortcuts {
+      display: flex;
+      gap: 12px;
+    }
+
+    .shortcut-key {
+      color: #1ECFA5;
+      font-weight: 600;
+    }
+
+    /* Status indicator */
+    .status-text {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-box {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+    }
+
+    /* Section header annotation */
+    .variant-label {
+      width: 100%;
+      max-width: 1060px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #1ECFA5;
+      font-size: 13px;
+      font-weight: 600;
+      border-left: 3px solid #1ECFA5;
+      padding-left: 8px;
+      margin-bottom: -16px;
+    }
+
+    .variant-tag {
+      color: #9AAAC0;
+      font-size: 11px;
+      font-weight: 400;
+    }
+  </style>
+</head>
+<body> <div class="terminal-frame terminal-120x36" style="margin: 0 auto;">
+<!-- Terminal Titlebar -->
+<div class="terminal-titlebar">
+<div class="terminal-titlebar-title">
+<span>Terminal 120x36 • gasacli</span>
+</div>
+<div>
+<span>[Tab] Alternar Modo</span>
+<span class="text-muted" style="margin: 0 6px;">|</span>
+<span>[Esc] Voltar ao Chat</span>
+<span class="text-muted" style="margin: 0 6px;">|</span>
+<span class="text-teal">[F1] Ajuda</span>
+</div>
+</div>
+<div class="terminal-content">
+<!-- Header Block -->
+<div class="header-block">
+<div>
+<span class="wordmark">G&gt; gasacli</span>
+<span style="color: #596982; margin: 0 6px;">|</span>
+<span class="text-primary" style="font-weight: 600;">ADAPTAÇÃO DE LAYOUT DO RUN (80x24 / 120x36)</span>
+</div>
+<div class="privacy-notice">
+          O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+        </div>
+<div class="meta-strip" style="margin-top: 6px;">
+<div class="meta-item">
+<span class="meta-label">EXECUÇÃO:</span>
+<span class="meta-val text-teal" style="font-weight: 600;">R-204</span>
+</div>
+<span class="text-muted">|</span>
+<div class="meta-item">
+<span class="meta-label">TAREFA ATIVA:</span>
+<span class="meta-val text-teal" style="font-weight: 600;">T2</span>
+</div>
+<span class="text-muted">|</span>
+<div class="meta-item">
+<span class="meta-label">ESTADO:</span>
+<span class="meta-val text-warning" style="font-weight: 600;">EM EXECUÇÃO (RUNNING)</span>
+</div>
+</div>
+</div>
+<!-- Size Mode Selector Bar -->
+<div style="display: flex; gap: 8px; margin-bottom: 8px;">
+<div class="button-ghost" style="font-size: 11px; padding: 4px 12px;">
+          [1] Modo Compacto (80x24)
+        </div>
+<div class="button-primary" style="font-size: 11px; padding: 4px 12px;">
+          [2] Modo Expandido (120x36) [SELECIONADO / ATIVO]
+        </div>
+</div>
+<!-- Main Comparison Panels (Side-by-side Layout Specification) -->
+<div class="grid-wide" style="margin: 0 0 8px 0; gap: 12px;">
+<!-- Panel A: Compact 80x24 Specification -->
+<div class="box-panel">
+<div class="panel-title">
+<span>ESPECIFICAÇÃO DE LAYOUT COMPACTO (80x24)</span>
+<span class="badge badge-queued">80x24</span>
+</div>
+<div style="font-size: 11px; color: #C3CFDF; margin-bottom: 10px;"><div style="margin-bottom: 6px;"><span class="text-muted">Run:</span> <span class="text-primary">R-204</span></div>
+<div style="margin-bottom: 6px;"><span class="text-muted">Tarefa:</span> <span class="text-teal">T2</span> <span class="text-warning">(running)</span></div></div>
+<div style="margin-top: auto;">
+<div style="font-size: 10px; color: #9AAAC0; margin-bottom: 4px;">REPRESENTAÇÃO VISUAL ASCII (80x24):</div>
+<pre style="background-color: #070c14; border: 1px solid #596982; padding: 8px; font-size: 10px; color: #C3CFDF; line-height: 1.4; overflow: hidden;">+------------------------------------------------------------+
+| RUN: R-204                                 [EM EXECUÇÃO]   |
+| &gt; [T2] Tarefa ativa                         EM EXECUÇÃO    |
++------------------------------------------------------------+</pre>
+</div>
+</div>
+<!-- Panel B: Expanded 120x36 Specification (Active Selection) -->
+<div class="box-panel" style="border-color: #1ECFA5;">
+<div class="panel-title" style="border-bottom-color: #1ECFA5;">
+<span class="text-teal">ESPECIFICAÇÃO DE LAYOUT EXPANDIDO (120x36) — SELEÇÃO ATIVA</span>
+<span class="badge badge-running">ATIVO</span>
+</div>
+<table class="details-table" style="margin-bottom: 6px;"><tr>
+<td style="width: 150px; color: #9AAAC0;">Run:</td>
+<td><span class="text-primary">R-204</span></td>
+</tr>
+<tr>
+<td style="color: #9AAAC0;">Tarefa:</td>
+<td><span class="text-teal" style="font-weight: 600;">T2</span> <span class="text-warning">(running)</span></td>
+</tr>
+<tr>
+<td style="color: #9AAAC0;">Worker:</td>
+<td><span class="text-primary">Codex</span></td>
+</tr>
+<tr>
+<td style="color: #9AAAC0;">Modelo:</td>
+<td><span class="text-primary">gpt-6-luna</span></td>
+</tr>
+<tr>
+<td style="color: #9AAAC0;">Tentativa:</td>
+<td><span class="text-primary">1</span></td>
+</tr></table>
+<!-- Event Feed Section -->
+<div style="background-color: #070c14; border: 1px solid #596982; padding: 6px 8px; margin-bottom: 6px;">
+<div style="font-size: 10px; font-weight: 600; color: #1ECFA5; margin-bottom: 4px; display: flex; justify-content: space-between;">
+<span>FLUXO DE EVENTOS (EVENT FEED)</span>
+<span class="text-muted">GRADE EXPANDIDA</span>
+</div>
+<table style="width: 100%; border-collapse: collapse; font-size: 10px; color: #9AAAC0;">
+<tr style="border-bottom: 1px solid #596982;">
+<th style="text-align: left; padding: 2px 4px; font-weight: normal;">EVENTO</th>
+<th style="text-align: right; padding: 2px 4px; font-weight: normal;">REGISTRO</th>
+</tr>
+<tr>
+<td style="padding: 2px 4px; color: #C3CFDF;">Registros de Execução:</td>
+<td style="padding: 2px 4px; text-align: right; color: #9AAAC0;">N/D</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<!-- Operational Context Bar -->
+<div class="action-bar" style="margin-top: 0; margin-bottom: 6px;">
+<div>
+<span class="text-muted">&gt; Modo ativo:</span>
+<span class="text-teal" style="font-weight: 600; margin-left: 4px;">120x36 (Expandido)</span>
+<span class="text-muted" style="margin-left: 8px;">| Pressione [Tab] ou [1/2] para alternar especificação de tamanho</span>
+</div>
+<div style="display: flex; gap: 6px;">
+<div class="button-primary">[Enter] Inspecionar Execução</div>
+</div>
+</div>
+<!-- Terminal Keyboard Footer -->
+<div class="terminal-footer">
+<div class="shortcuts">
+<span><span class="shortcut-key">[Enter]</span> Inspecionar Execução</span>
+<span><span class="shortcut-key">[Tab]</span> Alternar Modo 80x24 / 120x36</span>
+<span><span class="shortcut-key">[Esc]</span> Voltar</span>
+<span><span class="shortcut-key">[Ctrl+C]</span> Sair</span>
+</div>
+<div class="status-text">
+<span class="status-box" style="background-color: #1ECFA5;"></span>
+<span class="text-teal" style="font-weight: 600;">MODO: 120x36 EXPANDIDO</span>
+<span class="text-muted">|</span>
+<span class="text-primary">RUN: R-204</span>
+<span class="text-muted">|</span>
+<span class="text-warning" style="font-weight: 600;">T2 RUNNING</span>
+</div>
+</div>
+</div>
+</div></body>
+</html>

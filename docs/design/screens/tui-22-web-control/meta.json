@@ -1,0 +1,14 @@
+{
+  "promptFile": "docs/design/prompts/tui-22-web-control.md",
+  "stitchScreenId": "d910e26c6f5748df905b7063b39eb80e",
+  "generatedAt": "2026-10-28 08:21:16 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "replaced fabricated ports/status/availability with repository defaults and N/D runtime fields; stop/restart are marked planned"
+    ]
+  }
+}

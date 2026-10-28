@@ -1,0 +1,236 @@
+﻿<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GasaCLI — Backup e Restauração (/backup)</title>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "text-muted-dark": "#9AAAC0",
+            "surface-container-highest": "#343537",
+            "tertiary-container": "#3b2500",
+            "danger-dark": "#FF7272",
+            "error": "#ffb4ab",
+            "primary-fixed-dim": "#b5c7eb",
+            "on-error-container": "#ffdad6",
+            "success-light": "#137A54",
+            "border-light": "#8996A8",
+            "on-secondary": "#00382a",
+            "secondary-fixed": "#61fbcf",
+            "surface-dark": "#111C2E",
+            "primary": "#b5c7eb",
+            "background": "#131315",
+            "on-secondary-fixed-variant": "#00513f",
+            "inverse-primary": "#4d5f7e",
+            "background-dark": "#0B1220",
+            "secondary": "#3fe1b6",
+            "secondary-fixed-dim": "#3bdeb3",
+            "on-primary-fixed-variant": "#354765",
+            "surface-dim": "#131315",
+            "on-secondary-fixed": "#002117",
+            "elevated-dark": "#1B2A40",
+            "tertiary-fixed-dim": "#e7c08b",
+            "surface-container": "#1f1f22",
+            "on-primary-fixed": "#061c37",
+            "outline": "#8e9098",
+            "on-tertiary-fixed": "#291800",
+            "danger-light": "#B4232F",
+            "on-tertiary-fixed-variant": "#5c4218",
+            "tertiary": "#e7c08b",
+            "success-dark": "#43D19E",
+            "background-light": "#F4F7FB",
+            "surface-tint": "#b5c7eb",
+            "surface-bright": "#39393b",
+            "primary-fixed": "#d6e3ff",
+            "inverse-on-surface": "#303033",
+            "warning-dark": "#F2B84B",
+            "surface-variant": "#343537",
+            "info-light": "#145FA8",
+            "on-surface-variant": "#c4c6ce",
+            "secondary-container": "#00c59c",
+            "info-dark": "#79B8FF",
+            "elevated-light": "#FFFFFF",
+            "border-dark": "#596982",
+            "primary-container": "#172a46",
+            "surface-container-lowest": "#0d0e10",
+            "on-background": "#e4e2e5",
+            "inverse-surface": "#e4e2e5",
+            "on-primary": "#1e314d",
+            "error-container": "#93000a",
+            "text-primary-dark": "#F4F7FB",
+            "on-tertiary": "#432c04",
+            "on-surface": "#e4e2e5",
+            "surface-container-high": "#292a2c",
+            "surface-light": "#FFFFFF",
+            "warning-light": "#8A5600",
+            "text-secondary-dark": "#C3CFDF",
+            "outline-variant": "#44474d",
+            "text-primary-light": "#172A46",
+            "on-secondary-container": "#004b3a",
+            "surface-container-low": "#1b1b1e",
+            "on-primary-container": "#7f92b3",
+            "surface": "#131315",
+            "text-secondary-light": "#44546A",
+            "on-error": "#690005",
+            "text-muted-light": "#5B6B80",
+            "tertiary-fixed": "#ffddb1",
+            "on-tertiary-container": "#ad8b5b"
+          },
+          borderRadius: {
+            DEFAULT: "0px",
+            lg: "0px",
+            xl: "0px",
+            full: "0px"
+          },
+          spacing: {
+            "space-xl": "24px",
+            "space-lg": "16px",
+            "space-sm": "8px",
+            "space-4xl": "48px",
+            "margin": "24px",
+            "space-2xl": "32px",
+            "space-md": "12px",
+            "gutter": "24px",
+            "space-3xl": "40px",
+            "space-xs": "4px"
+          },
+          fontFamily: {
+            "code": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
+            "page-title": ["ui-monospace", "SFMono-Regular", "Consolas", "monospace"],
+            "metadata": ["ui-monospace", "SFMono-Regular", "Consolas", "monospace"],
+            "body-emphasized": ["ui-monospace", "SFMono-Regular", "Consolas", "monospace"],
+            "body": ["ui-monospace", "SFMono-Regular", "Consolas", "monospace"],
+            "section-title": ["ui-monospace", "SFMono-Regular", "Consolas", "monospace"],
+            "hero": ["ui-monospace", "SFMono-Regular", "Consolas", "monospace"]
+          },
+          fontSize: {
+            "code": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+            "metadata": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+            "body-emphasized": ["14px", { lineHeight: "21px", fontWeight: "500" }],
+            "body": ["13px", { lineHeight: "19px", fontWeight: "400" }],
+            "page-title": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+            "section-title": ["16px", { lineHeight: "24px", fontWeight: "600" }],
+            "hero": ["28px", { lineHeight: "34px", fontWeight: "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0B1220;
+      color: #F4F7FB;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .tui-cell-box {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      line-height: 1.25;
+      letter-spacing: 0px;
+    }
+    ::selection {
+      background-color: #172A46;
+      color: #3fe1b6;
+    }
+  </style>
+</head>
+<body class="bg-background-dark min-h-screen flex items-center justify-center p-space-sm select-none">
+<!-- Terminal Window Frame (120ch width standard TUI container) -->
+<main class="w-[120ch] max-w-[120ch] bg-surface-dark border border-border-dark text-text-primary-dark tui-cell-box shadow-none">
+<!-- Top System Header (Shared Component Anchors integrated) -->
+<header class="border-b border-border-dark bg-background-dark text-code font-code">
+<!-- Row 1: Geometry & Process Identifier -->
+<div class="flex justify-between items-center px-space-md py-1 border-b border-border-dark text-text-muted-dark text-metadata">
+<span>Terminal 120x36 • gasacli</span>
+<div class="flex items-center space-x-space-md">
+<span>ESC Sair</span>
+<span class="text-secondary font-semibold">F1 Ajuda</span>
+</div>
+</div>
+<!-- Row 2: TopNavBar Identity with G+chevron prompt -->
+<div class="flex justify-between items-center px-space-md py-1.5">
+<div class="flex items-center space-x-space-sm">
+<span class="text-secondary font-semibold">G&gt;</span>
+<span class="text-text-primary-dark font-semibold">gasacli /backup</span>
+<span class="text-text-muted-dark">|</span>
+<span class="text-text-secondary-dark">BACKUP E RESTAURAÇÃO</span>
+</div>
+</div>
+<!-- Row 3: Literal Privacy Guarantee -->
+<div class="px-space-md py-1 bg-surface-container-lowest text-metadata text-text-muted-dark border-t border-border-dark">
+        O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+      </div>
+<!-- Row 4: Context Bar -->
+<div class="px-space-md py-1 bg-primary-container text-metadata text-text-secondary-dark border-t border-border-dark flex flex-wrap gap-x-space-lg">
+<span><strong class="text-text-muted-dark font-normal">PROJETO:</strong> <span class="text-text-primary-dark">vitrine-api</span></span>
+<span class="text-border-dark">¦</span>
+<span><strong class="text-text-muted-dark font-normal">WORKTREE:</strong> <span class="text-text-primary-dark">feature/catalogo</span></span>
+<span class="text-border-dark">¦</span>
+<span><strong class="text-text-muted-dark font-normal">ARQUIVO ALVO:</strong> <span class="text-secondary font-semibold">backup-2026-10-28...</span></span>
+<span class="text-border-dark">¦</span>
+<span><strong class="text-text-muted-dark font-normal">ESTADO:</strong> <span class="text-warning-dark">N/D</span></span>
+</div>
+<!-- Row 5: Navigation Tabs Bar (Aba de Navegação) -->
+<nav class="flex items-center border-t border-border-dark bg-surface-dark px-space-sm text-code">
+<a class="text-text-muted-dark px-space-sm py-1.5 hover:text-secondary" href="#">[1] Criar Backup</a>
+<a class="text-secondary font-semibold bg-surface-container px-space-sm py-1.5 border-b-2 border-secondary" href="#">&gt;[2] Restaurar Arquivo (RESTORE)&lt;</a>
+<a class="text-text-muted-dark px-space-sm py-1.5 hover:text-secondary" href="#">[3] Manifestos</a>
+<a class="text-text-muted-dark px-space-sm py-1.5 hover:text-secondary" href="#">[4] Configurações</a>
+</nav>
+</header>
+<!-- Main Workspace Grid: 2 Structured Columns -->
+<section class="grid grid-cols-12 border-b border-border-dark text-code">
+<!-- Panel A: Scope & Archive Details (Col 5) -->
+<div class="col-span-5 border-r border-border-dark p-space-md flex flex-col justify-between bg-surface-dark">
+<div>
+<!-- Panel Header -->
+<div class="text-secondary font-semibold pb-space-xs border-b border-border-dark mb-space-sm flex items-center justify-between">
+<span>+- PAINEL A: ESCOPO &amp; ARQUIVO --------+</span>
+</div>
+<div class="space-y-space-xs text-body leading-tight"><div class="flex justify-between"><span class="text-text-muted-dark">Arquivo Selecionado:</span><span class="text-text-primary-dark font-semibold">backup-2026-10-28...</span></div><div class="flex justify-between"><span class="text-text-muted-dark">Escopo do Snapshot:</span><span class="text-warning-dark">N/D</span></div><div class="flex justify-between"><span class="text-text-muted-dark">Data / Carimbo:</span><span class="text-warning-dark">N/D</span></div><div class="flex justify-between"><span class="text-text-muted-dark">Tamanho / Contagem:</span><span class="text-warning-dark">N/D</span></div><div class="flex justify-between"><span class="text-text-muted-dark">Checksum / Hash:</span><span class="text-warning-dark">N/D</span></div><div class="flex justify-between"><span class="text-text-muted-dark">Manifesto:</span><span class="text-warning-dark">N/D</span></div></div>
+<!-- Exclusions Box -->
+<div class="mt-space-md border border-border-dark p-space-sm bg-surface-container-lowest flex justify-between text-metadata"><span class="text-text-muted-dark">Exclusões aplicadas:</span><span class="text-warning-dark">N/D</span></div>
+</div>
+<div class="mt-space-md pt-space-xs border-t border-border-dark text-metadata text-text-muted-dark"><span class="text-text-muted-dark">Validação estrutural:</span> <span class="text-warning-dark">N/D</span></div>
+</div>
+<!-- Panel B: Pre-restore Snapshot Preview (Col 7) -->
+<div class="col-span-7 p-space-md flex flex-col justify-between bg-surface-dark">
+<div>
+<!-- Panel Header -->
+<div class="text-secondary font-semibold pb-space-xs border-b border-border-dark mb-space-sm">
+<span>+- PRÉVIA DO SNAPSHOT ANTES DA RESTAURAÇÃO (PRE-RESTORE PREVIEW) -+</span>
+</div>
+<!-- Delimited Neutral Preview Block -->
+<div class="border border-border-dark p-space-md bg-surface-container-lowest space-y-space-sm"><div class="text-text-primary-dark font-semibold border-b border-border-dark pb-1 text-code">[ PRÉVIA DO PACOTE: backup-2026-10-28... ]</div><div class="space-y-1 text-code"><div class="flex justify-between"><span class="text-text-muted-dark">Destino da extração:</span><span class="text-warning-dark">N/D</span></div><div class="flex justify-between"><span class="text-text-muted-dark">Arquivos identificados:</span><span class="text-warning-dark">N/D</span></div><div class="flex justify-between"><span class="text-text-muted-dark">Conflitos de sobreposição:</span><span class="text-warning-dark">N/D</span></div></div><div class="mt-space-sm p-space-sm border border-border-dark bg-surface-container-lowest text-text-muted-dark text-metadata space-y-0.5"><div>[ PRÉVIA DO CONTEÚDO: N/D ]</div><div>Sem dados disponíveis na amostra.</div></div></div>
+</div>
+<div class="mt-space-md text-metadata text-text-muted-dark border-t border-border-dark pt-space-xs flex justify-between"><span>Modo de execução: <span class="text-warning-dark">N/D</span></span><span>Integridade do arquivo: <span class="text-warning-dark">N/D</span></span></div>
+</div>
+</section>
+<!-- Safe Operator Confirmation Panel (Delimited active box) -->
+<section class="p-space-md bg-surface-container-lowest border-b border-border-dark">
+<div class="border border-secondary bg-primary-container p-space-md">
+<div class="text-text-primary-dark font-semibold mb-space-md flex items-center space-x-2"><span class="text-secondary">&gt;</span><span>Deseja prosseguir com a restauração de <span class="text-secondary underline">backup-2026-10-28...</span> em <span class="text-text-primary-dark underline">vitrine-api</span>?</span></div>
+<div class="flex flex-wrap items-center gap-space-md text-code">
+<button class="bg-secondary text-surface-dark font-semibold px-space-md py-1 border border-secondary hover:bg-secondary-fixed cursor-pointer" type="button">
+            [Enter] Iniciar Restauração
+          </button>
+<button class="bg-surface-dark text-text-primary-dark px-space-md py-1 border border-border-dark hover:border-secondary hover:text-secondary cursor-pointer" type="button">
+            [d] Inspecionar Manifesto
+          </button>
+<button class="bg-surface-dark text-text-muted-dark px-space-md py-1 border border-border-dark hover:border-danger-dark hover:text-danger-dark cursor-pointer" type="button">
+            [Esc] Cancelar / Voltar
+          </button>
+</div>
+</div>
+</section>
+<!-- Footer: Keyboard Shortcuts Strip (Shared Component Match) -->
+<footer class="bg-surface-container-lowest text-metadata font-code border-t border-border-dark px-space-md py-2 flex flex-col md:flex-row justify-between items-center text-text-muted-dark"><div class="flex flex-wrap gap-x-space-md"><span>[? / ?] Navegar opções</span><span class="text-border-dark">¦</span><span>[Tab] Alternar painel</span><span class="text-border-dark">¦</span><span class="text-secondary font-semibold">[Enter] Confirmar</span><span class="text-border-dark">¦</span><span>[d] Ver manifesto</span><span class="text-border-dark">¦</span><span>[Esc] Voltar</span><span class="text-border-dark">¦</span><span class="text-danger-dark">[Ctrl+C] Sair</span></div></footer>
+</main>
+</body></html>

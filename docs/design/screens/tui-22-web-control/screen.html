@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>TUI — Controle do Web Dashboard (/web 120x36)</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background-color: #070b12;
+    color: #c3cfdf;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.25;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Terminal 120x36 Outer Frame */
+  .terminal-frame {
+    width: 1060px;
+    min-width: 1060px;
+    max-width: 1060px;
+    background-color: #0b1220;
+    border: 1px solid #596982;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Top Bar */
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 10px;
+    border-bottom: 1px solid #596982;
+    background-color: #0b1220;
+    font-size: 12px;
+    color: #9aaac0;
+  }
+  .top-bar .title {
+    color: #f4f7fb;
+  }
+  .top-bar .actions {
+    color: #9aaac0;
+  }
+  .top-bar .actions .key-f1 {
+    color: #1ecfa5;
+    font-weight: bold;
+  }
+
+  /* Title & Command Line */
+  .brand-line {
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #111c2e;
+    border-bottom: 1px solid #1b2a40;
+  }
+  .brand-mark {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1ecfa5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand-mark .tag {
+    color: #f4f7fb;
+    font-weight: normal;
+  }
+
+  /* Privacy Notice */
+  .privacy-banner {
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #9aaac0;
+    background-color: #0d1626;
+    border-bottom: 1px solid #1b2a40;
+  }
+
+  /* Context Bar */
+  .context-bar {
+    padding: 4px 12px;
+    display: flex;
+    gap: 20px;
+    background-color: #111c2e;
+    border-bottom: 1px solid #596982;
+    font-size: 11px;
+    color: #9aaac0;
+  }
+  .context-bar span strong {
+    color: #f4f7fb;
+    font-weight: 600;
+  }
+  .context-bar .hl-project {
+    color: #1ecfa5;
+  }
+
+  /* Main Terminal Body */
+  .terminal-content {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background-color: #0b1220;
+  }
+
+  /* Two Column Section */
+  .grid-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* ASCII Bordered Box */
+  .tui-panel {
+    border: 1px solid #596982;
+    background-color: #111c2e;
+    position: relative;
+    padding: 10px 12px;
+  }
+  .tui-panel-title {
+    position: absolute;
+    top: -9px;
+    left: 12px;
+    background-color: #0b1220;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #1ecfa5;
+    letter-spacing: 0.5px;
+  }
+
+  /* Parameter Key-Value Rows */
+  .kv-table {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 0;
+    border-bottom: 1px dashed #1b2a40;
+  }
+  .kv-row:last-child {
+    border-bottom: none;
+  }
+  .kv-key {
+    color: #9aaac0;
+  }
+  .kv-val {
+    color: #f4f7fb;
+    font-weight: 600;
+  }
+  .kv-val.sample {
+    color: #1ecfa5;
+  }
+  .kv-val.planned {
+    color: #f2b84b;
+  }
+  .kv-val.muted {
+    color: #9aaac0;
+    font-weight: normal;
+  }
+
+  /* Status Badge */
+  .badge {
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-ready {
+    background-color: #111c2e;
+    color: #1ecfa5;
+    border: 1px solid #1ecfa5;
+  }
+  .badge-planned {
+    background-color: #1b2a40;
+    color: #f2b84b;
+    border: 1px solid #f2b84b;
+  }
+  .badge-nd {
+    background-color: #1b2a40;
+    color: #9aaac0;
+    border: 1px solid #596982;
+  }
+
+  /* Interactive Action Rows / Menu */
+  .action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .action-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border: 1px solid transparent;
+    font-size: 12px;
+  }
+  .action-item.focused {
+    background-color: #1b2a40;
+    border-color: #1ecfa5;
+    color: #f4f7fb;
+  }
+  .action-item.focused .action-marker {
+    color: #1ecfa5;
+    font-weight: bold;
+    margin-right: 6px;
+  }
+  .action-item.unfocused {
+    background-color: #0e1726;
+    border-color: #1b2a40;
+    color: #c3cfdf;
+  }
+  .action-item.planned-item {
+    background-color: #0b1220;
+    border-color: #1b2a40;
+    color: #9aaac0;
+  }
+  .action-item .key-tag {
+    color: #1ecfa5;
+    font-weight: bold;
+  }
+  .action-item .desc {
+    color: #9aaac0;
+    font-size: 11px;
+    margin-left: 8px;
+  }
+  .action-item .status-label {
+    font-size: 11px;
+    text-align: right;
+  }
+
+  /* Bottom Operational Prompt Box */
+  .prompt-box {
+    border: 1px solid #1ecfa5;
+    background-color: #0e1726;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .prompt-box .title {
+    font-size: 12px;
+    font-weight: bold;
+    color: #f4f7fb;
+  }
+  .prompt-box .title .target {
+    color: #1ecfa5;
+  }
+  .prompt-btn-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .btn-tui {
+    padding: 4px 10px;
+    font-size: 12px;
+    border: 1px solid #596982;
+    background-color: #111c2e;
+    color: #c3cfdf;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-tui.active {
+    background-color: #1ecfa5;
+    color: #172a46;
+    border-color: #1ecfa5;
+    font-weight: bold;
+  }
+  .btn-tui.planned {
+    background-color: #111c2e;
+    color: #9aaac0;
+    border-color: #1b2a40;
+    border-style: dashed;
+  }
+
+  /* Footer Shortcut Strip */
+  .footer-bar {
+    border-top: 1px solid #596982;
+    background-color: #0b1220;
+    padding: 5px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #9aaac0;
+  }
+  .footer-shortcuts {
+    display: flex;
+    gap: 12px;
+  }
+  .footer-shortcuts span strong {
+    color: #1ecfa5;
+  }
+  .footer-right {
+    color: #9aaac0;
+    display: flex;
+    gap: 10px;
+  }
+
+  /* Compact G+Chevron ASCII Mark */
+  .ascii-logo {
+    color: #1ecfa5;
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1.15;
+    white-space: pre;
+  }
+</style>
+</head>
+<body>
+<!-- Outer Terminal Frame 120x36 -->
+<div class="terminal-frame">
+<!-- Terminal Header Line 1 -->
+<div class="top-bar">
+<span class="title">Terminal 120x36 • gasacli</span>
+<span class="actions">[Esc] Voltar   <span class="key-f1">[F1] Ajuda</span></span>
+</div>
+<!-- Terminal Header Line 2: Brand Line -->
+<div class="brand-line"><div class="brand-mark"><span>G&gt; gasacli</span><span class="tag">| CONTROLE DO WEB DASHBOARD (/web)</span></div></div>
+<!-- Terminal Header Line 3: Exact Privacy Sentence -->
+<div class="privacy-banner">
+    O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+  </div>
+<!-- Terminal Header Line 4: Context Bar -->
+<div class="context-bar"><span>PROJETO: <strong class="hl-project">vitrine-api</strong></span><span>|</span><span>WORKTREE: <strong>feature/catalogo</strong></span><span>|</span><span>MODO DE CONFIGURAÇÃO: <strong>auto</strong></span><span>|</span><span>ESTADO: <strong>N/D</strong></span></div>
+<!-- Main Grid Content -->
+<div class="terminal-content">
+<!-- Section 1: Parameters & Listener Inspection -->
+<div class="grid-two-col">
+<!-- Panel 1: Parâmetros de Endereçamento e Conexão -->
+<div class="tui-panel"><div class="tui-panel-title">+- CONFIGURAÇÃO PADRÃO DO ENDPOINT (WEB CONFIG) -+</div><div class="kv-table" style="margin-top: 4px;"><div class="kv-row"><span class="kv-key">Host / Interface Configurada:</span><span class="kv-val sample">127.0.0.1</span></div><div class="kv-row"><span class="kv-key">Porta Preferencial:</span><span class="kv-val">3199</span></div><div class="kv-row"><span class="kv-key">Fallback de Porta:</span><span class="kv-val">Habilitado</span></div><div class="kv-row"><span class="kv-key">Modo de Inicialização:</span><span class="kv-val">auto</span></div><div class="kv-row"><span class="kv-key">URL Configurada Padrão:</span><span class="kv-val sample">http://127.0.0.1:3199</span></div><div class="kv-row"><span class="kv-key">Protocolo:</span><span class="kv-val muted">HTTP / N/D</span></div></div></div>
+<!-- Panel 2: Estado do Serviço e Diagnóstico do Listener -->
+<div class="tui-panel"><div class="tui-panel-title">+- ESTADO EM TEMPO DE EXECUÇÃO (RUNTIME) -+</div><div class="kv-table" style="margin-top: 4px;"><div class="kv-row"><span class="kv-key">Status Operacional:</span><span class="kv-val muted">N/D</span></div><div class="kv-row"><span class="kv-key">Estado de Escuta (Listening):</span><span class="kv-val muted">N/D</span></div><div class="kv-row"><span class="kv-key">Processo Vinculado (PID):</span><span class="kv-val muted">N/D</span></div><div class="kv-row"><span class="kv-key">Conexões Ativas:</span><span class="kv-val muted">N/D</span></div><div class="kv-row"><span class="kv-key">Consumo de Recursos:</span><span class="kv-val muted">N/D</span></div><div class="kv-row"><span class="kv-key">Última Sondagem / Verificação:</span><span class="kv-val muted">N/D</span></div></div></div>
+</div>
+<!-- Section 2: Painel de Controle de Ações (Ações Disponíveis e Planejadas) -->
+<div class="tui-panel" style="padding-top: 14px;">
+<div class="tui-panel-title">+- AÇÕES DISPONÍVEIS &amp; CICLO DE VIDA DO DASHBOARD -+</div>
+<div class="action-list">
+<!-- Action 1: Abrir no Navegador (Focado) -->
+<div class="action-item focused">
+<div>
+<span class="action-marker">&gt;</span>
+<span class="key-tag">[Enter]</span>
+<span style="font-weight: bold; margin-left: 4px;">Abrir Dashboard no Navegador (open)</span>
+<span class="desc">— despacha abertura padrão para http://127.0.0.1:3199</span>
+</div>
+<div class="status-label">
+<span class="badge badge-ready">DISPONÍVEL</span>
+</div>
+</div>
+<!-- Action 2: Verificar Status do Listener -->
+<div class="action-item unfocused">
+<div>
+<span style="margin-left: 14px;"></span>
+<span class="key-tag">[s]</span>
+<span style="font-weight: 600; margin-left: 4px;">Verificar Status da Conexão (status)</span>
+<span class="desc">— realiza sonda local no listener 127.0.0.1:3199</span>
+</div>
+<div class="status-label">
+<span class="badge badge-ready">DISPONÍVEL</span>
+</div>
+</div>
+<!-- Action 3: Interromper Dashboard (Planejado) -->
+<div class="action-item planned-item">
+<div>
+<span style="margin-left: 14px;"></span>
+<span class="key-tag">[p]</span>
+<span style="margin-left: 4px;">Interromper Servidor (stop)</span>
+<span class="desc">— encerra o listener local e libera portas</span>
+</div>
+<div class="status-label">
+<span class="badge badge-planned">[PLANEJADO]</span>
+</div>
+</div>
+<!-- Action 4: Reiniciar Servidor (Planejado) -->
+<div class="action-item planned-item">
+<div>
+<span style="margin-left: 14px;"></span>
+<span class="key-tag">[r]</span>
+<span style="margin-left: 4px;">Reiniciar Servidor (restart)</span>
+<span class="desc">— recarrega o serviço web e valida fallback de porta</span>
+</div>
+<div class="status-label">
+<span class="badge badge-planned">[PLANEJADO]</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 3: Caixa de Confirmação e Ação Primária -->
+<div class="prompt-box">
+<div class="title">&gt; Deseja abrir o dashboard em <span class="target">http://127.0.0.1:3199</span> no projeto <span class="target">vitrine-api</span>?</div>
+<div class="prompt-btn-group">
+<div class="btn-tui active">
+          [Enter] Abrir no Navegador
+        </div>
+<div class="btn-tui">
+          [s] Consultar Status
+        </div>
+<div class="btn-tui planned">
+          [p] Parar (stop) [PLANEJADO]
+        </div>
+<div class="btn-tui planned">
+          [r] Reiniciar (restart) [PLANEJADO]
+        </div>
+<div class="btn-tui">
+          [Esc] Voltar ao Chat
+        </div>
+</div>
+</div>
+</div>
+<!-- Footer Shortcut Strip (sem banners de status adicionais) -->
+<div class="footer-bar">
+<div class="footer-shortcuts">
+<span><strong>[? / ?]</strong> Navegar opções</span>
+<span><strong>[Enter]</strong> Abrir</span>
+<span><strong>[s]</strong> Checar status</span>
+<span><strong>[Esc]</strong> Voltar ao chat</span>
+<span><strong>[Ctrl+C]</strong> Sair</span>
+</div>
+<div class="footer-right"><span>ENDPOINT: http://127.0.0.1:3199</span><span>|</span><span>MODO: auto</span></div>
+</div>
+</div>
+</body>
+</html>

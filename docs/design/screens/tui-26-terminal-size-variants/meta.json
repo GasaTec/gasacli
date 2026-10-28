@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-26-terminal-size-variants.md",
+  "stitchScreenId": "26cd16d783ac498384c5118de5baafc6",
+  "generatedAt": "2026-10-28 08:48:43 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 2,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed invented task DAG, dispatch, timing, gate and isolation details; retained only R-204/T2/Codex/model/attempt sample",
+      "replaced two embedded terminals with one 120x36 adaptive layout and removed explanatory design copy"
+    ]
+  }
+}

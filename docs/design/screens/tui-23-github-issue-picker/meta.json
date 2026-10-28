@@ -1,0 +1,15 @@
+{
+  "promptFile": "docs/design/prompts/tui-23-github-issue-picker.md",
+  "stitchScreenId": "e43753f7291a4b89a6a2026e1b4abd8c",
+  "generatedAt": "2026-10-28 08:31:23 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 2,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed fabricated issue body, filter, repository authorization, user data and operational claims",
+      "set repository opt-in and network connection to N/D"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "promptFile": "docs/design/prompts/tui-24-observability-monitor.md",
+  "stitchScreenId": "4ee6f6ce23a9469d943484aa12ba1719",
+  "generatedAt": "2026-10-28 08:36:26 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed fabricated identifiers, metrics, coverage agent identities, isolation and telemetry claims; retained only sample memory, token, cost and coverage values"
+    ]
+  }
+}

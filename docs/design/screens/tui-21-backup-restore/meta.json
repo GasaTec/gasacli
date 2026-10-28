@@ -1,0 +1,14 @@
+{
+  "promptFile": "docs/design/prompts/tui-21-backup-restore.md",
+  "stitchScreenId": "32de0a7cc8a34b68bdc6df71059c3cc0",
+  "generatedAt": "2026-10-28 08:13:27 UTC",
+  "status": "ok",
+  "externalResources": false,
+  "qualityReview": {
+    "iterations": 1,
+    "reviewed": true,
+    "defectsResolved": [
+      "removed invented paths, exclusions, date/checksum, overwrite and safety claims; unknown archive details remain N/D"
+    ]
+  }
+}

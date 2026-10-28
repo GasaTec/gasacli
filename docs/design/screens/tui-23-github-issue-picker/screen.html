@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TUI — Seletor de Issues do GitHub (120x36)</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #070b12;
+    color: #F4F7FB;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Contêiner simulando moldura física/display do terminal 120x36 */
+  .terminal-frame {
+    width: 1060px;
+    height: 720px;
+    background-color: #0B1220;
+    border: 1px solid #596982;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 12px 16px;
+    line-height: 1.25;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    user-select: none;
+  }
+
+  /* Cores e tokens do Design System GasaCLI */
+  .c-brand { color: #1ECFA5; }
+  .c-navy { color: #172A46; }
+  .c-primary { color: #F4F7FB; }
+  .c-secondary { color: #C3CFDF; }
+  .c-muted { color: #9AAAC0; }
+  .c-border { color: #596982; }
+  .c-warning { color: #F2B84B; }
+  .c-success { color: #43D19E; }
+  .c-danger { color: #FF7272; }
+  .c-info { color: #79B8FF; }
+
+  .bg-surface { background-color: #111C2E; }
+  .bg-elevated { background-color: #1B2A40; }
+  .bg-brand { background-color: #1ECFA5; color: #172A46; }
+
+  .row-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .line {
+    white-space: pre;
+    font-family: inherit;
+  }
+
+  .divider {
+    border-bottom: 1px solid #596982;
+    margin: 4px 0;
+  }
+
+  .divider-subtle {
+    border-bottom: 1px dashed #2a3c54;
+    margin: 4px 0;
+  }
+
+  /* Box borders com caracteres de box drawing */
+  .box {
+    border: 1px solid #596982;
+    background-color: #111C2E;
+    padding: 6px 10px;
+  }
+
+  .box-title {
+    margin-top: -14px;
+    margin-bottom: 4px;
+    background-color: #111C2E;
+    display: inline-block;
+    padding: 0 6px;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Seção de busca */
+  .search-bar {
+    border: 1px solid #1ECFA5;
+    background-color: #0d1624;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cursor-block {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background-color: #1ECFA5;
+    vertical-align: middle;
+  }
+
+  /* Grid de conteúdo principal: 2 colunas */
+  .main-panels {
+    display: grid;
+    grid-template-columns: 58% 42%;
+    gap: 12px;
+    flex: 1;
+    margin: 6px 0;
+    min-height: 0;
+  }
+
+  .table-container {
+    border: 1px solid #596982;
+    background-color: #111C2E;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .table-header {
+    background-color: #172A46;
+    color: #C3CFDF;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-bottom: 1px solid #596982;
+    display: grid;
+    grid-template-columns: 32px 64px 1fr 88px 90px;
+    font-weight: 600;
+  }
+
+  .table-row {
+    padding: 4px 8px;
+    display: grid;
+    grid-template-columns: 32px 64px 1fr 88px 90px;
+    border-bottom: 1px solid #1a273b;
+    align-items: center;
+  }
+
+  .table-row.selected {
+    background-color: #1B2A40;
+    border-left: 2px solid #1ECFA5;
+  }
+
+  /* Detalhes da Issue */
+  .detail-pane {
+    border: 1px solid #596982;
+    background-color: #111C2E;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 10px;
+    border: 1px solid #596982;
+    background-color: #172A46;
+    color: #F4F7FB;
+  }
+
+  .tag-open {
+    border-color: #43D19E;
+    color: #43D19E;
+  }
+
+  .badge-opted {
+    display: inline-block;
+    padding: 0 4px;
+    border: 1px solid #1ECFA5;
+    color: #1ECFA5;
+    font-size: 11px;
+  }
+
+  /* Barra de confirmação e atalhos */
+  .action-banner {
+    border: 1px solid #1ECFA5;
+    background-color: #111C2E;
+    padding: 6px 12px;
+  }
+
+  .button-tui {
+    display: inline-block;
+    padding: 2px 8px;
+    font-weight: 600;
+  }
+
+  .btn-primary {
+    background-color: #1ECFA5;
+    color: #172A46;
+  }
+
+  .btn-secondary {
+    border: 1px solid #596982;
+    color: #C3CFDF;
+    background-color: transparent;
+  }
+
+  .footer-bar {
+    border-top: 1px solid #596982;
+    padding-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #9AAAC0;
+  }
+
+  .states-legend {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: #9AAAC0;
+    margin-top: 2px;
+  }
+
+  .status-tag {
+    padding: 0 4px;
+    border: 1px solid #2a3c54;
+    font-size: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="terminal-frame">
+<!-- CABEÇALHO 1: Linha do Sistema e Termômetro do Terminal -->
+<div>
+<div class="row-flex" style="color: #9AAAC0; font-size: 11px;">
+<span>Terminal 120x36 • gasacli</span>
+<span>[Esc] Voltar   [F1] Ajuda</span>
+</div>
+<!-- CABEÇALHO 2: Marca, Identidade e Título da Tela -->
+<div style="margin-top: 2px;">
+<span class="c-brand" style="font-weight: bold;">G&gt; gasacli</span>
+<span class="c-primary" style="font-weight: 600;"> | SELETOR DE ISSUES DO GITHUB (/issue)</span>
+</div>
+<!-- CABEÇALHO 3: Sentença Literal de Privacidade Documentada -->
+<div style="color: #9AAAC0; font-size: 12px; margin-top: 2px;">
+      O GasaCLI não coleta telemetria; cada agente segue a política do seu provedor.
+    </div>
+<!-- CABEÇALHO 4: Faixa de Contexto & Status do Repositório (Opted-in repo) -->
+<div class="divider"></div>
+<div class="row-flex" style="font-size: 11px; color: #C3CFDF;">
+<div>
+<span>PROJETO: <strong class="c-brand">vitrine-api</strong></span>
+<span class="c-muted"> | </span>
+<span>WORKTREE: <strong class="c-primary">feature/catalogo</strong></span>
+<span class="c-muted"> | </span>
+<span>REPOSITÓRIO VINCULADO: <strong class="c-primary">gasatec/vitrine</strong></span>
+</div>
+<div>
+<span>STATUS DO REPO: <span class="c-muted">N/D</span></span>
+<span class="c-muted"> | </span>
+<span>CONEXÃO: <span class="c-muted">N/D</span></span>
+</div>
+</div>
+<div class="divider"></div>
+</div>
+<!-- BARRA DE BUSCA E FILTRO (Search / Query input) -->
+<div style="margin: 2px 0;">
+<div class="search-bar"><span class="c-brand" style="font-weight: bold;">&gt; BUSCA / FILTRO DE ISSUES:</span> <span class="cursor-block"></span><span style="margin-left: auto; font-size: 11px; color: #9AAAC0;">[Enter] Filtrar   [Esc] Limpar busca</span></div>
+</div>
+<!-- CORPO PRINCIPAL (Duas Colunas): Linhas de Issues + Painel de Detalhes -->
+<div class="main-panels">
+<!-- PAINEL ESQUERDO: Lista de Issues do Repositório -->
+<div class="table-container">
+<div class="row-flex" style="padding: 4px 8px; background-color: #172A46; font-size: 11px; font-weight: 600; color: #F4F7FB; border-bottom: 1px solid #596982;">
+<span>+- LISTA DE ISSUES [gasatec/vitrine]</span>
+<span class="c-brand" style="font-size: 10px;">[ 1 resultado citado ]</span>
+</div>
+<div class="table-header">
+<span>SEL</span>
+<span>ID</span>
+<span>TÍTULO</span>
+<span>ESTADO</span>
+<span>ATUALIZAÇÃO</span>
+</div>
+<!-- Linha Factual Autorizada (Foco / Selecionada) -->
+<div class="table-row selected"><span class="c-brand" style="font-weight: bold;">&gt;</span><span class="c-brand" style="font-weight: 600;">#142</span><span class="c-primary" style="font-weight: 500;">Adicionar filtro por categoria</span><span><span class="tag tag-open">aberta</span></span><span class="c-secondary">2d</span></div>
+<!-- Espaço vazio delimitado sem criação de dados adicionais ou sintéticos -->
+<div style="flex: 1; padding: 24px 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #596982; text-align: center; font-size: 11px;"></div>
+<!-- Barra de rodapé da tabela com modos e paginação -->
+<div class="row-flex" style="border-top: 1px solid #596982; padding: 3px 8px; font-size: 10px; color: #9AAAC0;"><span>Exibindo: 1 de 1</span></div>
+</div>
+<!-- PAINEL DIREITO: Detalhes da Issue Selecionada (#142) -->
+<div class="detail-pane">
+<div>
+<div style="font-weight: bold; color: #1ECFA5; font-size: 12px; border-bottom: 1px solid #596982; padding-bottom: 3px; margin-bottom: 6px;">
+          DETALHES DA ISSUE #142
+        </div>
+<div style="margin-bottom: 6px;">
+<div style="font-size: 10px; color: #9AAAC0;">TÍTULO:</div>
+<div style="font-weight: 600; color: #F4F7FB; font-size: 13px;">Adicionar filtro por categoria</div>
+</div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; font-size: 11px;">
+<div>
+<span style="color: #9AAAC0;">ESTADO:</span>
+<span class="tag tag-open" style="margin-left: 4px;">aberta</span>
+</div>
+<div>
+<span style="color: #9AAAC0;">ATUALIZADO:</span>
+<span style="color: #C3CFDF; margin-left: 4px;">2d</span>
+</div>
+</div>
+<div style="margin-bottom: 6px;">
+<div style="font-size: 10px; color: #9AAAC0; margin-bottom: 2px;">RÓTULOS (LABELS):</div>
+<div style="display: flex; gap: 4px;">
+<span class="tag" style="border-color: #1ECFA5; color: #1ECFA5;">enhancement/ui</span>
+</div>
+</div>
+<div class="divider-subtle"></div>
+<!-- Metadados adicionais factuais: campos desconhecidos = N/D -->
+<div style="font-size: 11px; margin-top: 4px; line-height: 1.5;">
+<div><span style="color: #9AAAC0;">AUTOR / CRIADOR:</span> <span style="color: #C3CFDF;">N/D</span></div>
+<div><span style="color: #9AAAC0;">RESPONSÁVEL (ASSIGNEE):</span> <span style="color: #C3CFDF;">N/D</span></div>
+<div><span style="color: #9AAAC0;">MILESTONE:</span> <span style="color: #C3CFDF;">N/D</span></div>
+<div><span style="color: #9AAAC0;">RAMO VINCULADO:</span> <span style="color: #C3CFDF;">feature/catalogo</span></div>
+</div>
+<div class="divider-subtle" style="margin-top: 6px;"></div>
+<!-- Descrição / Corpo da Issue -->
+<div style="margin-top: 6px;">
+<div style="font-size: 10px; color: #9AAAC0; margin-bottom: 3px;">PRÉVIA DO CORPO (READ-ONLY):</div>
+<div style="background-color: #0d1624; border: 1px solid #2a3c54; padding: 6px; font-size: 11px; color: #C3CFDF; min-height: 64px;">[ PRÉVIA DO CONTEÚDO: N/D ]<div style="color: #596982; margin-top: 4px;">Sem corpo adicional na amostra.</div></div>
+</div>
+</div>
+<!-- Nota de integridade e segurança local-first -->
+</div>
+</div>
+<!-- SEÇÃO DE AÇÃO PRINCIPAL: CONFIRMAÇÃO DE VÍNCULO OU CRIAÇÃO DE TAREFA -->
+<div class="action-banner"><div style="font-size: 12px; margin-bottom: 4px;"><span class="c-brand" style="font-weight: bold;">&gt;</span> <span class="c-primary">Deseja vincular a issue </span><strong class="c-brand">gasatec/vitrine #142</strong><span class="c-primary"> ao workspace </span><strong class="c-brand">vitrine-api</strong>?</div><div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;"><span class="button-tui btn-primary">[Enter] Confirmar Vínculo (Link)</span><span class="button-tui btn-secondary">[c] Criar Nova Issue [PLANEJADO]</span><span class="button-tui btn-secondary">[v] Ver no Navegador [PLANEJADO]</span><span class="button-tui btn-secondary" style="margin-left: auto;">[Esc] Cancelar / Voltar ao Chat</span></div></div>
+<!-- PAINEL DE ESTADOS DO COMPONENTE (States do TUI: Padrão, Selecionado, Desativado, etc.) -->
+<!-- RODAPÉ FINAL: Atalhos de Navegação e Teclado -->
+<div class="footer-bar"><div><span>[? / ?] Navegar issues</span><span style="margin: 0 6px;">|</span><span>[Enter] Confirmar vínculo</span><span style="margin: 0 6px;">|</span><span>[/] Nova busca</span><span style="margin: 0 6px;">|</span><span>[Esc] Voltar</span><span style="margin: 0 6px;">|</span><span>[Ctrl+C] Sair</span></div><div style="color: #1ECFA5;">REPO: gasatec/vitrine | ISSUE: #142</div></div>
+</div>
+</body>
+</html>
