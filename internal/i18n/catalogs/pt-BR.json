@@ -99,5 +99,16 @@
   "tui.agents.ready": "Agentes prontos: %s",
   "tui.project": "Projeto: %s",
   "command.cancel": "Cancela a execução atual",
-  "command.runs": "Lista execuções orquestradas"
+  "command.runs": "Lista execuções orquestradas",
+  "cli.help": "Comandos do GasaCLI (pré-alfa)\n  gasa --version         Mostra a versão e informações da compilação\n  gasa [--no-browser]    Abre o terminal e o painel local\n  gasa doctor            Descobre CLIs de programação instaladas\n  gasa run \u003cgoal\u003e        Inicia uma execução de orquestração local\n  gasa runs              Lista execuções salvas\n  gasa resume \u003crun-id\u003e   Retoma uma execução interrompida\n  gasa prompts show|path|reset [role]\n                         Inspeciona ou redefine prompts integrados\n  gasa skills            Descobre e gerencia skills locais\n  gasa brain             Conecta e pesquisa um cofre Markdown local\n  gasa setup             Reabre a configuração inicial\n  gasa web open          Inicia o painel e aguarda Ctrl+C\n  gasa reset [--all] [--include-backups] [--dry-run] [--yes]\n                         Exclui configurações, confiança e estado; mostra um plano\n  gasa uninstall [--include-backups] [--dry-run] [--yes]\n                         Exclui os dados locais e mostra como remover o binário\n  gasa help | --help     Mostra esta ajuda\n  --no-browser           Impede a abertura automática do navegador, inclusive em /web open\n  --no-onboarding        Ignora a configuração inicial\n  --plain                Usa entrada por linhas em vez da interface de terminal\n  web.mode auto          Abre o navegador ao iniciar\n  web.mode manual        Abre o navegador somente com /web open\n  web.mode always        Serviço em segundo plano indisponível; usa auto com aviso\n  /help /exit /quit /agents /doctor /setup /status /goal /web [open|status]\n  /permissions /skills /brain /backup /restore /web stop|restart: planejado; não implementado",
+  "doctor.auth.needs_login": "não autenticado",
+  "doctor.auth.ready": "autenticado",
+  "doctor.auth.unknown": "autenticação não verificada",
+  "doctor.row": "%s`t%s`t%s`t%s`t%s`t%s",
+  "doctor.status.error": "erro",
+  "doctor.status.installed": "disponível",
+  "doctor.status.missing": "não encontrado",
+  "doctor.status.needs_login": "login necessário",
+  "doctor.status.ready": "pronto",
+  "doctor.status.version_unknown": "versão desconhecida"
 }

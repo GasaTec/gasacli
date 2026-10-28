@@ -99,5 +99,16 @@
   "tui.agents.ready": "Agents ready: %s",
   "tui.project": "Project: %s",
   "command.cancel": "Cancel the current run",
-  "command.runs": "List orchestration runs"
+  "command.runs": "List orchestration runs",
+  "cli.help": "GasaCLI pre-alpha commands\n  gasa --version         Show version and build information\n  gasa [--no-browser]    Open terminal shell and local dashboard\n  gasa doctor            Discover installed coding CLIs\n  gasa run \u003cgoal\u003e        Start a local orchestration run\n  gasa runs              List saved orchestration runs\n  gasa resume \u003crun-id\u003e   Resume an interrupted run\n  gasa prompts show|path|reset [role]\n                         Inspect or reset built-in role prompts\n  gasa skills            Discover and manage local agent skills\n  gasa brain             Connect and search a local Markdown vault\n  gasa setup             Reopen agent and app onboarding\n  gasa web open          Start dashboard and wait for Ctrl+C\n  gasa reset [--all] [--include-backups] [--dry-run] [--yes]\n                         Delete GasaCLI settings, trust and onboarding state; shows a plan\n  gasa uninstall [--include-backups] [--dry-run] [--yes]\n                         Delete all GasaCLI data and print how to remove the binary\n  gasa help | --help     Show this help\n  --no-browser           Suppress browser launches, including /web open\n  --no-onboarding        Skip first-run onboarding\n  --plain                Use line-oriented input instead of the terminal UI\n  web.mode auto          Open browser at startup\n  web.mode manual        Open browser only with /web open\n  web.mode always        Background service not implemented; uses auto with warning\n  /help /exit /quit /agents /doctor /setup /status /goal /web [open|status]\n  /permissions /skills /brain /backup /restore /web stop|restart: planned (not implemented)",
+  "doctor.auth.needs_login": "not authenticated",
+  "doctor.auth.ready": "authenticated",
+  "doctor.auth.unknown": "authentication not checked",
+  "doctor.row": "%s`t%s`t%s`t%s`t%s`t%s",
+  "doctor.status.error": "error",
+  "doctor.status.installed": "available",
+  "doctor.status.missing": "not found",
+  "doctor.status.needs_login": "sign-in required",
+  "doctor.status.ready": "ready",
+  "doctor.status.version_unknown": "version unknown"
 }

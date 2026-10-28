@@ -68,12 +68,13 @@ func run(ctx context.Context, args []string) error {
 		}
 		return runBackup(ctx, append([]string{command}, remaining...), os.Stdout)
 	}
+	configureCLILanguage()
 	flags := flag.NewFlagSet("gasa", flag.ContinueOnError)
 	noBrowser := flags.Bool("no-browser", false, "Do not open the dashboard automatically")
 	noOnboarding := flags.Bool("no-onboarding", false, "Skip first-run onboarding")
 	plain := flags.Bool("plain", false, "Use line-oriented mode instead of the interactive terminal UI")
 	doctorJSON := flags.Bool("json", false, "Write doctor results as JSON")
-	flags.Usage = help
+	flags.Usage = localizedHelp
 	// Accept the global switch on either side of a subcommand.
 	var positional []string
 	for _, arg := range args {
@@ -98,7 +99,7 @@ func run(ctx context.Context, args []string) error {
 	headless := headlessMode()
 	rest := flags.Args()
 	if len(rest) == 1 && rest[0] == "help" {
-		help()
+		localizedHelp()
 		return nil
 	}
 	if err := config.Ensure(); err != nil {
@@ -386,7 +387,7 @@ func diagnostics(ctx context.Context, out io.Writer, jsonOutput bool) error {
 	if jsonOutput {
 		return discovery.FormatJSON(out, results)
 	}
-	return discovery.Format(out, results)
+	return formatDiagnosticOutput(out, results)
 }
 
 func startDashboard(ctx context.Context, cfg config.Config) (*web.Server, error) {
@@ -445,32 +446,4 @@ func launchBrowser(url string, out io.Writer) {
 	}
 }
 
-func help() {
-	fmt.Println(`GasaCLI pre-alpha commands
-  gasa --version         Show version and build information
-  gasa [--no-browser]     Open terminal shell and local dashboard
-  gasa doctor            Discover installed coding CLIs
-  gasa skills            Discover and manage local agent skills
-  gasa brain             Connect and search a local Markdown vault
-  gasa run <goal>        Start a local orchestration run
-  gasa runs              List saved orchestration runs
-  gasa resume <run-id>   Resume an interrupted run
-  gasa prompts show|path|reset [role]
-                         Inspect or reset built-in role prompts
-  gasa setup             Reopen agent and app onboarding
-  gasa web open          Start dashboard and wait for Ctrl+C
-  gasa reset [--all] [--include-backups] [--dry-run] [--yes]
-                         Delete GasaCLI settings, trust and onboarding state (--all: also
-                         agents, prompts, skills, plugins, notes and database). Shows a plan first.
-  gasa uninstall [--include-backups] [--dry-run] [--yes]
-                         Delete all GasaCLI data and print how to remove the binary
-  gasa help | --help     Show this help
-  --no-browser           Suppress browser launches, including /web open
-  --no-onboarding        Skip first-run onboarding
-  --plain                Use line-oriented input instead of the terminal UI
-  web.mode auto          Open browser at startup
-  web.mode manual        Open browser only with /web open
-  web.mode always        Background service not implemented; uses auto with warning
-  /help /exit /quit /agents /doctor /setup /status /goal /web [open|status]
-  /permissions /skills /brain /backup /restore /web stop|restart: planejado (not implemented)`)
-}
+func help() { localizedHelp() }
