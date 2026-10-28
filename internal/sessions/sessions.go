@@ -55,6 +55,7 @@ type Session struct {
 	Messages      []Message `json:"messages,omitempty"`
 	MessageCount  int       `json:"messageCount,omitempty"`
 	MessageOffset int       `json:"messageOffset,omitempty"`
+	SourcePath    string    `json:"-"`
 }
 
 type Worktree struct {
@@ -73,6 +74,16 @@ func DefaultRoots() Roots {
 // Scan reads the supported local transcript formats. Unknown formats and
 // missing roots are skipped without making the dashboard unavailable.
 func Scan(roots Roots) []Session {
+	return scan(roots, false)
+}
+
+// ScanMetadata reads the same session index without retaining transcript
+// messages. LoadTranscript can load an individual session when it is opened.
+func ScanMetadata(roots Roots) []Session {
+	return scan(roots, true)
+}
+
+func scan(roots Roots, metadataOnly bool) []Session {
 	if roots.Claude == "" && roots.Codex == "" {
 		roots = DefaultRoots()
 	}
@@ -101,6 +112,10 @@ func Scan(roots Roots) []Session {
 				return nil
 			}
 			if session, ok := readTranscript(root.agent, path); ok {
+				if metadataOnly {
+					session.Messages = nil
+					session.MessageOffset = 0
+				}
 				out = append(out, session)
 			}
 			return nil
@@ -108,6 +123,12 @@ func Scan(roots Roots) []Session {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].UpdatedAt.After(out[j].UpdatedAt) })
 	return out
+}
+
+// LoadTranscript reads one previously indexed transcript, including its
+// bounded message history.
+func LoadTranscript(agent, path string) (Session, bool) {
+	return readTranscript(agent, path)
 }
 
 func readTranscript(agent, path string) (Session, bool) {
@@ -131,7 +152,7 @@ func readTranscript(agent, path string) (Session, bool) {
 
 func parseLines(agent, path string, info os.FileInfo, reader *bufio.Reader) (Session, bool) {
 	fileTitle := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-	s := Session{Agent: agent, ID: stableID(agent, path), Status: "done", UpdatedAt: info.ModTime(), StartedAt: info.ModTime()}
+	s := Session{Agent: agent, ID: stableID(agent, path), SourcePath: path, Status: "done", UpdatedAt: info.ModTime(), StartedAt: info.ModTime()}
 	for {
 		line, oversized, err := readLine(reader)
 		if err != nil && err != io.EOF {

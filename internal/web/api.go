@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ type projectView struct {
 	Worktrees    []worktreeView     `json:"worktrees,omitempty"`
 	SessionCount int                `json:"sessionCount"`
 	Trusted      bool               `json:"trusted"`
+	Current      bool               `json:"current,omitempty"`
 }
 
 type worktreeView struct {
@@ -44,30 +46,43 @@ type snapshot struct {
 }
 
 type snapshotCache struct {
-	mu        sync.Mutex
-	value     snapshot
-	refreshed time.Time
-	home      string
-	roots     sessions.Roots
+	mu             sync.Mutex
+	value          snapshot
+	refreshed      time.Time
+	home           string
+	roots          sessions.Roots
+	currentProject string
 }
+
+const snapshotRefreshInterval = 10 * time.Second
 
 func (c *snapshotCache) get() snapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if time.Since(c.refreshed) < 2*time.Second {
+	if time.Since(c.refreshed) < snapshotRefreshInterval {
 		return c.value
 	}
-	c.value = buildSnapshot(c.home, c.roots)
+	value := buildSnapshot(c.home, c.roots, c.currentProject)
+	debug.FreeOSMemory()
+	c.value = value
 	c.refreshed = time.Now()
 	return c.value
 }
 
-func buildSnapshot(home string, roots sessions.Roots) snapshot {
+func buildSnapshot(home string, roots sessions.Roots, current ...string) snapshot {
 	s := snapshot{byID: map[string]projectView{}, worktrees: map[string]string{}, sessions: map[string]sessions.Session{}}
 	store := trust.NewStore(home)
 	grouped := map[string][]sessions.Session{}
 	paths := map[string]string{}
-	for _, session := range sessions.Scan(roots) {
+	currentProject := ""
+	if len(current) > 0 && current[0] != "" {
+		currentProject, _ = trust.Canonical(current[0])
+	}
+	trustedProjects, _ := store.TrustedProjects()
+	for _, root := range trustedProjects {
+		paths[projectID(root)] = root
+	}
+	for _, session := range sessions.ScanMetadata(roots) {
 		worktreeRoot := sessions.WorktreeRoot(session.CWD)
 		root := sessions.ProjectRoot(session.CWD)
 		if root == "" {
@@ -89,19 +104,27 @@ func buildSnapshot(home string, roots sessions.Roots) snapshot {
 			grouped["untrusted"] = append(grouped["untrusted"], session)
 		}
 	}
+	for id := range paths {
+		if _, ok := grouped[id]; !ok {
+			grouped[id] = nil
+		}
+	}
 	for id, list := range grouped {
 		if id == "untrusted" {
 			s.projects = append(s.projects, projectView{ID: id, Name: "Not trusted", SessionCount: len(list), Trusted: false})
 			continue
 		}
 		root := paths[id]
-		p := projectView{ID: id, Name: filepath.Base(root), Path: root, SessionCount: len(list), Trusted: true}
+		p := projectView{ID: id, Name: filepath.Base(root), Path: root, SessionCount: len(list), Trusted: true, Current: root == currentProject}
 		for _, session := range list {
 			s.sessions[session.ID] = session
 			session.Messages = nil
 			session.MessageCount = 0
 			session.MessageOffset = 0
 			p.Sessions = append(p.Sessions, session)
+		}
+		if p.Sessions == nil {
+			p.Sessions = []sessions.Session{}
 		}
 		p.Branch = gitOutput(root, "branch", "--show-current")
 		for _, worktree := range sessions.ListWorktrees(root) {
@@ -201,7 +224,16 @@ func apiHandler(getSnapshot func() snapshot, w http.ResponseWriter, r *http.Requ
 			return true
 		}
 		s := getSnapshot()
-		if session, ok := s.sessions[id]; ok {
+		if indexed, ok := s.sessions[id]; ok {
+			session := indexed
+			if indexed.SourcePath != "" {
+				loadedSession, loaded := sessions.LoadTranscript(indexed.Agent, indexed.SourcePath)
+				if !loaded || loadedSession.ID != indexed.ID {
+					http.Error(w, "not found", 404)
+					return true
+				}
+				session = loadedSession
+			}
 			const pageSize = 100
 			end := session.MessageOffset + len(session.Messages)
 			if value := r.URL.Query().Get("before"); value != "" {

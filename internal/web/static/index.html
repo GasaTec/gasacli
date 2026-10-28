@@ -1,37 +1,39 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <title>GasaCLI · Workspace</title>
   <link rel="stylesheet" href="/static/dashboard.css">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/layout.css">
   <link rel="stylesheet" href="/static/interactions.css">
+  <link rel="stylesheet" href="/static/theme.css">
   <script type="module" src="/static/bootstrap.js"></script>
   <script type="module" src="/static/app.js"></script>
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar" aria-label="Workspace navigation">
-      <header class="brand"><img class="brand-mark" src="/static/mark.svg" alt=""><span>gasacli</span><button class="icon-button" id="collapse-sidebar" aria-label="Collapse sidebar">‹</button></header>
-      <label class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search sessions" aria-label="Search sessions"><kbd>⌘ K</kbd></label>
-      <nav class="primary-nav" aria-label="Main navigation"><button class="nav-item selected">▦ <span>Sessions</span></button><button class="nav-item">▤ <span>Analytics</span></button><button class="nav-item">⚙ <span>Settings</span></button></nav>
-      <div class="section-head"><span>Projects</span><span id="project-count" class="count-badge">0</span></div>
+      <header class="brand"><img class="brand-mark" src="/static/mark.svg" alt="Marca GasaCLI"><span>gasacli</span><button class="icon-button" id="collapse-sidebar" aria-label="Recolher navegação">‹</button></header>
+      <label class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar sessões" aria-label="Buscar sessões"><kbd>Ctrl/⌘ K</kbd></label>
+      <nav class="primary-nav" aria-label="Navegação principal"><button class="nav-item selected" data-view="workspace">▦ <span>Sessões</span></button><button class="nav-item" data-view="analytics">▤ <span>Analytics</span></button><button class="nav-item" data-view="settings">⚙ <span>Configurações</span></button></nav>
+      <div class="section-head"><span>Projetos</span><span id="project-count" class="count-badge">0</span></div>
       <div id="projects" class="project-list" role="tree" aria-label="Projects"></div>
       <div class="sidebar-bottom"><button class="nav-item">⚙ <span>Preferences</span></button><div id="usage" class="usage"></div></div>
     </aside>
     <div class="splitter" data-split="0" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" tabindex="0"></div>
     <main class="main-pane">
-      <div class="tabs" id="tabs" role="tablist" aria-label="Open sessions"><span class="empty-tab">Workspace</span><button class="icon-button add-tab" aria-label="New tab">＋</button></div>
-      <div class="session-head"><div><div id="crumb" class="crumb">Sessions</div><h1 id="session-title">Select a session</h1></div><div id="session-state" class="state-pill"><i></i><span>Idle</span></div></div>
-      <section id="chat" class="chat" aria-live="polite"><div class="empty-state"><div class="empty-orbit">◉</div><h2>Your workspace</h2><p>Choose a trusted agent session to inspect its conversation and activity.</p></div></section>
+      <div class="tabs" id="tabs" role="tablist" aria-label="Sessões abertas"><span class="empty-tab">Workspace</span><button class="icon-button add-tab" aria-label="Nova aba">＋</button></div>
+      <div class="session-head"><div><div id="crumb" class="crumb">Sessões</div><h1 id="session-title">Selecione uma sessão</h1></div><div id="session-state" class="state-pill"><i></i><span>Ocioso</span></div></div>
+      <section id="chat" class="chat" aria-live="polite"><div class="empty-state"><div class="empty-orbit">◉</div><h2>Seu workspace</h2><p>Selecione um projeto confiável para consultar sessões e atividade.</p></div></section>
       <div id="working" class="working hidden"><i></i> Working…</div>
-      <section class="composer" aria-label="Read-only composer"><div class="composer-placeholder">Sending to a live agent is planned</div><div class="composer-footer"><div class="chips"><span class="chip">Model <b id="model-chip">Unavailable</b></span><span class="chip">Effort <b>Unavailable</b></span><span class="chip">Access <b>Read only</b></span></div><button class="send-button" disabled title="sending to a live agent is planned" aria-label="Send disabled">↑</button></div></section>
-      <footer class="statusbar"><span><i class="connection-dot"></i><span id="connection">Connecting</span></span><span id="status-projects">0 projects</span><span>GasaCLI pre-alpha</span></footer>
+      <section class="composer" id="composer" aria-label="Compositor somente leitura"><div class="composer-placeholder">Envio para um agente ativo está planejado</div><div class="composer-footer"><div class="chips"><span class="chip">Modelo <b id="model-chip">Indisponível</b></span><span class="chip">Acesso <b>Somente leitura</b></span></div><button class="send-button" disabled title="Envio para um agente ativo está planejado" aria-label="Enviar indisponível">↑</button></div></section>
+      <footer class="statusbar"><span><i class="connection-dot"></i><span id="connection">Conectando</span></span><span id="status-projects">0 projetos</span><span>GasaCLI pre-alpha</span></footer>
     </main>
     <div class="splitter detail-splitter" data-split="1" role="separator" aria-label="Resize details panel" aria-orientation="vertical" tabindex="0"></div>
-    <aside class="details" aria-label="Session details"><div class="detail-tabs" role="tablist"><button class="detail-tab active" data-panel="changes">Changes</button><button class="detail-tab" data-panel="checks">Checks</button><button class="detail-tab" data-panel="info">Session info</button></div><section id="detail-content" class="detail-content"><div class="detail-empty">Select a session to see its changes.</div></section></aside>
+    <aside class="details" aria-label="Detalhes da sessão"><div class="detail-tabs" role="tablist" aria-label="Painéis de detalhes"><button class="detail-tab active" data-panel="changes">Mudanças</button><button class="detail-tab" data-panel="checks">Checks</button><button class="detail-tab" data-panel="info">Informações</button></div><section id="detail-content" class="detail-content"><div class="detail-empty">Selecione uma sessão para consultar as mudanças.</div></section></aside>
   </div>
 </body>
 </html>

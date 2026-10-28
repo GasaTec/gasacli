@@ -48,6 +48,14 @@ func TestScanClaudeDefensiveParsingAndRedaction(t *testing.T) {
 	if s.MessageCount != 3 || s.MessageOffset != 0 {
 		t.Fatalf("message pagination metadata = %d/%d", s.MessageOffset, s.MessageCount)
 	}
+	metadata := ScanMetadata(Roots{Claude: root})
+	if len(metadata) != 1 || len(metadata[0].Messages) != 0 || metadata[0].SourcePath != path || metadata[0].MessageCount != 3 {
+		t.Fatalf("metadata scan retained transcript data or lost its index: %#v", metadata)
+	}
+	loaded, ok := LoadTranscript(metadata[0].Agent, metadata[0].SourcePath)
+	if !ok || len(loaded.Messages) != 3 || strings.Contains(loaded.Messages[1].Text, "sk-secret-value") {
+		t.Fatalf("individual transcript did not load safely: %#v", loaded)
+	}
 }
 
 func TestScanCodexRecordsUnknownAndMissingRoots(t *testing.T) {

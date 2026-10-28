@@ -12,11 +12,13 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/GasaTec/gasacli/internal/config"
 	"github.com/GasaTec/gasacli/internal/sessions"
 )
 
@@ -27,11 +29,13 @@ const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 
 
 // Options configures the loopback listener. Zero Host and Port use the defaults.
 type Options struct {
-	Host         string
-	Port         int
-	Fallback     bool
-	Home         string
-	SessionRoots sessions.Roots
+	Host           string
+	Port           int
+	Fallback       bool
+	Home           string
+	SessionRoots   sessions.Roots
+	CurrentProject string
+	WebMode        string
 }
 
 // Server owns a loopback listener and its in-memory session secret.
@@ -161,6 +165,9 @@ func Start(ctx context.Context, options Options) (*Server, error) {
 	}
 	launchCode := base64.RawURLEncoding.EncodeToString(code[:])
 	actualPort := listener.Addr().(*net.TCPAddr).Port
+	if options.CurrentProject == "" {
+		options.CurrentProject, _ = os.Getwd()
+	}
 	session := &launchSession{secret: token, code: launchCode, expires: time.Now().Add(60 * time.Second), now: time.Now}
 	srv := &Server{url: endpoint + "/", session: session, done: make(chan struct{})}
 	srv.http = &http.Server{
@@ -262,10 +269,26 @@ func (s *launchSession) exchange(w http.ResponseWriter, r *http.Request) {
 func handler(origin string, port int, token string, session *launchSession, options ...Options) http.Handler {
 	home := ""
 	var roots sessions.Roots
+	currentProject, webMode := "", "auto"
 	if len(options) > 0 {
 		home, roots = options[0].Home, options[0].SessionRoots
+		currentProject, webMode = options[0].CurrentProject, options[0].WebMode
 	}
-	cache := &snapshotCache{home: home, roots: roots}
+	if webMode == "" {
+		if saved, err := config.Load(); err == nil {
+			webMode = saved.Web.Mode
+		} else {
+			webMode = "auto"
+		}
+	}
+	initialMode := webMode
+	loadMode := func() string {
+		if saved, err := config.Load(); err == nil {
+			return saved.Web.Mode
+		}
+		return initialMode
+	}
+	cache := &snapshotCache{home: home, roots: roots, currentProject: currentProject}
 	getSnapshot := cache.get
 	allowed := map[string]bool{}
 	for _, host := range []string{"127.0.0.1", "localhost", "::1"} {
@@ -277,6 +300,22 @@ func handler(origin string, port int, token string, session *launchSession, opti
 			return
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			if r.URL.Path == "/api/settings" && r.Method == http.MethodPost {
+				var payload struct {
+					WebMode string `json:"webMode"`
+				}
+				decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
+				if decoder.Decode(&payload) != nil || decoder.Decode(new(any)) != io.EOF {
+					http.Error(w, "invalid settings", http.StatusBadRequest)
+					return
+				}
+				if err := config.SaveWebMode(home, payload.WebMode); err != nil {
+					http.Error(w, "could not save dashboard mode", http.StatusBadRequest)
+					return
+				}
+				jsonResponse(w, map[string]string{"webMode": payload.WebMode})
+				return
+			}
 			w.Header().Set("Allow", "GET, HEAD")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -287,6 +326,8 @@ func handler(origin string, port int, token string, session *launchSession, opti
 			if r.Method != http.MethodHead {
 				_, _ = io.WriteString(w, `{"app":"gasacli","version":"pre-alpha"}`)
 			}
+		case "/api/settings":
+			jsonResponse(w, map[string]string{"webMode": loadMode()})
 		case "/":
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			if r.Method != http.MethodHead {

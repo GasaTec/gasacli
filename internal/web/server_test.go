@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -11,6 +12,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -110,7 +112,7 @@ func TestPreferredPortAndEmbeddedDashboard(t *testing.T) {
 		t.Fatalf("endpoint = %s, want %s", endpoint, want)
 	}
 	body := get(t, s.URL())
-	for _, text := range []string{"GasaCLI", "Your workspace", "Changes", "Sending to a live agent is planned"} {
+	for _, text := range []string{"GasaCLI", "Seu workspace", "Mudanças", "Envio para um agente ativo está planejado"} {
 		if !strings.Contains(body, text) {
 			t.Errorf("dashboard missing %q", text)
 		}
@@ -685,6 +687,109 @@ func TestSessionAPITrustRedactionAndTraversal(t *testing.T) {
 	code, _ = call("/api/sessions/../../etc/passwd")
 	if code == 200 {
 		t.Fatal("path traversal session id was accepted")
+	}
+}
+
+func TestLaunchCodeAuthenticatesProjectsAndSSE(t *testing.T) {
+	home, project := t.TempDir(), filepath.Join(t.TempDir(), "trusted-project")
+	claude, codex := t.TempDir(), t.TempDir()
+	if err := os.MkdirAll(project, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := trust.NewStore(home).Grant(project); err != nil {
+		t.Fatal(err)
+	}
+	state := &launchSession{secret: "session-secret", code: "single-use-code", expires: time.Now().Add(time.Minute), now: time.Now}
+	server := httptest.NewUnstartedServer(nil)
+	defer server.Close()
+	address := server.Listener.Addr().(*net.TCPAddr)
+	port := address.Port
+	origin := "http://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+	server.Config.Handler = handler(origin, port, "session-secret", state, Options{Home: home, SessionRoots: sessions.Roots{Claude: claude, Codex: codex}, CurrentProject: project})
+	server.Start()
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Jar: jar, Timeout: 3 * time.Second}
+	login, err := http.NewRequest(http.MethodPost, server.URL+"/api/session", strings.NewReader(`{"code":"single-use-code"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	login.Header.Set("Origin", server.URL)
+	login.Header.Set("Content-Type", "application/json")
+	response, err := client.Do(login)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("login status=%d", response.StatusCode)
+	}
+	configText := "web:\n  mode: auto\n  host: 127.0.0.1\n  port: 3199\n  fallback_port: true\n"
+	if err := os.WriteFile(filepath.Join(home, "config.yaml"), []byte(configText), 0600); err != nil {
+		t.Fatal(err)
+	}
+	settings, _ := http.NewRequest(http.MethodPost, server.URL+"/api/settings", strings.NewReader(`{"webMode":"manual"}`))
+	settings.Header.Set("Origin", server.URL)
+	settings.Header.Set("Content-Type", "application/json")
+	response, err = client.Do(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("save dashboard mode status=%d", response.StatusCode)
+	}
+	configData, err := os.ReadFile(filepath.Join(home, "config.yaml"))
+	if err != nil || !bytes.Contains(configData, []byte("mode: manual")) {
+		t.Fatalf("dashboard mode was not persisted: %v", err)
+	}
+	response, err = client.Get(server.URL + "/api/projects")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK || !bytes.Contains(body, []byte(`"current":true`)) || !bytes.Contains(body, []byte(`"sessionCount":0`)) {
+		t.Fatalf("trusted empty current project response status=%d body=%s", response.StatusCode, body)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/api/events", nil)
+	response, err = client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "text/event-stream" {
+		t.Fatalf("events response status=%d content-type=%q", response.StatusCode, response.Header.Get("Content-Type"))
+	}
+	defer response.Body.Close()
+	reader := bufio.NewReader(response.Body)
+	line, err := reader.ReadString('\n')
+	if err != nil || line != "event: projects\n" {
+		t.Fatalf("first SSE event line = %q, %v", line, err)
+	}
+	data, err := reader.ReadString('\n')
+	if err != nil || !strings.Contains(data, "trusted-project") {
+		t.Fatalf("SSE project data = %q, %v", data, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "\n" {
+		t.Fatalf("SSE event terminator = %q, %v", line, err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		line, err := reader.ReadString('\n')
+		if err == nil && line == "event: projects\n" {
+			return
+		}
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("SSE stream closed after its first event: %v", err)
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 
