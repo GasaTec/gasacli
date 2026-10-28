@@ -21,6 +21,8 @@ type Session struct {
 	TrustStore       *trust.Store
 	Agents           func(io.Writer)
 	Doctor           func(io.Writer)
+	AgentsContext    func(context.Context, io.Writer)
+	DoctorContext    func(context.Context, io.Writer)
 	OnTrusted        func() error
 	Web              func(io.Writer, []string) error
 	Setup            func(out io.Writer) error

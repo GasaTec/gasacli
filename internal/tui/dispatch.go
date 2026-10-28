@@ -198,11 +198,21 @@ func builtinHandler(name string, session *Session) CommandHandler {
 	case "/help":
 		return func(context.Context, CommandContext, []string) (string, error) { return helpText(), nil }
 	case "/agents":
-		return func(_ context.Context, _ CommandContext, _ []string) (string, error) {
+		return func(ctx context.Context, _ CommandContext, _ []string) (string, error) {
+			if session.AgentsContext != nil {
+				var output strings.Builder
+				session.AgentsContext(ctx, &output)
+				return strings.TrimRight(output.String(), "\n"), nil
+			}
 			return callbackText(session.Agents, "Agent discovery is not configured."), nil
 		}
 	case "/doctor":
-		return func(_ context.Context, _ CommandContext, _ []string) (string, error) {
+		return func(ctx context.Context, _ CommandContext, _ []string) (string, error) {
+			if session.DoctorContext != nil {
+				var output strings.Builder
+				session.DoctorContext(ctx, &output)
+				return strings.TrimRight(output.String(), "\n"), nil
+			}
 			return callbackText(session.Doctor, "Diagnostics are not configured."), nil
 		}
 	case "/setup":

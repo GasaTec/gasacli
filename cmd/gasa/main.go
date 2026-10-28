@@ -269,6 +269,16 @@ func run(ctx context.Context, args []string) error {
 				fmt.Fprintln(os.Stderr, "discovery:", err)
 			}
 		},
+		AgentsContext: func(commandCtx context.Context, out io.Writer) {
+			if err := diagnostics(commandCtx, out, false); err != nil {
+				fmt.Fprintln(os.Stderr, "discovery:", err)
+			}
+		},
+		DoctorContext: func(commandCtx context.Context, out io.Writer) {
+			if err := diagnostics(commandCtx, out, false); err != nil {
+				fmt.Fprintln(os.Stderr, "discovery:", err)
+			}
+		},
 		OnTrusted: func() error {
 			var err error
 			if interactiveTerminal {
