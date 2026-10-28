@@ -10,7 +10,12 @@ import (
 	"syscall"
 )
 
-func configureProcessTree(cmd *exec.Cmd) { cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} }
+func configureProcessTree(cmd *exec.Cmd) {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Setpgid = true
+}
 func attachProcessTree(cmd *exec.Cmd) (func() error, func(), error) {
 	return func() error {
 		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
