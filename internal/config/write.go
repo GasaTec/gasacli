@@ -54,6 +54,15 @@ func Set(home, key, value string) error {
 			return err
 		}
 		return atomicWriteConfig(home, path, data)
+	case "agents.developer", "agents.reviewer":
+		if !validConfigName(value) {
+			return fmt.Errorf("invalid configured agent assignment")
+		}
+		if key == "agents.developer" {
+			cfg.Agents.Developer = value
+		} else {
+			cfg.Agents.Reviewer = value
+		}
 	default:
 		const prefix = "agents.defaults."
 		if len(key) <= len(prefix) || key[:len(prefix)] != prefix {

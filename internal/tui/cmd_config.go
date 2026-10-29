@@ -37,9 +37,16 @@ func configCommand(_ context.Context, cc CommandContext, args []string) (string,
 	if len(args) != 0 {
 		return "", fmt.Errorf("usage: /config [set <key> <value>|path|edit]")
 	}
-	cfg, err := config.Load()
+	cfg, err := config.LoadFrom(home)
 	if err != nil {
 		return "", err
 	}
-	return strings.Join([]string{fmt.Sprintf("web.mode: %s (user)", cfg.Web.Mode), fmt.Sprintf("web.host: %s (user)", cfg.Web.Host), fmt.Sprintf("web.port: %d (user)", cfg.Web.Port), fmt.Sprintf("web.fallback_port: %t (user)", cfg.Web.FallbackPort), "path: " + filepath.Join(home, "config.yaml")}, "\n"), nil
+	return strings.Join([]string{fmt.Sprintf("web.mode: %s (user)", cfg.Web.Mode), fmt.Sprintf("web.host: %s (user)", cfg.Web.Host), fmt.Sprintf("web.port: %d (user)", cfg.Web.Port), fmt.Sprintf("web.fallback_port: %t (user)", cfg.Web.FallbackPort), fmt.Sprintf("agents.developer: %s (%s)", configValue(cfg.Agents.Developer), config.SourceOf(home, "agents.developer")), fmt.Sprintf("agents.reviewer: %s (%s)", configValue(cfg.Agents.Reviewer), config.SourceOf(home, "agents.reviewer")), "path: " + filepath.Join(home, "config.yaml")}, "\n"), nil
+}
+
+func configValue(value string) string {
+	if value == "" {
+		return "auto"
+	}
+	return value
 }

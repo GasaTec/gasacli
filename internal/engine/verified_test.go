@@ -118,10 +118,13 @@ func TestAgentEventsStoreOnlyRedactedMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = e.RecordAgentEvent(context.Background(), run.ID, "reviewer", "claude", "tool.started"); err != nil {
+	if err = e.RecordAgentEventDetail(context.Background(), run.ID, "reviewer", "claude", "launch.retry", "authentication failed --api-key top-secret"); err != nil {
 		t.Fatal(err)
 	}
-	if err = e.RecordAgentMetrics(context.Background(), run.ID, AgentMetrics{Role: "reviewer", Agent: "claude", ExitCode: 0, EventCount: 4, OutputBytes: 128, DurationMS: 12, CostUSD: 0.01, CostKnown: true, InputTokens: 20, OutputTokens: 4}); err != nil {
+	if err = e.RecordAgentMetrics(context.Background(), run.ID, AgentMetrics{Role: "reviewer", Agent: "claude", ExitCode: 1, EventCount: 4, OutputBytes: 128, DurationMS: 12, CostUSD: 0.01, CostKnown: true, InputTokens: 20, OutputTokens: 4, FailureReason: "network/auth error --api-key top-secret"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = e.RecordChangedFiles(context.Background(), run.ID, []string{"hello.txt"}); err != nil {
 		t.Fatal(err)
 	}
 	if err = e.RecordAgentEvent(context.Background(), run.ID, "reviewer", "claude", "secret prompt text"); err == nil {
@@ -132,8 +135,14 @@ func TestAgentEventsStoreOnlyRedactedMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, event := range events {
-		if strings.Contains(string(event.Payload), "secret prompt text") {
+		if strings.Contains(string(event.Payload), "secret prompt text") || strings.Contains(string(event.Payload), "top-secret") {
 			t.Fatal("agent content was persisted in the event log")
+		}
+		if event.Type == "agent.event" && !strings.Contains(string(event.Payload), "network/auth error") && !strings.Contains(string(event.Payload), "authentication failed") {
+			t.Fatalf("agent launch event detail missing: %s", event.Payload)
+		}
+		if event.Type == "agent.finished" && !strings.Contains(string(event.Payload), "failure_reason") {
+			t.Fatalf("agent failure reason missing: %s", event.Payload)
 		}
 	}
 }

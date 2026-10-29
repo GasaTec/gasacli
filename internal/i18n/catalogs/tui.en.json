@@ -15,7 +15,7 @@
     "command.doctor":  "Run local diagnostics",
     "command.setup":  "Review setup and install guidance",
     "command.status":  "Show the current session",
-    "command.goal":  "Start an orchestrated task",
+    "command.goal":  "Run a verified task, optionally with --agent <id>",
     "command.config":  "Manage effective configuration",
     "command.skills":  "Manage local skills",
     "command.prompts":  "Manage prompts",

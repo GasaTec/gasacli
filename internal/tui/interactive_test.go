@@ -150,7 +150,7 @@ func helpGoldenFixture() []Command {
 		{Name: "/doctor", Summary: "command.doctor"},
 		{Name: "/exit", Summary: "command.exit"},
 		{Name: "/github", Summary: "command.github"},
-		{Name: "/goal", Summary: "command.goal", Planned: true, IssueRef: "#11"},
+		{Name: "/goal", Summary: "command.goal"},
 		{Name: "/help", Summary: "command.help"},
 		{Name: "/permissions", Summary: "command.permissions", Planned: true, IssueRef: "#31"},
 		{Name: "/prompts", Summary: "command.prompts"},

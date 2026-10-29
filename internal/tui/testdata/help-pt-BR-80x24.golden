@@ -7,7 +7,7 @@ GasaCLI commands:
   /doctor          Executa diagnósticos locais
   /exit            Encerra o GasaCLI
   /github          Conecta ferramentas do GitHub
-  /goal            Inicia uma tarefa orquestrada (planejado; consulte a solicitação #11)
+  /goal            Executa uma tarefa verificada, opcionalmente com --agent <id>
   /help            Exibe comandos e atalhos
   /permissions     Configura permissões de execução (planejado; consulte a solicitação #31)
   /prompts         Gerencia prompts

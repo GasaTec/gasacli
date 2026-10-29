@@ -10,15 +10,31 @@ import (
 )
 
 func TestSelectReviewerPrefersDifferentReadyAgentThenFreshDeveloperSession(t *testing.T) {
-	results := []discovery.Result{{ID: "claude", Status: discovery.Ready}, {ID: "codex", Status: discovery.Installed}}
+	results := []discovery.Result{{ID: "codex", Status: discovery.Installed}, {ID: "claude", Status: discovery.Ready}}
 	if got := SelectReviewer(results, "claude"); got != "codex" {
 		t.Fatalf("reviewer = %q", got)
 	}
-	if got := SelectReviewer(results[:1], "claude"); got != "claude" {
+	if got := SelectReviewer([]discovery.Result{{ID: "claude", Status: discovery.Ready}}, "claude"); got != "claude" {
 		t.Fatalf("single-agent reviewer = %q", got)
 	}
 	if got := SelectReviewer(nil, ""); got != "" {
 		t.Fatalf("no-agent reviewer = %q", got)
+	}
+}
+
+func TestSelectDeveloperPrefersReadyAndHonorsAvailablePreference(t *testing.T) {
+	results := []discovery.Result{{ID: "codex", Status: discovery.Installed}, {ID: "claude", Status: discovery.Ready}}
+	if got := SelectDeveloper(results, ""); got != "claude" {
+		t.Fatalf("default developer = %q, want ready claude", got)
+	}
+	if got := SelectDeveloper(results, "codex"); got != "codex" {
+		t.Fatalf("preferred developer = %q", got)
+	}
+	if got := SelectDeveloper(results, "gemini"); got != "" {
+		t.Fatalf("unavailable preference = %q", got)
+	}
+	if AgentStatus(results, "gemini") != discovery.Missing {
+		t.Fatalf("missing agent status = %q", AgentStatus(results, "gemini"))
 	}
 }
 

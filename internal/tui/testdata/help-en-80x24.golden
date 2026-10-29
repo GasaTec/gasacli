@@ -7,7 +7,7 @@ GasaCLI commands:
   /doctor          Run local diagnostics
   /exit            Close GasaCLI
   /github          Connect GitHub tools
-  /goal            Start an orchestrated task (planned; see issue #11)
+  /goal            Run a verified task, optionally with --agent <id>
   /help            Show commands and keyboard shortcuts
   /permissions     Configure execution permissions (planned; see issue #31)
   /prompts         Manage prompts

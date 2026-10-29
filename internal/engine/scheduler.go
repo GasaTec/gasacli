@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/GasaTec/gasacli/internal/permissions"
 )
 
 type SchedulerOptions struct {
@@ -14,6 +16,9 @@ type SchedulerOptions struct {
 	MaxRetries int
 	Now        func() time.Time
 }
+
+// ErrNoRetry marks a task failure that has already had its one launch retry.
+var ErrNoRetry = errors.New("engine: task must not be retried")
 
 // RunDAG schedules ready tasks in insertion order and retries failures up to
 // MaxRetries. A run remains in GATES after execution; a separate quality gate
@@ -149,7 +154,7 @@ func (e *Engine) RunDAG(ctx context.Context, runID string, worker Worker, option
 			if errors.Is(result.err, context.Canceled) && ctx.Err() != nil {
 				return ctx.Err()
 			}
-			if result.task.Retries < options.MaxRetries {
+			if result.task.Retries < options.MaxRetries && !errors.Is(result.err, ErrNoRetry) {
 				result.task.Retries++
 				result.task.Status = Queued
 				tasks[indexByID[result.task.ID]] = result.task
@@ -161,8 +166,9 @@ func (e *Engine) RunDAG(ctx context.Context, runID string, worker Worker, option
 				continue
 			}
 			_ = e.setTask(context.Background(), result.task, TaskBlocked)
-			_ = e.Transition(context.Background(), runID, Blocked, fmt.Sprintf("task %s exhausted retries", result.task.ID))
-			return fmt.Errorf("engine: task %s failed after %d retries: %w", result.task.ID, result.task.Retries, result.err)
+			reason := permissions.RedactTarget(fmt.Sprintf("task %s failed after %d retries: %v", result.task.ID, result.task.Retries, result.err))
+			_ = e.Transition(context.Background(), runID, Blocked, reason)
+			return fmt.Errorf("engine: %s", reason)
 		}
 		result.task.Status = TaskDone
 		if err := e.setTask(ctx, result.task, TaskDone); err != nil {

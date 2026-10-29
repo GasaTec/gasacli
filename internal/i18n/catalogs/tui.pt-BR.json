@@ -15,7 +15,7 @@
     "command.doctor":  "Executa diagnósticos locais",
     "command.setup":  "Revisa configuração e instalação",
     "command.status":  "Exibe a sessão atual",
-    "command.goal":  "Inicia uma tarefa orquestrada",
+    "command.goal":  "Executa uma tarefa verificada, opcionalmente com --agent <id>",
     "command.config":  "Gerencia a configuração efetiva",
     "command.skills":  "Gerencia skills locais",
     "command.prompts":  "Gerencia prompts",

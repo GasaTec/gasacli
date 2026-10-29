@@ -17,7 +17,7 @@ func runConfig(_ context.Context, args []string, out *os.File) error {
 		return err
 	}
 	if len(args) == 0 || args[0] == "show" {
-		cfg, err := config.Load()
+		cfg, err := config.LoadFrom(home)
 		if err != nil {
 			return err
 		}
@@ -33,6 +33,13 @@ func runConfig(_ context.Context, args []string, out *os.File) error {
 		for role, agent := range cfg.Agents.Defaults {
 			key := "agents.defaults." + role
 			fmt.Fprintf(out, "%s: %s (%s)\n", key, agent, config.SourceOf(home, key))
+		}
+		for _, setting := range []struct{ key, value string }{{"agents.developer", cfg.Agents.Developer}, {"agents.reviewer", cfg.Agents.Reviewer}} {
+			value := setting.value
+			if value == "" {
+				value = "auto"
+			}
+			fmt.Fprintf(out, "%s: %s (%s)\n", setting.key, value, config.SourceOf(home, setting.key))
 		}
 		return nil
 	}

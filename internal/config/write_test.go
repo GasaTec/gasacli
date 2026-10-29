@@ -13,7 +13,7 @@ func TestSetSupportedValuesAndValidation(t *testing.T) {
 	if err := Ensure(); err != nil {
 		t.Fatal(err)
 	}
-	for _, setting := range [][2]string{{"web.mode", "manual"}, {"web.port", "4040"}, {"language", "en"}, {"permissions.profile", "restricted"}, {"agents.defaults.developer", "codex"}} {
+	for _, setting := range [][2]string{{"web.mode", "manual"}, {"web.port", "4040"}, {"language", "en"}, {"permissions.profile", "restricted"}, {"agents.defaults.developer", "codex"}, {"agents.developer", "claude"}, {"agents.reviewer", "codex"}} {
 		if err := Set(home, setting[0], setting[1]); err != nil {
 			t.Fatalf("Set(%s): %v", setting[0], err)
 		}
@@ -22,7 +22,7 @@ func TestSetSupportedValuesAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Web.Mode != "manual" || cfg.Web.Port != 4040 || cfg.Language != "en" || cfg.Agents.Defaults["developer"] != "codex" {
+	if cfg.Web.Mode != "manual" || cfg.Web.Port != 4040 || cfg.Language != "en" || cfg.Agents.Defaults["developer"] != "codex" || cfg.Agents.Developer != "claude" || cfg.Agents.Reviewer != "codex" {
 		t.Fatalf("config=%+v", cfg)
 	}
 	policy, err := os.ReadFile(filepath.Join(home, "permissions.yaml"))
@@ -47,6 +47,9 @@ func TestEditDoesNotPublishInvalidConfig(t *testing.T) {
 	}
 	if err = Edit(home, []byte("web:\n  mode: dangerous\n")); err == nil {
 		t.Fatal("invalid config accepted")
+	}
+	if err = Edit(home, []byte("agents:\n  developer: 'claude --danger'\n")); err == nil {
+		t.Fatal("invalid agent assignment accepted")
 	}
 	after, err := os.ReadFile(path)
 	if err != nil || string(after) != string(before) {

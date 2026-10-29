@@ -22,5 +22,6 @@
     "permission.write_vault":  "Alterar conteúdo selecionado do cofre",
     "permission.issue_write":  "Alterar registros do rastreador",
     "permission.plugin_install":  "Instalar plugins ou extensões",
-    "permission.secret_access":  "Usar provedores de credenciais aprovados"
+    "permission.secret_access":  "Usar provedores de credenciais aprovados",
+    "permission.cancel_run":  "Cancelar execução"
 }

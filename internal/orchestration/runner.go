@@ -4,6 +4,7 @@ package orchestration
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -83,7 +84,15 @@ func Run(ctx context.Context, runID string, options Options) error {
 		recordErr := new(error)
 		return &adapters.Executor{Policy: options.Policy, Approver: options.Approver, OnEvent: func(event adapters.Event) {
 			if *recordErr == nil {
-				*recordErr = options.Core.RecordAgentEvent(context.Background(), runID, role, agent, event.Type)
+				detail := ""
+				if event.Type == "launch.retry" {
+					var payload struct {
+						Reason string `json:"reason"`
+					}
+					_ = json.Unmarshal(event.Data, &payload)
+					detail = payload.Reason
+				}
+				*recordErr = options.Core.RecordAgentEventDetail(context.Background(), runID, role, agent, event.Type, detail)
 			}
 			if options.OnEvent != nil {
 				options.OnEvent(role, event)
@@ -178,6 +187,9 @@ func (w developerWorker) Run(ctx context.Context, _ engine.Task) error {
 		return metricsErr
 	}
 	if err != nil {
+		if result.LaunchRetries > 0 {
+			return fmt.Errorf("%w: %v", engine.ErrNoRetry, err)
+		}
 		return err
 	}
 	if result.ExitCode != 0 {
@@ -187,7 +199,7 @@ func (w developerWorker) Run(ctx context.Context, _ engine.Task) error {
 }
 
 func agentMetrics(role, agent string, result adapters.Result) engine.AgentMetrics {
-	return engine.AgentMetrics{Role: role, Agent: agent, ExitCode: result.ExitCode, EventCount: result.Events, OutputBytes: result.OutputBytes, DurationMS: result.Duration.Milliseconds(), CostUSD: result.CostUSD, CostKnown: result.CostKnown, InputTokens: result.InputTokens, OutputTokens: result.OutputTokens}
+	return engine.AgentMetrics{Role: role, Agent: agent, ExitCode: result.ExitCode, EventCount: result.Events, OutputBytes: result.OutputBytes, DurationMS: result.Duration.Milliseconds(), CostUSD: result.CostUSD, CostKnown: result.CostKnown, InputTokens: result.InputTokens, OutputTokens: result.OutputTokens, FailureReason: result.FailureReason}
 }
 
 func gateCommands(gates config.ProjectGates) []engine.GateCommand {
@@ -211,16 +223,52 @@ func effectiveLanguage() string {
 	return "pt-BR"
 }
 
-// SelectReviewer prefers a different installed CLI, then uses a fresh session
-// from the developer CLI when it is the only ready coding agent.
-func SelectReviewer(results []discovery.Result, developer string) string {
-	for _, id := range []string{"codex", "claude"} {
-		if id == developer {
-			continue
+// SelectDeveloper prefers authenticated agents over installed agents whose
+// authentication state is unknown. An explicit preference is returned only
+// when it is currently usable.
+func SelectDeveloper(results []discovery.Result, preferred string) string {
+	if preferred != "" {
+		if AgentAvailable(results, preferred) {
+			return preferred
 		}
+		return ""
+	}
+	for _, status := range []discovery.Status{discovery.Ready, discovery.Installed} {
+		for _, id := range []string{"codex", "claude"} {
+			for _, result := range results {
+				if result.ID == id && result.Status == status {
+					return id
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func AgentStatus(results []discovery.Result, agent string) discovery.Status {
+	for _, result := range results {
+		if result.ID == agent {
+			return result.Status
+		}
+	}
+	return discovery.Missing
+}
+
+func AgentAvailable(results []discovery.Result, agent string) bool {
+	if agent != "claude" && agent != "codex" {
+		return false
+	}
+	status := AgentStatus(results, agent)
+	return status == discovery.Ready || status == discovery.Installed
+}
+
+// SelectReviewer prefers a different ready agent, then a different installed
+// agent, and finally the developer as an isolated fresh session.
+func SelectReviewer(results []discovery.Result, developer string) string {
+	for _, status := range []discovery.Status{discovery.Ready, discovery.Installed} {
 		for _, result := range results {
-			if result.ID == id && (result.Status == discovery.Ready || result.Status == discovery.Installed) {
-				return id
+			if result.ID != developer && AgentAvailable(results, result.ID) && result.Status == status {
+				return result.ID
 			}
 		}
 	}

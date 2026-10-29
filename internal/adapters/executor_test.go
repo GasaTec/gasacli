@@ -86,6 +86,47 @@ func TestCaptureMetricsReadsOnlyNumericUsageFields(t *testing.T) {
 	}
 }
 
+func TestStderrFailureSummaryIsBoundedAndRedacted(t *testing.T) {
+	var tail stderrTailBuffer
+	for i := 0; i < 30; i++ {
+		_, _ = tail.Write([]byte("diagnostic line\n"))
+	}
+	_, _ = tail.Write([]byte("request failed --api-key top-secret\n"))
+	got := tail.String()
+	if strings.Contains(got, "top-secret") || !strings.Contains(got, "[REDACTED]") {
+		t.Fatalf("stderr tail was not redacted: %q", got)
+	}
+	if len(got) > 2<<10 || strings.Count(got, "\n") > 19 {
+		t.Fatalf("stderr tail is not bounded: bytes=%d lines=%d", len(got), strings.Count(got, "\n")+1)
+	}
+	if got := classifyFailure("codex", 1, "request timed out: authentication required"); !strings.Contains(got, "network/auth error") {
+		t.Fatalf("network/auth failure was not identified: %q", got)
+	}
+	if got := classifyFailure("claude", 2, "bad request"); !strings.Contains(got, "exited with status 2") {
+		t.Fatalf("exit failure was not identified: %q", got)
+	}
+}
+
+func TestLaunchRetryIsLimitedToOnePreEventNonzeroExit(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		result  Result
+		retried bool
+		want    bool
+	}{
+		{name: "first pre-event failure", result: Result{ExitCode: 1}, want: true},
+		{name: "already retried", result: Result{ExitCode: 1}, retried: true},
+		{name: "emitted event", result: Result{ExitCode: 1, Events: 1}},
+		{name: "success", result: Result{ExitCode: 0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shouldRetryLaunch(tc.result, tc.retried); got != tc.want {
+				t.Fatalf("shouldRetryLaunch() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestAllowedEnvironmentExcludesCredentials(t *testing.T) {
 	t.Setenv("PATH", "safe-path")
 	t.Setenv("ANTHROPIC_API_KEY", "never-copy")

@@ -23,9 +23,15 @@ import (
 
 func runOrchestration(ctx context.Context, args []string) error {
 	if len(args) == 0 || strings.TrimSpace(strings.Join(args, " ")) == "" {
-		return errors.New(`usage: gasa run "<goal>"`)
+		return errors.New(`usage: gasa run [--agent <id>] [--reviewer <id>] "<goal>"`)
 	}
-	goal := strings.Join(args, " ")
+	goal, requestedAgent, requestedReviewer, err := parseRunArgs(args)
+	if err != nil {
+		return err
+	}
+	if goal == "" {
+		return errors.New(`usage: gasa run [--agent <id>] [--reviewer <id>] "<goal>"`)
+	}
 	project, err := os.Getwd()
 	if err != nil {
 		return err
@@ -54,14 +60,65 @@ func runOrchestration(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	cfg, err := config.LoadFrom(home)
+	if err != nil {
+		return err
+	}
 	results := discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{})
-	agent := selectAgent(results)
+	preferredAgent := requestedAgent
+	if preferredAgent == "" {
+		preferredAgent = cfg.Agents.Developer
+	}
+	agent := orchestration.SelectDeveloper(results, preferredAgent)
 	if agent == "" {
-		return errors.New("no supported coding CLI is installed")
+		return unavailableAgentError("developer", preferredAgent, results)
+	}
+	preferredReviewer := requestedReviewer
+	if preferredReviewer == "" {
+		preferredReviewer = cfg.Agents.Reviewer
+	}
+	reviewer := orchestration.SelectReviewer(results, agent)
+	if preferredReviewer != "" {
+		if !orchestration.AgentAvailable(results, preferredReviewer) {
+			return unavailableAgentError("reviewer", preferredReviewer, results)
+		}
+		reviewer = preferredReviewer
 	}
 	policy := permissions.New(home, trust.NewStore(home))
 	approver := interactiveApprover{in: os.Stdin, out: os.Stderr, policy: policy, approvals: &sync.Map{}}
-	return runGoal(ctx, core, policy, approver, home, project, goal, agent, orchestration.SelectReviewer(results, agent))
+	return runGoal(ctx, core, policy, approver, home, project, goal, agent, reviewer)
+}
+
+func parseRunArgs(args []string) (goal, agent, reviewer string, err error) {
+	var remaining []string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--agent", "--reviewer":
+			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "--") {
+				return "", "", "", fmt.Errorf("%s requires an agent id", args[i])
+			}
+			i++
+			if args[i-1] == "--agent" {
+				agent = args[i]
+			} else {
+				reviewer = args[i]
+			}
+		default:
+			if strings.HasPrefix(args[i], "--") {
+				return "", "", "", fmt.Errorf("unknown gasa run option %q", args[i])
+			}
+			remaining = append(remaining, args[i])
+		}
+	}
+	return strings.TrimSpace(strings.Join(remaining, " ")), agent, reviewer, nil
+}
+
+func unavailableAgentError(role, agent string, results []discovery.Result) error {
+	if agent == "" {
+		return errors.New("no ready or installed supported coding CLI is available")
+	}
+	status := orchestration.AgentStatus(results, agent)
+	return fmt.Errorf("configured %s agent %q is not available (discovery status: %s)", role, agent, status)
 }
 
 func runGoal(ctx context.Context, core *engine.Engine, policy *permissions.Engine, approver permissions.Approver, home, project, goal, agent, reviewer string) error {
@@ -73,7 +130,7 @@ func runGoal(ctx context.Context, core *engine.Engine, policy *permissions.Engin
 	if profileErr != nil {
 		return profileErr
 	}
-	fmt.Println(i18n.T("goal.plan", run.ID, goal, agent, reviewer, profile))
+	fmt.Println(i18n.T("goal.plan", shortRunID(run.ID), goal, agent, reviewer, profile))
 	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: approver, Home: home, Project: project, Goal: goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
 }
 
@@ -103,7 +160,7 @@ func runRuns(args []string) error {
 		return nil
 	}
 	for _, run := range runs {
-		fmt.Printf("%s  %-12s  %s\n", run.ID, run.Status, run.Goal)
+		fmt.Printf("%s  %-12s  %s\n", shortRunID(run.ID), run.Status, run.Goal)
 	}
 	return nil
 }
@@ -148,27 +205,34 @@ func runResume(ctx context.Context, args []string) error {
 		return errors.New("resume requires a trusted project directory")
 	}
 	if run.Status == engine.Done {
-		fmt.Printf("Run %s is already DONE.\n", run.ID)
+		fmt.Printf("Run %s is already DONE.\n", shortRunID(run.ID))
 		return nil
 	}
 	results := discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{})
-	agent := selectAgent(results)
+	cfg, err := config.LoadFrom(home)
+	if err != nil {
+		return err
+	}
+	agent := orchestration.SelectDeveloper(results, cfg.Agents.Developer)
 	if agent == "" {
-		return errors.New("no supported coding CLI is installed")
+		return unavailableAgentError("developer", cfg.Agents.Developer, results)
+	}
+	reviewer := orchestration.SelectReviewer(results, agent)
+	if cfg.Agents.Reviewer != "" {
+		if !orchestration.AgentAvailable(results, cfg.Agents.Reviewer) {
+			return unavailableAgentError("reviewer", cfg.Agents.Reviewer, results)
+		}
+		reviewer = cfg.Agents.Reviewer
 	}
 	policy := permissions.New(home, trust.NewStore(home))
-	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: interactiveApprover{in: os.Stdin, out: os.Stderr, policy: policy, approvals: &sync.Map{}}, Home: home, Project: project, Goal: run.Goal, Developer: agent, Reviewer: orchestration.SelectReviewer(results, agent), MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
+	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: interactiveApprover{in: os.Stdin, out: os.Stderr, policy: policy, approvals: &sync.Map{}}, Home: home, Project: project, Goal: run.Goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
 }
 
-func selectAgent(results []discovery.Result) string {
-	for _, id := range []string{"codex", "claude"} {
-		for _, result := range results {
-			if result.ID == id && (result.Status == discovery.Ready || result.Status == discovery.Installed) {
-				return id
-			}
-		}
+func shortRunID(id string) string {
+	if len(id) > 8 {
+		return id[:8]
 	}
-	return ""
+	return id
 }
 
 type interactiveApprover struct {

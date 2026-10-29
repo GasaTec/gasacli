@@ -48,6 +48,8 @@ type Result struct {
 	OutputTokens  int64         `json:"output_tokens,omitempty"`
 	Text          string        `json:"-"`
 	TextTruncated bool          `json:"-"`
+	FailureReason string        `json:"failure_reason,omitempty"`
+	LaunchRetries int           `json:"launch_retries,omitempty"`
 }
 type Executor struct {
 	Policy      *permissions.Engine
@@ -59,7 +61,12 @@ type Executor struct {
 
 func (e *Executor) Execute(ctx context.Context, request Request) (result Result, err error) {
 	startedAt := time.Now()
-	defer func() { result.Duration = time.Since(startedAt) }()
+	result, err = e.execute(ctx, request, false)
+	result.Duration = time.Since(startedAt)
+	return result, err
+}
+
+func (e *Executor) execute(ctx context.Context, request Request, retried bool) (result Result, err error) {
 	if e.Policy == nil {
 		return Result{}, errors.New("adapter: permission engine is required")
 	}
@@ -90,13 +97,15 @@ func (e *Executor) Execute(ctx context.Context, request Request) (result Result,
 		}
 		defer os.Remove(schemaPath)
 	}
-	if e.LookPath != nil {
-		path, lookErr := e.LookPath(command)
-		if lookErr != nil {
-			return Result{}, fmt.Errorf("adapter: %s CLI not found", request.Agent)
-		}
-		command = path
+	lookPath := e.LookPath
+	if lookPath == nil {
+		lookPath = exec.LookPath
 	}
+	path, lookErr := lookPath(command)
+	if lookErr != nil {
+		return Result{}, fmt.Errorf("adapter: agent not found: %s CLI is not installed", request.Agent)
+	}
+	command = path
 	actions := []permissions.Permission{"read_project"}
 	exactCommand := command
 	for _, arg := range args {
@@ -143,7 +152,8 @@ func (e *Executor) Execute(ctx context.Context, request Request) (result Result,
 		return Result{}, err
 	}
 	if err = cmd.Start(); err != nil {
-		return Result{}, fmt.Errorf("adapter: start %s: %w", request.Agent, err)
+		result.FailureReason = "failed to start " + request.Agent + ": " + permissions.RedactTarget(err.Error())
+		return result, fmt.Errorf("adapter: %s", result.FailureReason)
 	}
 	limit := e.OutputLimit
 	if limit <= 1 || limit > defaultOutputLimit {
@@ -152,11 +162,12 @@ func (e *Executor) Execute(ctx context.Context, request Request) (result Result,
 	result = Result{ExitCode: -1}
 	stdoutLimit, stderrLimit := limit/2, limit-limit/2
 	var stderrBytes atomic.Int64
+	var stderrTail stderrTailBuffer
 	stderrDone := make(chan struct{})
 	stderrOverflow := make(chan struct{}, 1)
 	go func() {
 		defer close(stderrDone)
-		count, _ := io.Copy(io.Discard, io.LimitReader(stderr, int64(stderrLimit)+1))
+		count, _ := io.Copy(io.MultiWriter(io.Discard, &stderrTail), io.LimitReader(stderr, int64(stderrLimit)+1))
 		stderrBytes.Store(count)
 		if count > int64(stderrLimit) {
 			stderrOverflow <- struct{}{}
@@ -232,10 +243,83 @@ func (e *Executor) Execute(ctx context.Context, request Request) (result Result,
 		if exit, ok := waitErr.(*exec.ExitError); ok {
 			result.ExitCode = exit.ExitCode()
 		}
-		return result, fmt.Errorf("adapter: %s exited with status %d", request.Agent, result.ExitCode)
+		result.FailureReason = classifyFailure(request.Agent, result.ExitCode, stderrTail.String())
+		if shouldRetryLaunch(result, retried) && ctx.Err() == nil {
+			firstFailure := result.FailureReason
+			if e.OnEvent != nil {
+				reason, _ := json.Marshal(map[string]string{"reason": firstFailure})
+				e.OnEvent(Event{Type: "launch.retry", Data: reason})
+			}
+			retryResult, retryErr := e.execute(ctx, request, true)
+			retryResult.LaunchRetries = 1
+			retryResult.OutputBytes += result.OutputBytes
+			retryResult.Events += result.Events
+			if retryErr != nil && retryResult.FailureReason != "" {
+				retryResult.FailureReason = permissions.RedactTarget("first launch attempt: " + firstFailure + "; retry: " + retryResult.FailureReason)
+				return retryResult, fmt.Errorf("adapter: %s", retryResult.FailureReason)
+			}
+			return retryResult, retryErr
+		}
+		return result, fmt.Errorf("adapter: %s", result.FailureReason)
 	}
 	result.ExitCode = 0
 	return result, nil
+}
+
+func shouldRetryLaunch(result Result, retried bool) bool {
+	return !retried && result.ExitCode != 0 && result.Events == 0
+}
+
+type stderrTailBuffer struct{ data []byte }
+
+func (b *stderrTailBuffer) Write(p []byte) (int, error) {
+	const limit = 2 << 10
+	b.data = append(b.data, p...)
+	if len(b.data) > limit {
+		b.data = append([]byte(nil), b.data[len(b.data)-limit:]...)
+	}
+	return len(p), nil
+}
+
+func (b *stderrTailBuffer) String() string {
+	text := strings.TrimSpace(string(b.data))
+	if text == "" {
+		return ""
+	}
+	lines := strings.Split(text, "\n")
+	if len(lines) > 20 {
+		lines = lines[len(lines)-20:]
+	}
+	for i := range lines {
+		line := strings.TrimSpace(strings.TrimSuffix(lines[i], "\r"))
+		line = strings.Map(func(r rune) rune {
+			if (r < 0x20 && r != '\t') || r == 0x7f {
+				return -1
+			}
+			return r
+		}, line)
+		lines[i] = permissions.RedactTarget(line)
+	}
+	text = strings.Join(lines, "\n")
+	if len(text) > 2<<10 {
+		text = text[len(text)-(2<<10):]
+	}
+	return strings.TrimSpace(text)
+}
+
+func classifyFailure(agent string, exitCode int, stderr string) string {
+	class := fmt.Sprintf("%s exited with status %d", agent, exitCode)
+	lower := strings.ToLower(stderr)
+	for _, marker := range []string{"401", "403", "unauthorized", "authentication", "not logged in", "login required", "connection refused", "connection reset", "network", "timed out", "timeout", "could not resolve", "dns"} {
+		if strings.Contains(lower, marker) {
+			class = fmt.Sprintf("%s network/auth error (exit status %d)", agent, exitCode)
+			break
+		}
+	}
+	if stderr != "" {
+		class += ": " + stderr
+	}
+	return permissions.RedactTarget(class)
 }
 
 func commandFor(request Request) (string, []string, error) {

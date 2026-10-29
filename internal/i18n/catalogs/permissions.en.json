@@ -22,5 +22,6 @@
     "permission.write_vault":  "Change selected vault content",
     "permission.issue_write":  "Change tracker records",
     "permission.plugin_install":  "Install plugins or extensions",
-    "permission.secret_access":  "Use approved credential providers"
+    "permission.secret_access":  "Use approved credential providers",
+    "permission.cancel_run":  "Cancel run"
 }

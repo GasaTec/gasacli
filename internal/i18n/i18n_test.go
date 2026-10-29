@@ -1,7 +1,11 @@
 package i18n
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -17,6 +21,41 @@ func TestCatalogsHaveSameKeys(t *testing.T) {
 	}
 	if !reflect.DeepEqual(pt, en) {
 		t.Fatalf("catalog keys differ: pt-BR=%v en=%v", pt, en)
+	}
+}
+
+func TestPtBRCatalogsDoNotContainCommonUnaccentedWords(t *testing.T) {
+	files, err := filepath.Glob(filepath.Join("catalogs", "*.pt-BR.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no pt-BR catalog files found")
+	}
+	unaccented := []string{"execucao", "verificacao", "configuracao", "confirmacao", "padrao", "revisao", "sessao", "nao"}
+	for _, file := range files {
+		t.Run(filepath.Base(file), func(t *testing.T) {
+			data, err := os.ReadFile(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var catalog map[string]string
+			if err := json.Unmarshal(data, &catalog); err != nil {
+				t.Fatal(err)
+			}
+			for key, value := range catalog {
+				words := strings.FieldsFunc(strings.ToLower(value), func(r rune) bool {
+					return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
+				})
+				for _, word := range words {
+					for _, bad := range unaccented {
+						if word == bad {
+							t.Errorf("%s.%s contains unaccented word %q", filepath.Base(file), key, bad)
+						}
+					}
+				}
+			}
+		})
 	}
 }
 

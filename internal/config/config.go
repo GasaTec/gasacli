@@ -24,7 +24,9 @@ type Config struct {
 }
 
 type AgentConfig struct {
-	Defaults map[string]string `yaml:"defaults,omitempty"`
+	Developer string            `yaml:"developer,omitempty"`
+	Reviewer  string            `yaml:"reviewer,omitempty"`
+	Defaults  map[string]string `yaml:"defaults,omitempty"`
 }
 
 type WebConfig struct {
@@ -299,7 +301,22 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	return loadConfigFile(filepath.Join(home, "config.yaml"))
+	return LoadFrom(home)
+}
+
+// LoadFrom loads the user's configuration from an explicit GasaCLI home.
+func LoadFrom(home string) (Config, error) {
+	if strings.TrimSpace(home) == "" {
+		return Config{}, errors.New("configuration home is required")
+	}
+	cfg, err := loadConfigFile(filepath.Join(home, "config.yaml"))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return defaults(), nil
+		}
+		return Config{}, err
+	}
+	return cfg, nil
 }
 
 func loadConfigFile(path string) (Config, error) {
@@ -341,6 +358,9 @@ func loadConfigFile(path string) (Config, error) {
 		if !validConfigName(role) || !validConfigName(agent) {
 			return Config{}, fmt.Errorf("invalid default agent assignment %q", role)
 		}
+	}
+	if (cfg.Agents.Developer != "" && !validConfigName(cfg.Agents.Developer)) || (cfg.Agents.Reviewer != "" && !validConfigName(cfg.Agents.Reviewer)) {
+		return Config{}, errors.New("invalid configured agent assignment")
 	}
 	return cfg, nil
 }
