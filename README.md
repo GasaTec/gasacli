@@ -6,7 +6,7 @@
 
 > **Status:** pre-alpha.
 >
-> **Works today (v0.2.0):** terminal chat with project trust and a first-run wizard (`gasa setup`); agent discovery with real login checks (`gasa doctor`); `/goal` and `gasa run` orchestration with an independent reviewer and your own test/build/lint gates (Claude Code and Codex CLI); a permission engine with an approval dialog (`/permissions`); local backup and restore; `/config` and `/prompts`; `/skills`; a read-only Markdown/Obsidian second brain (`/brain`); optional GitHub issues through `gh`; and a local dashboard that shows your Claude Code and Codex sessions, diffs, and can send a message to an existing session after your approval.
+> **Works today (v0.2.1):** terminal chat with project trust and a first-run wizard (`gasa setup`); agent discovery with real login checks (`gasa doctor`); `/goal` and `gasa run` orchestration with an independent reviewer and your own test/build/lint gates (Claude Code and Codex CLI); a permission engine with an approval dialog (`/permissions`); local backup and restore; `/config` and `/prompts`; `/skills`; a read-only Markdown/Obsidian second brain (`/brain`); optional GitHub issues through `gh`; and a local dashboard that shows your Claude Code and Codex sessions, diffs, and can send a message to an existing session after your approval.
 >
 > **Known limits:** other agents (Gemini CLI, Cursor CLI, OpenCode, Kimi) are detected but not driven yet; there is no free-text model chat; reviews by Codex can take several minutes; Cloud and sync are not implemented. Review `docs/launch-checklist.md` before relying on it.
 
@@ -38,7 +38,7 @@ See [monorepo design](docs/monorepo.md), [interactive UX](docs/adr/0004-interact
 
 ## Install
 
-Latest release: **v0.2.0**. Use the one-line installer for your system below, or build from source.
+Latest release: **v0.2.1**. Use the one-line installer for your system below, or build from source.
 
 ### Build from source (Windows, Linux, macOS)
 Needs [Go](https://go.dev/dl/) 1.24 or newer and Git.
