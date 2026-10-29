@@ -155,6 +155,13 @@ func runAsyncWithFiles(ctx context.Context, cc CommandContext, core *engine.Engi
 	err := orchestration.Run(ctx, runID, orchestration.Options{
 		Core: core, Policy: policy, Approver: runApprover, Home: cc.ConfigHome(), Project: project,
 		Goal: goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 3, MaxRetries: 2},
+		OnReviewProgress: func(elapsed time.Duration) {
+			minutes := int(elapsed.Minutes())
+			if minutes < 1 {
+				minutes = 1
+			}
+			cc.Emit(i18n.T("goal.event", shortRunID(runID), i18n.T("goal.progress.review_elapsed", minutes)))
+		},
 	})
 	if baseline != nil {
 		if current, snapshotErr := projectFileState(project); snapshotErr == nil {
@@ -248,8 +255,18 @@ func formatRunEvent(event engine.Event) string {
 			label = i18n.T("goal.progress.review.approved")
 		} else if verdict == "changes_requested" {
 			label = i18n.T("goal.progress.review.changes")
+		} else if verdict == "indeterminate" {
+			label = i18n.T("goal.progress.review.indeterminate")
+		} else if verdict == "review_expired" {
+			label = i18n.T("goal.progress.review.expired")
 		}
-		return i18n.T("goal.progress.review", label, shortAgentRole(stringValue("reviewer")))
+		line := i18n.T("goal.progress.review", label, shortAgentRole(stringValue("reviewer")))
+		var findings []string
+		_ = json.Unmarshal(payload["findings"], &findings)
+		for _, finding := range findings {
+			line += "\n- " + permissions.RedactTarget(finding)
+		}
+		return line
 	case "agent.finished":
 		var metrics engine.AgentMetrics
 		if json.Unmarshal(event.Payload, &metrics) != nil {
@@ -321,6 +338,7 @@ func formatRunSummary(core *engine.Engine, runID string, resumed bool) string {
 	gateResults := map[string]engine.GateResult{}
 	files := []string(nil)
 	verdict := ""
+	var reviewerFindings []string
 	var cost float64
 	costKnown := false
 	for _, event := range events {
@@ -337,10 +355,12 @@ func formatRunSummary(core *engine.Engine, runID string, resumed bool) string {
 		}
 		if event.Type == "review.finished" {
 			var data struct {
-				Verdict string `json:"verdict"`
+				Verdict  string   `json:"verdict"`
+				Findings []string `json:"findings"`
 			}
 			_ = json.Unmarshal(event.Payload, &data)
 			verdict = data.Verdict
+			reviewerFindings = append(reviewerFindings, data.Findings...)
 		}
 		if event.Type == "agent.finished" {
 			var metrics engine.AgentMetrics
@@ -382,6 +402,10 @@ func formatRunSummary(core *engine.Engine, runID string, resumed bool) string {
 			label = "approved"
 		case "changes_requested":
 			label = "changes"
+		case "indeterminate":
+			label = "indeterminate"
+		case "review_expired":
+			label = "expired"
 		}
 		reviewer = i18n.T("goal.progress.review." + label)
 	}
@@ -406,7 +430,11 @@ func formatRunSummary(core *engine.Engine, runID string, resumed bool) string {
 	if duration < 0 {
 		duration = 0
 	}
-	return i18n.T("goal.summary", shortRunID(runID), run.Status, formatSeconds(duration), costText, gateText, reviewer, fileText, shortRunID(runID))
+	findingText := strings.Join(reviewerFindings, "; ")
+	if findingText == "" {
+		findingText = i18n.T("goal.summary.reviewer_findings_none")
+	}
+	return i18n.T("goal.summary", shortRunID(runID), run.Status, formatSeconds(duration), costText, gateText, reviewer, findingText, fileText, shortRunID(runID))
 }
 
 func runCompletionLine(core *engine.Engine, runID string, run engine.Run) string {

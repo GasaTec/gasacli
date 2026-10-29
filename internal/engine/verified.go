@@ -15,7 +15,12 @@ type ReviewVerdict string
 const (
 	ReviewApprove          ReviewVerdict = "approve"
 	ReviewChangesRequested ReviewVerdict = "changes_requested"
+	ReviewIndeterminate    ReviewVerdict = "indeterminate"
+	ReviewExpired          ReviewVerdict = "review_expired"
 )
+
+const maxReviewFindings = 10
+const maxReviewFindingLength = 300
 
 type ReviewResult struct {
 	Verdict  ReviewVerdict `json:"verdict"`
@@ -59,6 +64,15 @@ func ParseReview(value string) (ReviewResult, error) {
 	for _, finding := range result.Findings {
 		if strings.TrimSpace(finding) == "" || strings.IndexByte(finding, 0) >= 0 {
 			return ReviewResult{}, errors.New("engine: reviewer findings must be non-empty text")
+		}
+	}
+	if len(result.Findings) > maxReviewFindings {
+		result.Findings = result.Findings[:maxReviewFindings]
+	}
+	for index, finding := range result.Findings {
+		runes := []rune(finding)
+		if len(runes) > maxReviewFindingLength {
+			result.Findings[index] = string(runes[:maxReviewFindingLength])
 		}
 	}
 	if result.Verdict == ReviewChangesRequested && len(result.Findings) == 0 {
@@ -162,11 +176,14 @@ func (e *Engine) RunVerified(ctx context.Context, runID string, developer Develo
 			_ = e.addEvent(context.Background(), runID, "", "", "review.finished", map[string]any{"cycle": cycleID, "reviewer": options.Reviewer, "verdict": "error"})
 			return e.blockAfterReviewFailure(runID, "independent review failed: "+reviewErr.Error())
 		}
-		if result.Verdict != ReviewApprove && result.Verdict != ReviewChangesRequested {
+		if result.Verdict != ReviewApprove && result.Verdict != ReviewChangesRequested && result.Verdict != ReviewIndeterminate && result.Verdict != ReviewExpired {
 			_ = e.addEvent(context.Background(), runID, "", "", "review.finished", map[string]any{"cycle": cycleID, "reviewer": options.Reviewer, "verdict": "invalid"})
 			return e.blockAfterReviewFailure(runID, "independent reviewer returned an invalid verdict")
 		}
-		_ = e.addEvent(context.Background(), runID, "", "", "review.finished", map[string]any{"cycle": cycleID, "reviewer": options.Reviewer, "verdict": result.Verdict, "finding_count": len(result.Findings)})
+		findings := boundReviewFindings(result.Findings)
+		if err := e.addEvent(context.Background(), runID, "", "", "review.finished", map[string]any{"cycle": cycleID, "reviewer": options.Reviewer, "verdict": result.Verdict, "findings": findings, "finding_count": len(findings)}); err != nil {
+			return err
+		}
 		if result.Verdict == ReviewApprove {
 			if err := e.Transition(ctx, runID, Gates, "independent review approved"); err != nil {
 				if ctx.Err() != nil {
@@ -185,14 +202,38 @@ func (e *Engine) RunVerified(ctx context.Context, runID string, developer Develo
 			}
 			return err
 		}
-		if attempt >= options.MaxFixRetries {
-			return e.blockAfterReviewFailure(runID, "independent review requested changes after bounded fixes")
+		reason := "independent review requested changes after bounded fixes"
+		if result.Verdict == ReviewIndeterminate {
+			reason = "independent review was indeterminate after bounded fixes"
+		} else if result.Verdict == ReviewExpired {
+			reason = "independent review expired after bounded fixes"
 		}
-		feedback = "Independent review requested changes: " + strings.Join(result.Findings, "; ")
+		if attempt >= options.MaxFixRetries {
+			return e.blockAfterReviewFailure(runID, reason)
+		}
+		feedback = "Independent review " + string(result.Verdict) + ": " + strings.Join(findings, "; ")
 		if err := e.prepareFix(ctx, runID); err != nil {
 			return err
 		}
 	}
+}
+
+func boundReviewFindings(findings []string) []string {
+	if len(findings) > maxReviewFindings {
+		findings = findings[:maxReviewFindings]
+	}
+	bounded := make([]string, 0, len(findings))
+	for _, finding := range findings {
+		finding = strings.TrimSpace(finding)
+		runes := []rune(finding)
+		if len(runes) > maxReviewFindingLength {
+			finding = string(runes[:maxReviewFindingLength])
+		}
+		if finding != "" {
+			bounded = append(bounded, finding)
+		}
+	}
+	return bounded
 }
 
 func (e *Engine) persistGateResults(runID, cycleID string, results []GateResult, runErr error) error {

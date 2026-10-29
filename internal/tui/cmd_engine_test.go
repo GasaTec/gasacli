@@ -93,6 +93,7 @@ func TestStatusAndRunsReadPersistedProjectState(t *testing.T) {
 }
 
 func TestFormatRunEventsUsesHumanTextAndShortId(t *testing.T) {
+	t.Setenv("GASACLI_LANG", "pt-BR")
 	i18n.SetLanguage("pt-BR")
 	events := []engine.Event{
 		{Type: "run.state", Payload: []byte(`{"from":"REVIEW","to":"GATES","reason":"independent review approved"}`)},
@@ -110,6 +111,15 @@ func TestFormatRunEventsUsesHumanTextAndShortId(t *testing.T) {
 	}
 	if got := shortRunID("0123456789abcdef"); got != "01234567" {
 		t.Fatalf("short run id = %q", got)
+	}
+}
+
+func TestReviewFindingsRenderImmediatelyAfterChangesRequested(t *testing.T) {
+	t.Setenv("GASACLI_LANG", "pt-BR")
+	i18n.SetLanguage("pt-BR")
+	got := formatRunEvent(engine.Event{Type: "review.finished", Payload: []byte(`{"reviewer":"codex","verdict":"changes_requested","findings":["O objetivo pede exatamente hi; o arquivo contém hello.","Falta atender ao gate configurado."]}`)})
+	if !strings.HasPrefix(got, "Revisão independente: alterações solicitadas por codex\n- O objetivo") || !strings.Contains(got, "\n- Falta atender ao gate configurado.") {
+		t.Fatalf("review findings were not rendered after the verdict: %q", got)
 	}
 }
 

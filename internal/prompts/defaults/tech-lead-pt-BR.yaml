@@ -3,3 +3,4 @@ role: tech-lead
 language: pt-BR
 body: |
   Revise de forma independente o diff e os critérios de aceite. Aponte defeitos concretos, riscos e evidências; não aprove trabalho que você mesmo implementou.
+  Avalie SOMENTE o objetivo declarado e os gates configurados. Não solicite mudanças de estilo fora do objetivo. Para cada apontamento, identifique explicitamente o requisito não atendido e a evidência. Uma quebra de linha final em um arquivo solicitado não é defeito, a menos que o objetivo diga isso explicitamente.

@@ -1,12 +1,20 @@
 package orchestration
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/GasaTec/gasacli/internal/adapters"
 	"github.com/GasaTec/gasacli/internal/config"
 	"github.com/GasaTec/gasacli/internal/discovery"
+	"github.com/GasaTec/gasacli/internal/engine"
+	"github.com/GasaTec/gasacli/internal/prompts"
 )
 
 func TestSelectReviewerPrefersDifferentReadyAgentThenFreshDeveloperSession(t *testing.T) {
@@ -19,6 +27,80 @@ func TestSelectReviewerPrefersDifferentReadyAgentThenFreshDeveloperSession(t *te
 	}
 	if got := SelectReviewer(nil, ""); got != "" {
 		t.Fatalf("no-agent reviewer = %q", got)
+	}
+}
+
+func TestParseReviewOutputShowsBoundedRawTailForUnstructuredAnswer(t *testing.T) {
+	t.Setenv("GASACLI_LANG", "en")
+	result := parseReviewOutput("answer --password hunter2", false)
+	if result.Verdict != engine.ReviewIndeterminate || len(result.Findings) != 1 || strings.Contains(result.Findings[0], "hunter2") {
+		t.Fatalf("unstructured review = %#v", result)
+	}
+	long := strings.Repeat("x", 2000)
+	result = parseReviewOutput(long, true)
+	if result.Verdict != engine.ReviewIndeterminate || len([]rune(result.Findings[0])) > 1201 {
+		t.Fatalf("truncated review = %#v", result)
+	}
+}
+
+func TestReviewerDefaultPromptLimitsReviewToGoalAndGates(t *testing.T) {
+	for _, language := range []string{"pt-BR", "en"} {
+		t.Setenv("GASACLI_LANG", language)
+		effective, err := prompts.Effective(t.TempDir(), "", "tech-lead", language)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, required := range []string{"goal", "gate", "trailing newline"} {
+			if language == "pt-BR" {
+				if required == "goal" {
+					required = "objetivo"
+				}
+				if required == "gate" {
+					required = "gates"
+				}
+				if required == "trailing newline" {
+					required = "quebra de linha final"
+				}
+			}
+			if !strings.Contains(strings.ToLower(effective.Body), strings.ToLower(required)) {
+				t.Errorf("%s reviewer prompt missing %q", language, required)
+			}
+		}
+	}
+}
+
+func TestReviewerTimeoutConfigIsValidated(t *testing.T) {
+	t.Setenv("GASACLI_LANG", "en")
+	home := t.TempDir()
+	if err := os.WriteFile(filepath.Join(home, "config.yaml"), []byte("agents:\n  reviewer_timeout: 90s\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.LoadFrom(home)
+	if err != nil || cfg.Agents.ReviewerTimeout != "90s" {
+		t.Fatalf("reviewer timeout config = %+v, %v", cfg.Agents, err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "config.yaml"), []byte("agents:\n  reviewer_timeout: invalid\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.LoadFrom(home); err == nil {
+		t.Fatal("invalid reviewer timeout was accepted")
+	}
+}
+
+func TestFakeReviewerTimeoutAndProgress(t *testing.T) {
+	t.Setenv("GASACLI_LANG", "en")
+	var progress atomic.Int32
+	_, err := executeReviewWithTimeout(context.Background(), 30*time.Millisecond, 5*time.Millisecond, func(time.Duration) {
+		progress.Add(1)
+	}, func(ctx context.Context) (adapters.Result, error) {
+		<-ctx.Done()
+		return adapters.Result{Text: "partial reviewer output"}, ctx.Err()
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("fake reviewer timeout error = %v", err)
+	}
+	if progress.Load() == 0 {
+		t.Fatal("review progress callback was not called")
 	}
 }
 

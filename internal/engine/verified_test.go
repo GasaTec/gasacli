@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -24,6 +25,9 @@ func TestVerifiedRunRetriesGatesAndReviewThenCompletes(t *testing.T) {
 		developerCalls++
 		if developerCalls > 1 && feedback == "" {
 			t.Fatal("fixing worker did not receive feedback")
+		}
+		if developerCalls == 3 && feedback != "Independent review changes_requested: add an assertion" {
+			t.Fatalf("developer feedback = %q", feedback)
 		}
 		return workerFunc(func(context.Context, Task) error { return nil })
 	}
@@ -65,10 +69,68 @@ func TestVerifiedRunRetriesGatesAndReviewThenCompletes(t *testing.T) {
 			gatesSeen++
 		case "review.finished":
 			reviewsSeen++
+			if reviewsSeen == 1 {
+				var payload struct {
+					Findings []string `json:"findings"`
+				}
+				if err := json.Unmarshal(event.Payload, &payload); err != nil || len(payload.Findings) != 1 || payload.Findings[0] != "add an assertion" {
+					t.Fatalf("review findings event = %s, err=%v", event.Payload, err)
+				}
+			}
 		}
 	}
 	if gatesSeen != 3 || reviewsSeen != 2 || !strings.Contains(strings.Join(states, " "), `"to":"FIXING"`) || !strings.Contains(strings.Join(states, " "), `"to":"DONE"`) {
 		t.Fatalf("events gates=%d reviews=%d states=%s", gatesSeen, reviewsSeen, strings.Join(states, " "))
+	}
+}
+
+func TestRunVerifiedBoundsReviewFindingsAndRetriesIndeterminate(t *testing.T) {
+	e := testEngine(t)
+	run, err := e.CreateRun(context.Background(), t.TempDir(), "goal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = e.AddTasks(context.Background(), run.ID, []Task{{ID: "implementation", Name: "Implement"}}); err != nil {
+		t.Fatal(err)
+	}
+	feedback := ""
+	reviewCalls := 0
+	err = e.RunVerified(context.Background(), run.ID, func(value string) Worker {
+		feedback = value
+		return workerFunc(func(context.Context, Task) error { return nil })
+	}, func(context.Context) ([]GateResult, error) {
+		return []GateResult{{Name: "test", Passed: true}}, nil
+	}, func(context.Context) (ReviewResult, error) {
+		reviewCalls++
+		findings := make([]string, 12)
+		for index := range findings {
+			findings[index] = strings.Repeat("x", 301)
+		}
+		return ReviewResult{Verdict: ReviewIndeterminate, Findings: findings}, nil
+	}, VerifiedOptions{MaxFixRetries: 1, Developer: "claude:developer", Reviewer: "codex:reviewer", ReviewedChange: func() (string, error) { return "diff", nil }})
+	if err == nil || !strings.Contains(err.Error(), "indeterminate") {
+		t.Fatalf("indeterminate review error = %v", err)
+	}
+	events, err := e.Events(context.Background(), run.ID, 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, event := range events {
+		if event.Type == "review.finished" {
+			var payload struct {
+				Verdict  string   `json:"verdict"`
+				Findings []string `json:"findings"`
+			}
+			if err := json.Unmarshal(event.Payload, &payload); err != nil {
+				t.Fatal(err)
+			}
+			if payload.Verdict != "indeterminate" || len(payload.Findings) != 10 || len([]rune(payload.Findings[0])) != 300 {
+				t.Fatalf("bounded review payload = %#v", payload)
+			}
+		}
+	}
+	if feedback == "" || !strings.HasPrefix(feedback, "Independent review indeterminate: ") || reviewCalls != 2 {
+		t.Fatal("developer factory did not receive reviewer feedback")
 	}
 }
 

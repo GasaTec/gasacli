@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/GasaTec/gasacli/internal/config"
 	"github.com/GasaTec/gasacli/internal/discovery"
@@ -131,7 +132,7 @@ func runGoal(ctx context.Context, core *engine.Engine, policy *permissions.Engin
 		return profileErr
 	}
 	fmt.Println(i18n.T("goal.plan", shortRunID(run.ID), goal, agent, reviewer, profile))
-	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: approver, Home: home, Project: project, Goal: goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
+	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: approver, Home: home, Project: project, Goal: goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}, OnReviewProgress: printReviewerProgress})
 }
 
 func runRuns(args []string) error {
@@ -225,7 +226,15 @@ func runResume(ctx context.Context, args []string) error {
 		reviewer = cfg.Agents.Reviewer
 	}
 	policy := permissions.New(home, trust.NewStore(home))
-	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: interactiveApprover{in: os.Stdin, out: os.Stderr, policy: policy, approvals: &sync.Map{}}, Home: home, Project: project, Goal: run.Goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}})
+	return orchestration.Run(ctx, run.ID, orchestration.Options{Core: core, Policy: policy, Approver: interactiveApprover{in: os.Stdin, out: os.Stderr, policy: policy, approvals: &sync.Map{}}, Home: home, Project: project, Goal: run.Goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 1, MaxRetries: 2}, OnReviewProgress: printReviewerProgress})
+}
+
+func printReviewerProgress(elapsed time.Duration) {
+	minutes := int(elapsed.Minutes())
+	if minutes < 1 {
+		minutes = 1
+	}
+	fmt.Fprintln(os.Stderr, i18n.T("goal.progress.review_elapsed", minutes))
 }
 
 func shortRunID(id string) string {

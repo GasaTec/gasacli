@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/GasaTec/gasacli/internal/adapters"
 	"github.com/GasaTec/gasacli/internal/config"
@@ -20,17 +22,19 @@ import (
 )
 
 type Options struct {
-	Core          *engine.Engine
-	Policy        *permissions.Engine
-	Approver      permissions.Approver
-	Home          string
-	Project       string
-	Goal          string
-	Developer     string
-	Reviewer      string
-	MaxFixRetries int
-	Scheduler     engine.SchedulerOptions
-	OnEvent       func(role string, event adapters.Event)
+	Core             *engine.Engine
+	Policy           *permissions.Engine
+	Approver         permissions.Approver
+	Home             string
+	Project          string
+	Goal             string
+	Developer        string
+	Reviewer         string
+	MaxFixRetries    int
+	ReviewerTimeout  time.Duration
+	Scheduler        engine.SchedulerOptions
+	OnEvent          func(role string, event adapters.Event)
+	OnReviewProgress func(time.Duration)
 }
 
 // CreateRun stores a run and its initial implementation task.
@@ -57,6 +61,20 @@ func Run(ctx context.Context, runID string, options Options) error {
 	}
 	if options.Developer == "" || options.Reviewer == "" {
 		return errors.New("orchestration: developer and reviewer agents are required")
+	}
+	if options.ReviewerTimeout <= 0 {
+		options.ReviewerTimeout = 4 * time.Minute
+	}
+	userConfig, configErr := config.LoadFrom(options.Home)
+	if configErr != nil {
+		return fmt.Errorf("load reviewer timeout configuration: %w", configErr)
+	}
+	if userConfig.Agents.ReviewerTimeout != "" {
+		configuredTimeout, parseErr := time.ParseDuration(userConfig.Agents.ReviewerTimeout)
+		if parseErr != nil || configuredTimeout <= 0 {
+			return errors.New("orchestration: agents.reviewer_timeout must be a positive duration")
+		}
+		options.ReviewerTimeout = configuredTimeout
 	}
 	gates, err := config.LoadProjectGates(options.Project)
 	if err != nil {
@@ -132,7 +150,9 @@ func Run(ctx context.Context, runID string, options Options) error {
 			"Reviewed change snapshot SHA-256: " + before,
 		}, "\n\n")
 		executor, eventErr := newExecutor("reviewer", options.Reviewer)
-		result, err := executor.Execute(reviewCtx, adapters.Request{Agent: options.Reviewer, Project: options.Project, Prompt: prompt, RunID: runID, Timeout: 10 * time.Minute, ReadOnly: true})
+		result, err := executeReviewWithTimeout(reviewCtx, options.ReviewerTimeout, time.Minute, options.OnReviewProgress, func(boundedCtx context.Context) (adapters.Result, error) {
+			return executor.Execute(boundedCtx, adapters.Request{Agent: options.Reviewer, Project: options.Project, Prompt: prompt, RunID: runID, Timeout: options.ReviewerTimeout, ReadOnly: true})
+		})
 		metricsErr := options.Core.RecordAgentMetrics(context.Background(), runID, agentMetrics("reviewer", options.Reviewer, result))
 		if *eventErr != nil {
 			return engine.ReviewResult{}, *eventErr
@@ -140,22 +160,22 @@ func Run(ctx context.Context, runID string, options Options) error {
 		if metricsErr != nil {
 			return engine.ReviewResult{}, metricsErr
 		}
+		if err != nil && errors.Is(err, context.DeadlineExceeded) {
+			return engine.ReviewResult{Verdict: engine.ReviewExpired, Findings: []string{i18n.T("goal.progress.review.expired_reason")}}, nil
+		}
 		if err != nil {
 			return engine.ReviewResult{}, err
 		}
-		if result.TextTruncated {
-			return engine.ReviewResult{}, errors.New("reviewer response exceeded the structured output limit")
-		}
-		review, err := engine.ParseReview(result.Text)
-		if err != nil {
-			return engine.ReviewResult{}, err
-		}
+		review := parseReviewOutput(result.Text, result.TextTruncated)
 		after, err := snapshot(options.Project)
 		if err != nil {
 			return engine.ReviewResult{}, err
 		}
 		if before != after {
 			return engine.ReviewResult{}, errors.New("read-only reviewer changed the project")
+		}
+		for index, finding := range review.Findings {
+			review.Findings[index] = sanitizeReviewFinding(finding)
 		}
 		reviewedDigest = "sha256:" + after
 		return review, nil
@@ -165,6 +185,71 @@ func Run(ctx context.Context, runID string, options Options) error {
 		}
 		return reviewedDigest, nil
 	}})
+}
+
+func executeReviewWithTimeout(ctx context.Context, timeout, progressInterval time.Duration, onProgress func(time.Duration), execute func(context.Context) (adapters.Result, error)) (adapters.Result, error) {
+	boundedCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	progressDone := make(chan struct{})
+	if onProgress != nil && progressInterval > 0 {
+		go func() {
+			ticker := time.NewTicker(progressInterval)
+			defer ticker.Stop()
+			started := time.Now()
+			for {
+				select {
+				case <-progressDone:
+					return
+				case <-boundedCtx.Done():
+					return
+				case <-ticker.C:
+					onProgress(time.Since(started))
+				}
+			}
+		}()
+	}
+	result, err := execute(boundedCtx)
+	close(progressDone)
+	if errors.Is(boundedCtx.Err(), context.DeadlineExceeded) {
+		return result, context.DeadlineExceeded
+	}
+	return result, err
+}
+
+func rawReviewTail(value string) string {
+	value = strings.TrimSpace(value)
+	const maxRunes = 1200
+	runes := []rune(value)
+	if len(runes) > maxRunes {
+		value = "…" + string(runes[len(runes)-maxRunes:])
+	}
+	value = sanitizeReviewFinding(value)
+	if !utf8.ValidString(value) {
+		return "(reviewer output could not be displayed safely)"
+	}
+	if value == "" {
+		return "(reviewer returned no parseable findings)"
+	}
+	return value
+}
+
+func sanitizeReviewFinding(value string) string {
+	value = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, value)
+	return strings.TrimSpace(permissions.RedactTarget(value))
+}
+
+func parseReviewOutput(value string, truncated bool) engine.ReviewResult {
+	if !truncated {
+		if result, err := engine.ParseReview(value); err == nil {
+			return result
+		}
+	}
+	return engine.ReviewResult{Verdict: engine.ReviewIndeterminate, Findings: []string{rawReviewTail(value)}}
 }
 
 type developerWorker struct {

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/GasaTec/gasacli/internal/lifecycle"
 	"github.com/GasaTec/gasacli/internal/storage"
@@ -24,9 +25,10 @@ type Config struct {
 }
 
 type AgentConfig struct {
-	Developer string            `yaml:"developer,omitempty"`
-	Reviewer  string            `yaml:"reviewer,omitempty"`
-	Defaults  map[string]string `yaml:"defaults,omitempty"`
+	Developer       string            `yaml:"developer,omitempty"`
+	Reviewer        string            `yaml:"reviewer,omitempty"`
+	ReviewerTimeout string            `yaml:"reviewer_timeout,omitempty"`
+	Defaults        map[string]string `yaml:"defaults,omitempty"`
 }
 
 type WebConfig struct {
@@ -361,6 +363,12 @@ func loadConfigFile(path string) (Config, error) {
 	}
 	if (cfg.Agents.Developer != "" && !validConfigName(cfg.Agents.Developer)) || (cfg.Agents.Reviewer != "" && !validConfigName(cfg.Agents.Reviewer)) {
 		return Config{}, errors.New("invalid configured agent assignment")
+	}
+	if cfg.Agents.ReviewerTimeout != "" {
+		timeout, parseErr := time.ParseDuration(cfg.Agents.ReviewerTimeout)
+		if parseErr != nil || timeout <= 0 {
+			return Config{}, errors.New("invalid agents.reviewer_timeout: expected a positive Go duration")
+		}
 	}
 	return cfg, nil
 }
