@@ -1,6 +1,8 @@
 package sessions
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +10,33 @@ import (
 	"testing"
 	"time"
 )
+
+type cancelDuringScan struct {
+	context.Context
+	checks int
+}
+
+func (c *cancelDuringScan) Err() error {
+	c.checks++
+	if c.checks >= 5 {
+		return context.Canceled
+	}
+	return nil
+}
+
+func TestScanMetadataContextDiscardsPartialResultsOnCancellation(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"a.jsonl", "b.jsonl", "c.jsonl"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(`{"cwd":"/fixture","sessionId":"fixture"}`+"\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx := &cancelDuringScan{Context: context.Background()}
+	items, err := ScanMetadataContext(ctx, Roots{Claude: root})
+	if !errors.Is(err, context.Canceled) || len(items) != 0 {
+		t.Fatalf("items=%v err=%v", items, err)
+	}
+}
 
 func TestScanClaudeDefensiveParsingAndRedaction(t *testing.T) {
 	root := t.TempDir()

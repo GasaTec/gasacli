@@ -1,17 +1,117 @@
 package tui
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/GasaTec/gasacli/internal/adapters"
+	"github.com/GasaTec/gasacli/internal/config"
+	"github.com/GasaTec/gasacli/internal/engine"
 	"github.com/GasaTec/gasacli/internal/i18n"
 	"github.com/GasaTec/gasacli/internal/trust"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
+
+func TestFooterShowsOnlyReportedMetrics(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	m := newInteractiveModel(&Session{}, t.TempDir(), true)
+	m.width, m.height = 120, 36
+	m.lastAgentMetrics = &engine.AgentMetrics{Agent: "codex", InputTokens: 0, InputTokensKnown: true, OutputTokens: 12, CostUSD: 0.25}
+	view := m.View()
+	if !strings.Contains(view, "Últ. codex in 0") || strings.Contains(view, "out 12") || strings.Contains(view, "US$ 0.2500") {
+		t.Fatalf("unreported metrics in footer: %s", view)
+	}
+	m.lastAgentMetrics.OutputTokensKnown, m.lastAgentMetrics.CostKnown = true, true
+	view = m.View()
+	if !strings.Contains(view, "out 12") || !strings.Contains(view, "US$ 0.2500") {
+		t.Fatalf("reported metrics missing: %s", view)
+	}
+}
+
+func TestAgentAttemptStatusRejectsStaleEvents(t *testing.T) {
+	m := newInteractiveModel(&Session{}, t.TempDir(), true)
+	activeRuns.Store("attempt-test", activeRun{project: m.project, cancel: func() {}})
+	defer activeRuns.Delete("attempt-test")
+	update := func(attempt int, status string) {
+		updated, _ := m.Update(attemptMsg{run: "attempt-test", agent: "codex", role: "developer", event: adapters.AttemptEvent{ExecutionID: 7, Attempt: attempt, Status: status}})
+		m = updated.(interactiveModel)
+	}
+	update(1, "started")
+	update(2, "started")
+	update(1, "failed")
+	if len(m.attempts) != 1 || m.attempts[attemptKey{"attempt-test", 7}].attempt != 2 {
+		t.Fatal("stale completion removed active attempt")
+	}
+	if !strings.Contains(m.sidebarText(), "codex [running]") {
+		t.Fatal("active agent is missing from sidebar")
+	}
+	update(2, "succeeded")
+	if len(m.attempts) != 0 {
+		t.Fatal("completed attempt remains active")
+	}
+}
+
+func TestSidebarEmptyStateAndPlainTerminal(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	t.Setenv("NO_COLOR", "1")
+	m := newInteractiveModel(&Session{}, "workspace", true)
+	m.width, m.height = 120, 36
+	view := m.View()
+	if !strings.Contains(view, "No agents discovered") || strings.Contains(view, "\x1b[") {
+		t.Fatalf("plain terminal must have an explicit empty state and no ANSI styling: %q", view)
+	}
+	m.agentsChecking = true
+	if !strings.Contains(m.sidebarText(), "Discovering...") {
+		t.Fatal("discovery in progress must not be presented as an empty result")
+	}
+	m.agentsChecking = false
+	m.sidebar.Err = errors.New("discovery failed")
+	if text := m.sidebarText(); !strings.Contains(text, "Discovery unavail") || strings.Contains(text, "No agents") {
+		t.Fatalf("failed discovery must not look like an empty result: %q", text)
+	}
+	m.width, m.height = 80, 24
+	view = m.View()
+	if !strings.Contains(view, "CONVERSA") || !strings.Contains(view, "Ctrl+P projects") || !strings.Contains(view, "Ctrl+K commands") {
+		t.Fatalf("chat heading or shortcuts missing at 80 columns: %s", view)
+	}
+}
+
+func TestProjectPickerKeepsSelectionVisible(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	m := newInteractiveModel(&Session{}, t.TempDir(), true)
+	m.width, m.height = 80, 18
+	m.projectPicker = true
+	for i := 0; i < 25; i++ {
+		m.sidebar.Projects = append(m.sidebar.Projects, sidebarProject{Path: fmt.Sprintf("/project-%02d", i)})
+	}
+	m.projectIndex = 24
+	view := m.View()
+	if !strings.Contains(view, "> /project-24") {
+		t.Fatalf("selected project not visible: %s", view)
+	}
+}
+
+func TestSecondCtrlCConfirmsWhenGoalIsActive(t *testing.T) {
+	m := newInteractiveModel(&Session{}, t.TempDir(), true)
+	m.busy = true
+	m.commandCancel = func() {}
+	m.lastCtrlCValid = true
+	m.lastCtrlC = time.Now()
+	activeRuns.Store("ctrl-c-test", activeRun{project: m.project, cancel: func() {}})
+	defer activeRuns.Delete("ctrl-c-test")
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if cmd != nil || !updated.(interactiveModel).quitConfirmation {
+		t.Fatal("active background goal must require confirmation")
+	}
+}
 
 func TestInteractiveTrustAndKeys(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
@@ -190,6 +290,44 @@ func TestInteractiveCtrlCAndCtrlDKeepDraftAndExit(t *testing.T) {
 	}
 }
 
+func TestIncomingOutputPreservesScrollPosition(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.view.Height = 3
+	model.append("one\ntwo\nthree\nfour\nfive")
+	if !model.view.AtBottom() {
+		t.Fatal("new output should initially follow the bottom")
+	}
+	model.view.LineUp(2)
+	before := model.view.YOffset
+	model.append("six")
+	if model.view.YOffset != before {
+		t.Fatalf("incoming output moved scroll from %d to %d", before, model.view.YOffset)
+	}
+	model.view.GotoBottom()
+	model.append("seven")
+	if !model.view.AtBottom() {
+		t.Fatal("output should follow again after returning to bottom")
+	}
+}
+
+func TestBusyCommandPreservesDraftAndCancel(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.busy = true
+	canceled := false
+	model.commandCancel = func() { canceled = true }
+	model.chat.SetValue("/status")
+	updated, command := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updated.(interactiveModel)
+	if command != nil || model.chat.Value() != "/status" || len(model.history) != 0 {
+		t.Fatal("busy submission must preserve the draft without starting another command")
+	}
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	model = updated.(interactiveModel)
+	if !canceled || model.chat.Value() != "/status" {
+		t.Fatal("Ctrl+C must cancel the original command and preserve the draft")
+	}
+}
+
 func TestEscClosesCommandSuggestionsWithoutClearingInput(t *testing.T) {
 	model := newInteractiveModel(&Session{}, t.TempDir(), true)
 	model.chat.SetValue("/status")
@@ -231,8 +369,50 @@ func TestInteractiveWelcomeAndEnterSends(t *testing.T) {
 	model.chat.SetValue("hello")
 	updated, command := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	model = updated.(interactiveModel)
-	if command != nil || model.chat.Value() != "" || !strings.Contains(strings.Join(model.lines, "\n"), "chat com modelo ainda não está conectado") {
+	if command != nil || model.chat.Value() != "" || !strings.Contains(strings.Join(model.lines, "\n"), "Selecione uma sessão") {
 		t.Fatalf("Enter did not send the message: model=%+v", model)
+	}
+}
+
+func TestInteractiveSelectionStateAndFailedSelection(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.submit("/use")
+	if !strings.Contains(strings.Join(model.lines, "\n"), "Nenhuma sessão selecionada") {
+		t.Fatal("missing empty selection guidance")
+	}
+	updated, _ := model.Update(sessionSelected{id: "codex-1234567890", agent: "Codex"})
+	model = updated.(interactiveModel)
+	if model.selectedSession != "codex-1234567890" || !strings.Contains(model.View(), "Codex") {
+		t.Fatal("selection was not retained and displayed")
+	}
+	updated, _ = model.Update(sessionSelected{err: fmt.Errorf("sessão não encontrada")})
+	model = updated.(interactiveModel)
+	if model.selectedSession != "codex-1234567890" {
+		t.Fatal("failed selection replaced the previous session")
+	}
+	model.submit("/use")
+	if !strings.Contains(strings.Join(model.lines, "\n"), "Sessão selecionada: codex-12345678") {
+		t.Fatal("/use did not show current selection")
+	}
+}
+
+func TestCancelSessionSelectionDoesNotReplaceSelection(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), false)
+	model.selectedSession = "codex-original"
+	command := model.startSessionSelection("missing")
+	model.commandCancel()
+	batch, ok := command().(tea.BatchMsg)
+	if !ok || len(batch) != 2 {
+		t.Fatal("selection must run asynchronously with a spinner")
+	}
+	result, ok := batch[1]().(sessionSelected)
+	if !ok || !errors.Is(result.err, context.Canceled) {
+		t.Fatalf("selection cancellation = %#v", result)
+	}
+	updated, _ := model.Update(result)
+	model = updated.(interactiveModel)
+	if model.busy || model.selectedSession != "codex-original" {
+		t.Fatal("canceled selection changed the active session or stayed busy")
 	}
 }
 
@@ -308,5 +488,199 @@ func TestAsyncDiscoveryShowsSpinnerAndReturnsResult(t *testing.T) {
 	model = updated.(interactiveModel)
 	if model.busy || !strings.Contains(strings.Join(model.lines, "\n"), "Codex available") {
 		t.Fatal("diagnostic result did not update the conversation")
+	}
+}
+
+func TestResponsiveLayoutAndNavigation(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	t.Setenv("NO_COLOR", "1")
+	model := newInteractiveModel(&Session{}, "project", true)
+	for _, size := range []struct{ w, h int }{{120, 36}, {80, 24}, {40, 15}} {
+		updated, _ := model.Update(tea.WindowSizeMsg{Width: size.w, Height: size.h})
+		model = updated.(interactiveModel)
+		view := model.View()
+		if model.showSidebar() != (size.w >= 96 && size.h >= 18) {
+			t.Fatalf("sidebar at %dx%d", size.w, size.h)
+		}
+		if n := len(strings.Split(view, "\n")); n > size.h {
+			t.Errorf("%dx%d: %d rows", size.w, size.h, n)
+		}
+		for _, line := range strings.Split(view, "\n") {
+			if lipgloss.Width(line) > size.w {
+				t.Errorf("%dx%d: line width %d", size.w, size.h, lipgloss.Width(line))
+				break
+			}
+		}
+	}
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
+	model = updated.(interactiveModel)
+	if !model.palette || model.chat.Value() != "/" {
+		t.Fatal("Ctrl+K did not open the command palette")
+	}
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model = updated.(interactiveModel)
+	if model.palette {
+		t.Fatal("Esc did not close the palette")
+	}
+	updated, _ = model.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	model = updated.(interactiveModel)
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyCtrlB})
+	model = updated.(interactiveModel)
+	if model.showSidebar() {
+		t.Fatal("Ctrl+B did not hide sidebar")
+	}
+}
+
+func TestProjectPickerChecksTrustAndClearsSession(t *testing.T) {
+	store := trust.NewStore(t.TempDir())
+	first, second := t.TempDir(), t.TempDir()
+	if err := store.Grant(first); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Grant(second); err != nil {
+		t.Fatal(err)
+	}
+	session := &Session{TrustStore: store, ProjectPath: first}
+	model := newInteractiveModel(session, first, true)
+	model.sidebar.Projects = []sidebarProject{{Path: second}}
+	model.selectedSession, model.selectedAgent = "old-session", "Codex"
+	model.lines = []string{"old project content"}
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyCtrlP})
+	model = updated.(interactiveModel)
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updated.(interactiveModel)
+	canonical, err := trust.Canonical(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if model.project != canonical || session.ProjectPath != canonical || model.selectedSession != "" || len(model.lines) != 0 {
+		t.Fatal("project switch retained previous project state")
+	}
+	model.busy = true
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyCtrlP})
+	model = updated.(interactiveModel)
+	if model.projectPicker {
+		t.Fatal("picker opened while execution is active")
+	}
+}
+
+func TestStreamingChunksAndThemeSurviveResize(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	model := newInteractiveModel(&Session{}, "project", true)
+	updated, _ := model.Update(handlerChunk{text: "```go\n", stream: true})
+	model = updated.(interactiveModel)
+	updated, _ = model.Update(handlerChunk{text: "func main() {}\n```", stream: true})
+	model = updated.(interactiveModel)
+	if len(model.transcript) != 1 || !strings.Contains(model.transcript[0], "func main()") {
+		t.Fatal("stream chunks not grouped")
+	}
+	updated, _ = model.Update(handlerChunk{text: "first event"})
+	model = updated.(interactiveModel)
+	updated, _ = model.Update(handlerChunk{text: "second event"})
+	model = updated.(interactiveModel)
+	if len(model.transcript) != 3 {
+		t.Fatal("independent events were combined")
+	}
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyCtrlT})
+	model = updated.(interactiveModel)
+	updated, _ = model.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	model = updated.(interactiveModel)
+	if !model.lightTheme || model.renderWidth != model.view.Width {
+		t.Fatal("theme or render cache lost on resize")
+	}
+}
+
+func TestProjectPickerPreservesDraft(t *testing.T) {
+	model := newInteractiveModel(&Session{}, "project", true)
+	model.chat.SetValue("draft")
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyCtrlP})
+	model = updated.(interactiveModel)
+	if model.projectPicker || model.chat.Value() != "draft" {
+		t.Fatal("project picker must preserve draft")
+	}
+}
+
+func TestSmallApprovalDialogFitsAndScrolls(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	model := newInteractiveModel(&Session{}, "project", true)
+	model.width, model.height = 30, 12
+	model.approval = &approvalPrompt{request: PermissionRequest{Agent: "Codex", Target: strings.Repeat("long target ", 12), ExactCommand: "important-command"}}
+	view := model.View()
+	if len(strings.Split(view, "\n")) > 12 {
+		t.Fatal("dialog exceeds terminal height")
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if lipgloss.Width(line) > 30 {
+			t.Fatal("dialog exceeds terminal width")
+		}
+	}
+	for i := 0; i < 40; i++ {
+		updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model = updated.(interactiveModel)
+	}
+	if !strings.Contains(model.View(), "important-command") {
+		t.Fatal("approval details cannot be reached by scrolling")
+	}
+}
+
+func TestSmallTrustDeniedDialogFits(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	model := newInteractiveModel(&Session{}, "project", false)
+	model.width, model.height, model.trustDenied = 30, 12, true
+	view := model.View()
+	if len(strings.Split(view, "\n")) > 12 {
+		t.Fatal("trust dialog exceeds terminal height")
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if lipgloss.Width(line) > 30 {
+			t.Fatal("trust dialog exceeds terminal width")
+		}
+	}
+}
+
+func TestFooterShowsActiveBackgroundRun(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	model := newInteractiveModel(&Session{}, "project-background-test", true)
+	activeRuns.Store("footer-test", activeRun{project: model.project, cancel: func() {}})
+	defer activeRuns.Delete("footer-test")
+	if !strings.Contains(model.View(), "Execu\u00e7\u00e3o ativa") {
+		t.Fatal("active background run is not shown")
+	}
+}
+
+func TestConfigurableNavigationKeys(t *testing.T) {
+	keys, err := (config.TUIKeys{Projects: "f1", Palette: "f2"}).Resolved()
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := newInteractiveModel(&Session{}, "project", true)
+	model.keys = keys
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyF1})
+	model = updated.(interactiveModel)
+	if !model.projectPicker {
+		t.Fatal("configured project key did not open picker")
+	}
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model = updated.(interactiveModel)
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyF2})
+	model = updated.(interactiveModel)
+	if !model.palette {
+		t.Fatal("configured palette key did not open palette")
+	}
+	model.trusted = false
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyF1})
+	model = updated.(interactiveModel)
+	if model.projectPicker {
+		t.Fatal("navigation key bypassed trust prompt")
+	}
+}
+
+func TestPalettePreservesDraft(t *testing.T) {
+	model := newInteractiveModel(&Session{}, "project", true)
+	model.chat.SetValue("unsent message")
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
+	model = updated.(interactiveModel)
+	if model.chat.Value() != "unsent message" || model.palette {
+		t.Fatal("palette must preserve the draft")
 	}
 }

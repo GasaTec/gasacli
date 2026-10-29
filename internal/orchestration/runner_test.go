@@ -174,3 +174,10 @@ func TestUnconfirmedLoginIsALastResortNotARefusal(t *testing.T) {
 		t.Fatalf("a confirmed login must win, got %q", got)
 	}
 }
+
+func TestAgentMetricsPreservesReportedZeroAndKnownCost(t *testing.T) {
+	metrics := agentMetrics("developer", "claude", adapters.Result{InputTokensKnown: true, InputTokens: 0, CostKnown: true, CostUSD: 0.1})
+	if !metrics.InputTokensKnown || metrics.InputTokens != 0 || metrics.OutputTokensKnown || !metrics.CostKnown || metrics.CostUSD != 0.1 {
+		t.Fatalf("metrics = %#v", metrics)
+	}
+}

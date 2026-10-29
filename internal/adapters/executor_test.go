@@ -217,3 +217,20 @@ func TestAllowedEnvironmentKeepsAgentConfigDirectories(t *testing.T) {
 		t.Fatalf("token leaked: %s", got)
 	}
 }
+
+func TestCaptureMetricsDistinguishesZeroFromMissing(t *testing.T) {
+	var result Result
+	captureMetrics([]byte(`{"usage":{"input_tokens":0},"cost_usd":0}`), &result)
+	if !result.InputTokensKnown || result.InputTokens != 0 || result.OutputTokensKnown || !result.CostKnown || result.CostUSD != 0 {
+		t.Fatalf("unexpected metrics: %#v", result)
+	}
+	captureMetrics([]byte(`{"usage":{"output_tokens":3}}`), &result)
+	if !result.InputTokensKnown || !result.OutputTokensKnown || result.OutputTokens != 3 {
+		t.Fatalf("unexpected merged metrics: %#v", result)
+	}
+	var missing Result
+	captureMetrics([]byte(`{"usage":{}}`), &missing)
+	if missing.InputTokensKnown || missing.OutputTokensKnown || missing.CostKnown {
+		t.Fatalf("absent metrics marked known: %#v", missing)
+	}
+}

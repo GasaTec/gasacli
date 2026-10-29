@@ -37,36 +37,50 @@ type Event struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data,omitempty"`
 }
+
+// AttemptEvent describes a process that actually started, not an approval or
+// provider-reported status. Attempt numbers restart for each Execute call.
+type AttemptEvent struct {
+	ExecutionID uint64
+	Attempt     int
+	Status      string // started, succeeded, failed, canceled, or timed_out
+}
+
+var executionSequence atomic.Uint64
+
 type Result struct {
-	ExitCode      int           `json:"exit_code"`
-	Events        int           `json:"events"`
-	OutputBytes   int           `json:"output_bytes"`
-	Duration      time.Duration `json:"duration"`
-	CostUSD       float64       `json:"cost_usd,omitempty"`
-	CostKnown     bool          `json:"cost_known"`
-	InputTokens   int64         `json:"input_tokens,omitempty"`
-	OutputTokens  int64         `json:"output_tokens,omitempty"`
-	Text          string        `json:"-"`
-	TextTruncated bool          `json:"-"`
-	FailureReason string        `json:"failure_reason,omitempty"`
-	LaunchRetries int           `json:"launch_retries,omitempty"`
+	ExitCode          int           `json:"exit_code"`
+	Events            int           `json:"events"`
+	OutputBytes       int           `json:"output_bytes"`
+	Duration          time.Duration `json:"duration"`
+	CostUSD           float64       `json:"cost_usd,omitempty"`
+	CostKnown         bool          `json:"cost_known"`
+	InputTokens       int64         `json:"input_tokens,omitempty"`
+	OutputTokens      int64         `json:"output_tokens,omitempty"`
+	InputTokensKnown  bool          `json:"input_tokens_known,omitempty"`
+	OutputTokensKnown bool          `json:"output_tokens_known,omitempty"`
+	Text              string        `json:"-"`
+	TextTruncated     bool          `json:"-"`
+	FailureReason     string        `json:"failure_reason,omitempty"`
+	LaunchRetries     int           `json:"launch_retries,omitempty"`
 }
 type Executor struct {
 	Policy      *permissions.Engine
 	Approver    permissions.Approver
 	OutputLimit int
 	OnEvent     func(Event)
+	OnAttempt   func(AttemptEvent)
 	LookPath    func(string) (string, error)
 }
 
 func (e *Executor) Execute(ctx context.Context, request Request) (result Result, err error) {
 	startedAt := time.Now()
-	result, err = e.execute(ctx, request, false)
+	result, err = e.execute(ctx, request, false, executionSequence.Add(1))
 	result.Duration = time.Since(startedAt)
 	return result, err
 }
 
-func (e *Executor) execute(ctx context.Context, request Request, retried bool) (result Result, err error) {
+func (e *Executor) execute(ctx context.Context, request Request, retried bool, executionID uint64) (result Result, err error) {
 	if e.Policy == nil {
 		return Result{}, errors.New("adapter: permission engine is required")
 	}
@@ -155,6 +169,35 @@ func (e *Executor) execute(ctx context.Context, request Request, retried bool) (
 		result.FailureReason = "failed to start " + request.Agent + ": " + permissions.RedactTarget(err.Error())
 		return result, fmt.Errorf("adapter: %s", result.FailureReason)
 	}
+	attempt := 1
+	if retried {
+		attempt = 2
+	}
+	finished := false
+	emit := func(status string) {
+		if e.OnAttempt != nil {
+			e.OnAttempt(AttemptEvent{ExecutionID: executionID, Attempt: attempt, Status: status})
+		}
+	}
+	emit("started")
+	finish := func(status string) {
+		if !finished {
+			finished = true
+			emit(status)
+		}
+	}
+	defer func() {
+		status := "succeeded"
+		switch {
+		case errors.Is(commandCtx.Err(), context.Canceled):
+			status = "canceled"
+		case errors.Is(commandCtx.Err(), context.DeadlineExceeded):
+			status = "timed_out"
+		case err != nil:
+			status = "failed"
+		}
+		finish(status)
+	}()
 	limit := e.OutputLimit
 	if limit <= 1 || limit > defaultOutputLimit {
 		limit = defaultOutputLimit
@@ -246,11 +289,12 @@ func (e *Executor) execute(ctx context.Context, request Request, retried bool) (
 		result.FailureReason = classifyFailure(request.Agent, result.ExitCode, stderrTail.String())
 		if shouldRetryLaunch(result, retried) && ctx.Err() == nil {
 			firstFailure := result.FailureReason
+			finish("failed")
 			if e.OnEvent != nil {
 				reason, _ := json.Marshal(map[string]string{"reason": firstFailure})
 				e.OnEvent(Event{Type: "launch.retry", Data: reason})
 			}
-			retryResult, retryErr := e.execute(ctx, request, true)
+			retryResult, retryErr := e.execute(ctx, request, true, executionID)
 			retryResult.LaunchRetries = 1
 			retryResult.OutputBytes += result.OutputBytes
 			retryResult.Events += result.Events
@@ -426,8 +470,8 @@ func captureMetrics(line []byte, result *Result) {
 		CostUSD      *float64 `json:"cost_usd"`
 		TotalCostUSD *float64 `json:"total_cost_usd"`
 		Usage        struct {
-			InputTokens  int64 `json:"input_tokens"`
-			OutputTokens int64 `json:"output_tokens"`
+			InputTokens  *int64 `json:"input_tokens"`
+			OutputTokens *int64 `json:"output_tokens"`
 		} `json:"usage"`
 	}
 	if json.Unmarshal(line, &event) != nil {
@@ -438,11 +482,11 @@ func captureMetrics(line []byte, result *Result) {
 	} else if event.TotalCostUSD != nil {
 		result.CostUSD, result.CostKnown = *event.TotalCostUSD, true
 	}
-	if event.Usage.InputTokens != 0 {
-		result.InputTokens = event.Usage.InputTokens
+	if event.Usage.InputTokens != nil && *event.Usage.InputTokens >= 0 {
+		result.InputTokens, result.InputTokensKnown = *event.Usage.InputTokens, true
 	}
-	if event.Usage.OutputTokens != 0 {
-		result.OutputTokens = event.Usage.OutputTokens
+	if event.Usage.OutputTokens != nil && *event.Usage.OutputTokens >= 0 {
+		result.OutputTokens, result.OutputTokensKnown = *event.Usage.OutputTokens, true
 	}
 }
 

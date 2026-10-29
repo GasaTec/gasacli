@@ -42,6 +42,7 @@ func run(ctx context.Context, args []string) error {
 		printVersion(os.Stdout)
 		return nil
 	}
+	configureCLILanguage()
 	// Destructive maintenance commands run before config.Ensure/Load and before flag parsing:
 	// a broken or missing config must not block them, they must not recreate the files they
 	// are about to delete, and they own their flags (--all, --yes, --dry-run, ...).
@@ -68,7 +69,6 @@ func run(ctx context.Context, args []string) error {
 		}
 		return runBackup(ctx, append([]string{command}, remaining...), os.Stdout)
 	}
-	configureCLILanguage()
 	flags := flag.NewFlagSet("gasa", flag.ContinueOnError)
 	noBrowser := flags.Bool("no-browser", false, "Do not open the dashboard automatically")
 	noOnboarding := flags.Bool("no-onboarding", false, "Skip first-run onboarding")
@@ -99,7 +99,7 @@ func run(ctx context.Context, args []string) error {
 	headless := headlessMode()
 	rest := flags.Args()
 	if len(rest) == 1 && rest[0] == "help" {
-		localizedHelp()
+		help()
 		return nil
 	}
 	if err := config.Ensure(); err != nil {
@@ -114,6 +114,8 @@ func run(ctx context.Context, args []string) error {
 	}
 	if len(rest) > 0 {
 		switch {
+		case rest[0] == "backup" || rest[0] == "restore" || rest[0] == "backups":
+			return runBackup(ctx, rest, os.Stdout)
 		case rest[0] == "config":
 			return runConfig(ctx, rest[1:], os.Stdout)
 		case len(rest) == 1 && rest[0] == "setup":
@@ -147,12 +149,6 @@ func run(ctx context.Context, args []string) error {
 			return diagnostics(ctx, os.Stdout, *doctorJSON)
 		case rest[0] == "permissions":
 			return runPermissions(ctx, rest[1:], os.Stdout)
-		case rest[0] == "skills":
-			return runSkills(ctx, rest[1:], os.Stdout)
-		case rest[0] == "brain":
-			return runBrain(ctx, rest[1:], os.Stdout)
-		case rest[0] == "github":
-			return runGitHub(ctx, rest[1:], os.Stdin, os.Stdout)
 		case rest[0] == "run":
 			return runOrchestration(ctx, rest[1:])
 		case rest[0] == "runs":
@@ -161,6 +157,12 @@ func run(ctx context.Context, args []string) error {
 			return runPrompts(ctx, rest[1:], os.Stdout)
 		case rest[0] == "resume":
 			return runResume(ctx, rest[1:])
+		case rest[0] == "skills":
+			return runSkills(ctx, rest[1:], os.Stdout)
+		case rest[0] == "brain":
+			return runBrain(ctx, rest[1:], os.Stdout)
+		case rest[0] == "github":
+			return runGitHub(ctx, rest[1:], os.Stdin, os.Stdout)
 		case len(rest) == 2 && rest[0] == "web" && rest[1] == "open":
 			server, err := startDashboard(ctx, cfg)
 			if err != nil {
@@ -243,6 +245,7 @@ func run(ctx context.Context, args []string) error {
 	}
 	var session tui.Session
 	session = tui.Session{
+		Version: version,
 		Context: ctx, In: sessionInput, Out: os.Stdout, ProjectPath: cwd, TrustStore: trust.NewStore(home),
 		Interactive: interactiveTerminal,
 		Language:    language,
@@ -321,7 +324,7 @@ func run(ctx context.Context, args []string) error {
 		},
 		Setup: func(out io.Writer) error {
 			if interactiveTerminal {
-				if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: out, GrantTrust: trust.NewStore(home).Grant}); err != nil {
+				if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: session.ProjectPath, Out: out, GrantTrust: trust.NewStore(home).Grant}); err != nil {
 					return err
 				}
 				cfg, err = config.Load()

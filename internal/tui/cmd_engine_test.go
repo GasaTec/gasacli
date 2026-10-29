@@ -233,3 +233,24 @@ func TestCancelWithoutArgsRequiresConfirmation(t *testing.T) {
 		t.Fatalf("cancelled run = %s err=%v", saved.Status, err)
 	}
 }
+
+func TestCompleteAgentCostRequiresEveryCost(t *testing.T) {
+	known := engine.Event{Type: "agent.finished", Payload: []byte(`{"cost_known":true,"cost_usd":0.25}`)}
+	unknown := engine.Event{Type: "agent.finished", Payload: []byte(`{"cost_known":false}`)}
+	if total, ok := completeAgentCost([]engine.Event{known}); !ok || total != 0.25 {
+		t.Fatalf("known total = %v, %v", total, ok)
+	}
+	if _, ok := completeAgentCost([]engine.Event{known, unknown}); ok {
+		t.Fatal("partial total reported as complete")
+	}
+	if _, ok := completeAgentCost(make([]engine.Event, 1000)); ok {
+		t.Fatal("truncated page reported as complete")
+	}
+}
+
+func TestAgentProgressShowsOnlyReportedTokens(t *testing.T) {
+	line := formatRunEvent(engine.Event{Type: "agent.finished", Payload: []byte(`{"role":"developer","agent":"claude","input_tokens_known":true,"input_tokens":0,"cost_known":true,"cost_usd":0}`)})
+	if !(strings.Contains(line, "input tokens: 0") || strings.Contains(line, "tokens de entrada: 0")) || strings.Contains(line, "output tokens") || strings.Contains(line, "tokens de sa\u00edda") {
+		t.Fatalf("unexpected progress: %s", line)
+	}
+}

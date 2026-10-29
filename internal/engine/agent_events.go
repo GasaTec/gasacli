@@ -13,17 +13,19 @@ import (
 // AgentMetrics is a redacted summary; prompts, response text, and event data
 // are never persisted here.
 type AgentMetrics struct {
-	Role          string  `json:"role"`
-	Agent         string  `json:"agent"`
-	ExitCode      int     `json:"exit_code"`
-	EventCount    int     `json:"event_count"`
-	OutputBytes   int     `json:"output_bytes"`
-	DurationMS    int64   `json:"duration_ms"`
-	CostUSD       float64 `json:"cost_usd,omitempty"`
-	CostKnown     bool    `json:"cost_known"`
-	InputTokens   int64   `json:"input_tokens,omitempty"`
-	OutputTokens  int64   `json:"output_tokens,omitempty"`
-	FailureReason string  `json:"failure_reason,omitempty"`
+	Role              string  `json:"role"`
+	Agent             string  `json:"agent"`
+	ExitCode          int     `json:"exit_code"`
+	EventCount        int     `json:"event_count"`
+	OutputBytes       int     `json:"output_bytes"`
+	DurationMS        int64   `json:"duration_ms"`
+	CostUSD           float64 `json:"cost_usd,omitempty"`
+	CostKnown         bool    `json:"cost_known"`
+	InputTokens       int64   `json:"input_tokens,omitempty"`
+	OutputTokens      int64   `json:"output_tokens,omitempty"`
+	InputTokensKnown  bool    `json:"input_tokens_known,omitempty"`
+	OutputTokensKnown bool    `json:"output_tokens_known,omitempty"`
+	FailureReason     string  `json:"failure_reason,omitempty"`
 }
 
 func (e *Engine) RecordAgentEvent(ctx context.Context, runID, role, agent, eventType string) error {

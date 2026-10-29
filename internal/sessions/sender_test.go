@@ -111,6 +111,26 @@ func TestCLISenderRefusesUntrustedProject(t *testing.T) {
 	}
 }
 
+func TestCLISenderRejectsChangedSelectedProject(t *testing.T) {
+	sender, sessionID := testSender(t, "success", true)
+	ctx := WithExpectedProject(context.Background(), t.TempDir())
+	if _, err := sender.Send(ctx, SendRequest{SessionID: sessionID, Text: "say pong"}); err == nil || !strings.Contains(err.Error(), "project changed") {
+		t.Fatalf("changed project error = %v", err)
+	}
+}
+
+func TestCLISenderAcceptsSelectedProject(t *testing.T) {
+	sender, sessionID := testSender(t, "success", true)
+	project := ScanMetadata(sender.Roots)[0].CWD
+	ctx := WithExpectedProject(context.Background(), project)
+	stream, err := sender.Send(ctx, SendRequest{SessionID: sessionID, Text: "say pong"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range stream {
+	}
+}
+
 func TestCLISenderRejectsWithoutApproval(t *testing.T) {
 	sender, sessionID := testSender(t, "success", true)
 	sender.Approver = nil

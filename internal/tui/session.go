@@ -14,6 +14,7 @@ import (
 )
 
 type Session struct {
+	Version          string
 	Context          context.Context
 	In               io.Reader
 	Out              io.Writer

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GasaTec/gasacli/internal/adapters"
 	"github.com/GasaTec/gasacli/internal/config"
 	"github.com/GasaTec/gasacli/internal/discovery"
 	"github.com/GasaTec/gasacli/internal/engine"
@@ -155,6 +156,11 @@ func runAsyncWithFiles(ctx context.Context, cc CommandContext, core *engine.Engi
 	err := orchestration.Run(ctx, runID, orchestration.Options{
 		Core: core, Policy: policy, Approver: runApprover, Home: cc.ConfigHome(), Project: project,
 		Goal: goal, Developer: agent, Reviewer: reviewer, MaxFixRetries: 2, Scheduler: engine.SchedulerOptions{Workers: 3, MaxRetries: 2},
+		OnAttempt: func(role, agent string, event adapters.AttemptEvent) {
+			if current, ok := cc.(*sessionCommandContext); ok && current.attempt != nil {
+				current.attempt(runID, role, agent, event)
+			}
+		},
 		OnReviewProgress: func(elapsed time.Duration) {
 			minutes := int(elapsed.Minutes())
 			if minutes < 1 {
@@ -194,6 +200,12 @@ func emitRunEvents(core *engine.Engine, runID string, after *int64, cc CommandCo
 	}
 	for _, event := range events {
 		*after = event.ID
+		if current, ok := cc.(*sessionCommandContext); ok && current.onAgentMetrics != nil && event.Type == "agent.finished" {
+			var metrics engine.AgentMetrics
+			if json.Unmarshal(event.Payload, &metrics) == nil {
+				current.onAgentMetrics(metrics)
+			}
+		}
 		if detail := formatRunEvent(event); detail != "" {
 			cc.Emit(i18n.T("goal.event", shortRunID(runID), detail))
 		}
@@ -281,6 +293,12 @@ func formatRunEvent(event engine.Event) string {
 			cost = i18n.T("goal.progress.cost", formatMoney(metrics.CostUSD))
 		}
 		line := i18n.T("goal.progress.agent", role, metrics.Agent, formatSeconds(float64(metrics.DurationMS)/1000), cost)
+		if metrics.InputTokensKnown {
+			line += i18n.T("goal.progress.input_tokens", metrics.InputTokens)
+		}
+		if metrics.OutputTokensKnown {
+			line += i18n.T("goal.progress.output_tokens", metrics.OutputTokens)
+		}
 		if metrics.FailureReason != "" {
 			line += ": " + permissions.RedactTarget(metrics.FailureReason)
 		}
@@ -334,13 +352,15 @@ func formatRunSummary(core *engine.Engine, runID string, resumed bool) string {
 	if err != nil {
 		return ""
 	}
-	events, _ := core.Events(context.Background(), runID, 0, 1000)
+	events, eventsErr := core.Events(context.Background(), runID, 0, 1000)
 	gateResults := map[string]engine.GateResult{}
 	files := []string(nil)
 	verdict := ""
 	var reviewerFindings []string
-	var cost float64
-	costKnown := false
+	cost, costKnown := completeAgentCost(events)
+	if eventsErr != nil {
+		costKnown = false
+	}
 	for _, event := range events {
 		if event.Type == "gate.cycle.started" {
 			gateResults = map[string]engine.GateResult{}
@@ -362,13 +382,7 @@ func formatRunSummary(core *engine.Engine, runID string, resumed bool) string {
 			verdict = data.Verdict
 			reviewerFindings = append(reviewerFindings, data.Findings...)
 		}
-		if event.Type == "agent.finished" {
-			var metrics engine.AgentMetrics
-			if json.Unmarshal(event.Payload, &metrics) == nil && metrics.CostKnown {
-				cost += metrics.CostUSD
-				costKnown = true
-			}
-		}
+
 		if event.Type == "run.files_changed" {
 			var data struct {
 				Files []string `json:"files"`
@@ -425,6 +439,7 @@ func formatRunSummary(core *engine.Engine, runID string, resumed bool) string {
 		if i18n.Language() == "pt-BR" {
 			costText = "US$ " + formatMoney(cost)
 		}
+		costText += i18n.T("goal.summary.reported")
 	}
 	duration := run.UpdatedAt.Sub(run.CreatedAt).Seconds()
 	if duration < 0 {
@@ -443,25 +458,15 @@ func runCompletionLine(core *engine.Engine, runID string, run engine.Run) string
 		duration = 0
 	}
 	cost := i18n.T("goal.summary.cost_unknown")
-	var total float64
-	known := false
-	if events, err := core.Events(context.Background(), runID, 0, 1000); err == nil {
-		for _, event := range events {
-			if event.Type != "agent.finished" {
-				continue
-			}
-			var metrics engine.AgentMetrics
-			if json.Unmarshal(event.Payload, &metrics) == nil && metrics.CostKnown {
-				total += metrics.CostUSD
-				known = true
-			}
-		}
-	}
+	events, err := core.Events(context.Background(), runID, 0, 1000)
+	total, known := completeAgentCost(events)
+	known = known && err == nil
 	if known {
 		cost = "$" + formatMoney(total)
 		if i18n.Language() == "pt-BR" {
 			cost = "US$ " + formatMoney(total)
 		}
+		cost += i18n.T("goal.summary.reported")
 	}
 	return i18n.T("goal.summary.completed", formatSeconds(duration), cost)
 }
@@ -867,4 +872,26 @@ func (a engineCommandApprover) Ask(ctx context.Context, request permissions.Requ
 func discoveryResults(value any) []discovery.Result {
 	results, _ := value.([]discovery.Result)
 	return results
+}
+
+// completeAgentCost omits a total when any recorded agent cost is unknown or
+// the event page may have been truncated.
+func completeAgentCost(events []engine.Event) (float64, bool) {
+	if len(events) >= 1000 {
+		return 0, false
+	}
+	var total float64
+	seen := false
+	for _, event := range events {
+		if event.Type != "agent.finished" {
+			continue
+		}
+		var metrics engine.AgentMetrics
+		if json.Unmarshal(event.Payload, &metrics) != nil || !metrics.CostKnown {
+			return 0, false
+		}
+		seen = true
+		total += metrics.CostUSD
+	}
+	return total, seen
 }

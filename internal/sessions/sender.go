@@ -34,6 +34,14 @@ var providerSessionID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a
 
 type approvalContextKey struct{}
 type auditedApprovalContextKey struct{}
+type expectedProjectContextKey struct{}
+
+// WithExpectedProject binds a UI selection to the project it displayed.
+// The sender reindexes sessions before launch, so it must verify that the
+// selected session has not moved to a different trusted project in between.
+func WithExpectedProject(ctx context.Context, project string) context.Context {
+	return context.WithValue(ctx, expectedProjectContextKey{}, project)
+}
 
 // WithApproval marks a request as approved by the local dashboard or TUI.
 func WithApproval(ctx context.Context) context.Context {
@@ -113,7 +121,11 @@ func (s *CLISender) Send(ctx context.Context, request SendRequest) (<-chan Event
 	}()
 
 	var selected Session
-	for _, indexed := range ScanMetadata(s.Roots) {
+	indexedSessions, err := ScanMetadataContext(ctx, s.Roots)
+	if err != nil {
+		return nil, err
+	}
+	for _, indexed := range indexedSessions {
 		if indexed.ID == request.SessionID {
 			selected = indexed
 			break
@@ -125,7 +137,10 @@ func (s *CLISender) Send(ctx context.Context, request SendRequest) (<-chan Event
 	if s.Policy.Trust == nil {
 		return nil, errors.New("project trust cannot be verified")
 	}
-	root := ProjectRoot(selected.CWD)
+	root, err := ProjectRootContext(ctx, selected.CWD)
+	if err != nil {
+		return nil, err
+	}
 	if root == "" {
 		return nil, errors.New("session project cannot be verified")
 	}
@@ -136,6 +151,12 @@ func (s *CLISender) Send(ctx context.Context, request SendRequest) (<-chan Event
 	root, err = trust.Canonical(root)
 	if err != nil {
 		return nil, errors.New("session project cannot be verified")
+	}
+	if expected, ok := ctx.Value(expectedProjectContextKey{}).(string); ok {
+		canonical, err := trust.Canonical(expected)
+		if err != nil || canonical != root {
+			return nil, errors.New("session project changed since selection")
+		}
 	}
 	cwd, err := trust.Canonical(selected.CWD)
 	if err != nil || !withinProject(root, cwd) {

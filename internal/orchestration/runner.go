@@ -34,6 +34,7 @@ type Options struct {
 	ReviewerTimeout  time.Duration
 	Scheduler        engine.SchedulerOptions
 	OnEvent          func(role string, event adapters.Event)
+	OnAttempt        func(role, agent string, event adapters.AttemptEvent)
 	OnReviewProgress func(time.Duration)
 }
 
@@ -100,7 +101,11 @@ func Run(ctx context.Context, runID string, options Options) error {
 	var reviewedDigest string
 	newExecutor := func(role, agent string) (*adapters.Executor, *error) {
 		recordErr := new(error)
-		return &adapters.Executor{Policy: options.Policy, Approver: options.Approver, OnEvent: func(event adapters.Event) {
+		return &adapters.Executor{Policy: options.Policy, Approver: options.Approver, OnAttempt: func(event adapters.AttemptEvent) {
+			if options.OnAttempt != nil {
+				options.OnAttempt(role, agent, event)
+			}
+		}, OnEvent: func(event adapters.Event) {
 			if *recordErr == nil {
 				detail := ""
 				if event.Type == "launch.retry" {
@@ -284,7 +289,7 @@ func (w developerWorker) Run(ctx context.Context, _ engine.Task) error {
 }
 
 func agentMetrics(role, agent string, result adapters.Result) engine.AgentMetrics {
-	return engine.AgentMetrics{Role: role, Agent: agent, ExitCode: result.ExitCode, EventCount: result.Events, OutputBytes: result.OutputBytes, DurationMS: result.Duration.Milliseconds(), CostUSD: result.CostUSD, CostKnown: result.CostKnown, InputTokens: result.InputTokens, OutputTokens: result.OutputTokens, FailureReason: result.FailureReason}
+	return engine.AgentMetrics{Role: role, Agent: agent, ExitCode: result.ExitCode, EventCount: result.Events, OutputBytes: result.OutputBytes, DurationMS: result.Duration.Milliseconds(), CostUSD: result.CostUSD, CostKnown: result.CostKnown, InputTokens: result.InputTokens, OutputTokens: result.OutputTokens, InputTokensKnown: result.InputTokensKnown, OutputTokensKnown: result.OutputTokensKnown, FailureReason: result.FailureReason}
 }
 
 func gateCommands(gates config.ProjectGates) []engine.GateCommand {

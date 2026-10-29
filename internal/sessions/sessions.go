@@ -101,16 +101,26 @@ func DefaultRoots() Roots {
 // Scan reads the supported local transcript formats. Unknown formats and
 // missing roots are skipped without making the dashboard unavailable.
 func Scan(roots Roots) []Session {
-	return scan(roots, false)
+	items, _ := scan(context.Background(), roots, false)
+	return items
 }
 
 // ScanMetadata reads the same session index without retaining transcript
 // messages. LoadTranscript can load an individual session when it is opened.
 func ScanMetadata(roots Roots) []Session {
-	return scan(roots, true)
+	items, _ := ScanMetadataContext(context.Background(), roots)
+	return items
 }
 
-func scan(roots Roots, metadataOnly bool) []Session {
+// ScanMetadataContext stops indexing on cancellation without returning partial results.
+func ScanMetadataContext(ctx context.Context, roots Roots) ([]Session, error) {
+	return scan(ctx, roots, true)
+}
+
+func scan(ctx context.Context, roots Roots, metadataOnly bool) ([]Session, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if roots.Claude == "" && roots.Codex == "" {
 		roots = DefaultRoots()
 	}
@@ -135,6 +145,9 @@ func scan(roots Roots, metadataOnly bool) []Session {
 		}
 		rootSessions := 0
 		_ = filepath.WalkDir(root.path, func(path string, entry os.DirEntry, err error) error {
+			if ctx.Err() != nil {
+				return filepath.SkipAll
+			}
 			if len(out) >= maxSessions || rootSessions >= perRootLimit {
 				return filepath.SkipAll
 			}
@@ -153,7 +166,7 @@ func scan(roots Roots, metadataOnly bool) []Session {
 			var session Session
 			var ok bool
 			if metadataOnly {
-				session, ok = readMetadata(root.agent, path)
+				session, ok = readMetadataContext(ctx, root.agent, path)
 			} else {
 				session, ok = readTranscript(root.agent, path)
 			}
@@ -164,8 +177,11 @@ func scan(roots Roots, metadataOnly bool) []Session {
 			return nil
 		})
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].UpdatedAt.After(out[j].UpdatedAt) })
-	return out
+	return out, nil
 }
 
 // LoadTranscript reads one previously indexed transcript, including its
@@ -196,7 +212,7 @@ func readTranscript(agent, path string) (Session, bool) {
 // readMetadata inspects only the beginning and end of a transcript. Session
 // discovery may find hundreds of large files; the full content is parsed only
 // when a user opens an individual session.
-func readMetadata(agent, path string) (Session, bool) {
+func readMetadataContext(ctx context.Context, agent, path string) (Session, bool) {
 	info, err := os.Stat(path)
 	if err != nil || info.Size() == 0 {
 		return Session{}, false
@@ -218,6 +234,9 @@ func readMetadata(agent, path string) (Session, bool) {
 			_, _ = reader.ReadString('\n')
 		}
 		for {
+			if ctx.Err() != nil {
+				return
+			}
 			line, oversized, readErr := readLine(reader)
 			if readErr != nil && readErr != io.EOF {
 				return
@@ -680,6 +699,33 @@ func ProjectRoot(cwd string) string {
 		return filepath.Clean(filepath.Dir(common))
 	}
 	return filepath.Clean(cwd)
+}
+
+// ProjectRootContext resolves a project without allowing Git to outlive a canceled request.
+func ProjectRootContext(ctx context.Context, cwd string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if cwd == "" {
+		return "", nil
+	}
+	if abs, err := filepath.Abs(cwd); err == nil {
+		cwd = abs
+	}
+	cmd := exec.CommandContext(ctx, "git", "-C", cwd, "rev-parse", "--git-common-dir")
+	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
+	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	if err == nil && strings.TrimSpace(string(out)) != "" {
+		common := strings.TrimSpace(string(out))
+		if !filepath.IsAbs(common) {
+			common = filepath.Join(cwd, common)
+		}
+		return filepath.Clean(filepath.Dir(common)), nil
+	}
+	return filepath.Clean(cwd), nil
 }
 
 // WorktreeRoot resolves a transcript working directory to its registered

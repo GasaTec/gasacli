@@ -22,6 +22,46 @@ type Config struct {
 	Web      WebConfig   `yaml:"web"`
 	Language string      `yaml:"language,omitempty"`
 	Agents   AgentConfig `yaml:"agents,omitempty"`
+	TUI      TUIConfig   `yaml:"tui,omitempty"`
+}
+
+// TUIConfig controls navigation shortcuts. Safety and text-editing keys are fixed.
+type TUIConfig struct {
+	Keys TUIKeys `yaml:"keys,omitempty"`
+}
+type TUIKeys struct {
+	Projects string `yaml:"projects,omitempty"`
+	Palette  string `yaml:"palette,omitempty"`
+	Sidebar  string `yaml:"sidebar,omitempty"`
+	Theme    string `yaml:"theme,omitempty"`
+}
+
+func (k TUIKeys) Resolved() (TUIKeys, error) {
+	defaults := TUIKeys{Projects: "ctrl+p", Palette: "ctrl+k", Sidebar: "ctrl+b", Theme: "ctrl+t"}
+	values := []*string{&k.Projects, &k.Palette, &k.Sidebar, &k.Theme}
+	fallback := []string{defaults.Projects, defaults.Palette, defaults.Sidebar, defaults.Theme}
+	seen := map[string]bool{}
+	for i, v := range values {
+		if *v == "" {
+			*v = fallback[i]
+		} else {
+			*v = strings.ToLower(strings.TrimSpace(*v))
+		}
+		allowed := *v == fallback[i]
+		for n := 1; n <= 12; n++ {
+			if *v == fmt.Sprintf("f%d", n) {
+				allowed = true
+			}
+		}
+		if !allowed {
+			return TUIKeys{}, fmt.Errorf("invalid tui.keys: use the action default or F1-F12")
+		}
+		if seen[*v] {
+			return TUIKeys{}, fmt.Errorf("invalid tui.keys: duplicate shortcut %s", *v)
+		}
+		seen[*v] = true
+	}
+	return k, nil
 }
 
 type AgentConfig struct {
@@ -339,6 +379,9 @@ func loadConfigFile(path string) (Config, error) {
 			return Config{}, fmt.Errorf("decode config trailing document: %w", err)
 		}
 		return Config{}, fmt.Errorf("config must contain a single YAML document")
+	}
+	if _, err := cfg.TUI.Keys.Resolved(); err != nil {
+		return Config{}, err
 	}
 	switch cfg.Web.Mode {
 	case "auto", "manual", "always":

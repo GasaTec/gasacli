@@ -1,34 +1,36 @@
 +----------------------------------------------------------------------------------------------------------------------+
-| +G>+ gasacli  Projeto: workspace  |  Confiança: concedida  |  Dashboard: não iniciado (ocioso)  |  Agentes prontos:  |
-| 1                                                                                                                    |
+| +G>+ gasacli   Projeto: workspace  |  Confiança: concedida  |  Agentes prontos: 1                                    |
 +----------------------------------------------------------------------------------------------------------------------+
+
+  PROJECTS               |  CONVERSA
+  > workspace            |  Projeto: workspace  |  Confiança: concedida
+                         |  Agentes prontos: 1
+  AGENTS                 |
+    No agents discovered |  Comece por aqui
+                         |  /sessions   listar conversas deste projeto
+                         |  /use <id>   selecionar uma conversa para o chat
+                         |  /goal       executa com verificações, revisão e sandbox do perfil
+                         |  /agents     conferir ferramentas instaladas
+                         |  /doctor     executar diagnóstico local
+                         |  /help       ver comandos e atalhos
+                         |
+                         |  Enter envia  ·  Alt+Enter insere uma linha
+                         |
+                         |
+                         |
+                         |
+                         |
+                         |
+                         |
+                         |
+                         |
+                         |
+                         |
+                         |
+                         |
+
 +----------------------------------------------------------------------------------------------------------------------+
-| +G>+ gasacli                                                                                                         |
-| Projeto: workspace  |  Confiança: concedida                                                                          |
-| Agentes prontos: 1                                                                                                   |
-|                                                                                                                      |
-| Comece por aqui                                                                                                      |
-| /help       ver comandos e atalhos                                                                                   |
-| /agents     conferir ferramentas instaladas                                                                          |
-| /doctor     executar diagnóstico local                                                                               |
-| Enter       enviar mensagem ou comando                                                                               |
-| Alt+Enter   inserir uma nova linha                                                                                   |
-| /goal       executa com verificações, revisão e sandbox do perfil                                                    |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
-|                                                                                                                      |
+|   > Pergunte ao GasaCLI ou digite / para ver comandos                                                                |
+|   >                                                                                                                  |
 +----------------------------------------------------------------------------------------------------------------------+
-+----------------------------------------------------------------------------------------------------------------------+
-|   > Pergunte ao GasaCLI ou digite /                                                                                  |
-|   > para ver comandos                                                                                                |
-+----------------------------------------------------------------------------------------------------------------------+
-Enter envia | Alt+Enter/Ctrl+J quebra linha | Ctrl+D sai
+Enter envia | Alt+Enter/Ctrl+J quebra linha | Ctrl+D sai  |  Ctrl+P projects  Ctrl+K commands  Ctrl+T theme

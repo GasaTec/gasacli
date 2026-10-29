@@ -6,7 +6,9 @@ import (
 	"io"
 	"strings"
 
+	"github.com/GasaTec/gasacli/internal/adapters"
 	"github.com/GasaTec/gasacli/internal/config"
+	"github.com/GasaTec/gasacli/internal/engine"
 	"github.com/GasaTec/gasacli/internal/i18n"
 	"github.com/GasaTec/gasacli/internal/permissions"
 )
@@ -15,13 +17,15 @@ import (
 // command execution. Optional integrations are deliberately passed in by the
 // owning Session so tui does not depend on application packages.
 type sessionCommandContext struct {
-	session *Session
-	ctx     context.Context
-	project string
-	trusted bool
-	command string
-	emit    func(string)
-	ask     func(context.Context, PermissionRequest) (ApprovalChoice, error)
+	session        *Session
+	ctx            context.Context
+	project        string
+	trusted        bool
+	command        string
+	emit           func(string)
+	ask            func(context.Context, PermissionRequest) (ApprovalChoice, error)
+	attempt        func(string, string, string, adapters.AttemptEvent)
+	onAgentMetrics func(engine.AgentMetrics)
 }
 
 func (c *sessionCommandContext) ProjectPath() string { return c.project }
@@ -202,6 +206,10 @@ func shellWords(input string) ([]string, error) {
 }
 
 func executeCommand(ctx context.Context, session *Session, project string, trusted bool, input string, emit func(string), ask func(context.Context, PermissionRequest) (ApprovalChoice, error)) (result string, err error) {
+	return executeCommandWithAttempts(ctx, session, project, trusted, input, emit, ask, nil, nil)
+}
+
+func executeCommandWithAttempts(ctx context.Context, session *Session, project string, trusted bool, input string, emit func(string), ask func(context.Context, PermissionRequest) (ApprovalChoice, error), attempt func(string, string, string, adapters.AttemptEvent), metrics func(engine.AgentMetrics)) (result string, err error) {
 	name, args, err := splitCommand(input)
 	if err != nil {
 		return "", err
@@ -217,7 +225,7 @@ func executeCommand(ctx context.Context, session *Session, project string, trust
 	if handler == nil {
 		return "", nil
 	}
-	commandContext := &sessionCommandContext{session: session, ctx: ctx, project: project, trusted: trusted, command: input, emit: emit, ask: ask}
+	commandContext := &sessionCommandContext{session: session, ctx: ctx, project: project, trusted: trusted, command: input, emit: emit, ask: ask, attempt: attempt, onAgentMetrics: metrics}
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			result = ""
