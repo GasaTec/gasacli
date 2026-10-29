@@ -65,7 +65,7 @@ func TestAvailableAndCursorFallback(t *testing.T) {
 				t.Errorf("unexpected invocation: %s %v", path, args)
 			}
 			deadline, ok := ctx.Deadline()
-			if !ok || time.Until(deadline) > probeTimeout {
+			if !ok || time.Until(deadline) > versionTimeout {
 				t.Error("missing per-probe deadline")
 			}
 			return []byte("Cursor 1.2.3\nmore details"), nil
@@ -185,18 +185,20 @@ func TestProbeFailuresAreSafe(t *testing.T) {
 		output string
 		err    error
 		want   string
+		status Status
+		note   string
 	}{
-		{"failure", "secret stdout", errors.New("secret stderr TOKEN=private"), "version probe failed"},
-		{"deadline", "", context.DeadlineExceeded, "version probe timed out"},
-		{"canceled", "", context.Canceled, "version probe canceled"},
-		{"empty", "\x1b[31m\x00", nil, "version output empty"},
+		{"failure", "secret stdout", errors.New("secret stderr TOKEN=private"), "version probe failed", VersionUnknown, authNote},
+		{"deadline", "", context.DeadlineExceeded, "", Installed, "doctor.reason.timeout"},
+		{"canceled", "", context.Canceled, "version probe canceled", VersionUnknown, authNote},
+		{"empty", "\x1b[31m\x00", nil, "version output empty", VersionUnknown, authNote},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := Discover(context.Background(), DefaultCatalog()[:1], Deps{
 				LookPath: func(string) (string, error) { return "agent", nil },
 				Run:      func(context.Context, string, ...string) ([]byte, error) { return []byte(tc.output), tc.err },
 			})[0]
-			if r.Status != VersionUnknown || r.Err != tc.want || r.Version != "" {
+			if r.Status != tc.status || r.Err != tc.want || r.Note != tc.note || r.Version != "" {
 				t.Fatalf("unexpected result: %+v", r)
 			}
 		})
@@ -250,8 +252,59 @@ func TestTimeout(t *testing.T) {
 			return nil, ctx.Err()
 		},
 	})[0]
-	if r.Status != VersionUnknown || r.Err != "version probe timed out" || time.Since(start) > probeTimeout+time.Second {
+	if r.Status != Installed || r.Note != "doctor.reason.timeout" || r.Auth == AuthReady || time.Since(start) > versionTimeout+time.Second {
 		t.Fatalf("timeout failed: %+v, duration %v", r, time.Since(start))
+	}
+}
+
+func TestAuthTimeoutIsInstalledAndNeverReady(t *testing.T) {
+	catalog := []Agent{{ID: "codex", Name: "Codex", Binaries: []string{"codex"}, ReadyArgs: []string{"login", "status"}}}
+	calls := atomic.Int32{}
+	start := time.Now()
+	r := Discover(context.Background(), catalog, Deps{
+		LookPath: func(string) (string, error) { return "codex", nil },
+		Run: func(ctx context.Context, _ string, args ...string) ([]byte, error) {
+			if len(args) == 1 && args[0] == "--version" {
+				return []byte("Codex 1.0"), nil
+			}
+			calls.Add(1)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	})[0]
+	if calls.Load() != 1 || r.Status != Installed || r.Auth != AuthUnknown || r.Note != "doctor.reason.timeout" || time.Since(start) > authTimeout+time.Second {
+		t.Fatalf("auth timeout = %+v, calls=%d duration=%v", r, calls.Load(), time.Since(start))
+	}
+}
+
+func TestOverallProbeBudget(t *testing.T) {
+	catalog := make([]Agent, maxConcurrent)
+	for i := range catalog {
+		catalog[i] = Agent{ID: fmt.Sprint(i), Name: "fake", Binaries: []string{"fake"}, ReadyArgs: []string{"auth", "status"}}
+	}
+	start := time.Now()
+	results := discoverWithinBudget(context.Background(), catalog, Deps{
+		LookPath: func(string) (string, error) { return "fake", nil },
+		Run: func(ctx context.Context, _ string, args ...string) ([]byte, error) {
+			if len(args) == 1 {
+				select {
+				case <-time.After(1500 * time.Millisecond):
+					return []byte("fake 1.0"), nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	})
+	if elapsed := time.Since(start); elapsed > overallTimeout+time.Second {
+		t.Fatalf("discovery exceeded its overall budget: %s", elapsed)
+	}
+	for _, result := range results {
+		if result.Status != Installed || result.Note != "doctor.reason.timeout" || result.Auth == AuthReady {
+			t.Fatalf("overall timeout produced an unsafe readiness result: %+v", result)
+		}
 	}
 }
 
@@ -263,7 +316,7 @@ func TestConcurrencyCancellationAndOrder(t *testing.T) {
 		catalog[i] = Agent{ID: fmt.Sprint(i), Binaries: []string{"agent"}}
 	}
 	var active, maximum, calls atomic.Int32
-	started := make(chan struct{}, workerLimit)
+	started := make(chan struct{}, maxConcurrent)
 	done := make(chan []Result, 1)
 	go func() {
 		done <- Discover(ctx, catalog, Deps{
@@ -283,7 +336,7 @@ func TestConcurrencyCancellationAndOrder(t *testing.T) {
 			},
 		})
 	}()
-	for i := 0; i < workerLimit; i++ {
+	for i := 0; i < maxConcurrent; i++ {
 		select {
 		case <-started:
 		case <-time.After(time.Second):
@@ -293,7 +346,7 @@ func TestConcurrencyCancellationAndOrder(t *testing.T) {
 	cancel()
 	select {
 	case results := <-done:
-		if len(results) != len(catalog) || maximum.Load() != workerLimit || calls.Load() != workerLimit || active.Load() != 0 {
+		if len(results) != len(catalog) || maximum.Load() != maxConcurrent || calls.Load() != maxConcurrent || active.Load() != 0 {
 			t.Fatalf("unexpected concurrency: max=%d calls=%d active=%d", maximum.Load(), calls.Load(), active.Load())
 		}
 		for i, r := range results {
@@ -303,6 +356,53 @@ func TestConcurrencyCancellationAndOrder(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("discovery did not respect cancellation")
+	}
+}
+
+func TestProbeDurationTracksSlowestAgent(t *testing.T) {
+	catalog := make([]Agent, maxConcurrent)
+	for i := range catalog {
+		catalog[i] = Agent{ID: fmt.Sprint(i), Name: "fake", Binaries: []string{"fake"}}
+	}
+	start := time.Now()
+	results := Discover(context.Background(), catalog, Deps{
+		LookPath: func(string) (string, error) { return "fake", nil },
+		Run: func(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+			select {
+			case <-time.After(120 * time.Millisecond):
+				return []byte("fake 1.0"), nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+	})
+	if elapsed := time.Since(start); elapsed > 350*time.Millisecond {
+		t.Fatalf("parallel probe took %s; expected near 120ms, not the serial sum", elapsed)
+	}
+	if len(results) != len(catalog) {
+		t.Fatalf("got %d results, want %d", len(results), len(catalog))
+	}
+}
+
+func BenchmarkDiscoverConcurrentAgents(b *testing.B) {
+	catalog := make([]Agent, maxConcurrent)
+	for i := range catalog {
+		catalog[i] = Agent{ID: fmt.Sprint(i), Name: "fake", Binaries: []string{"fake"}}
+	}
+	deps := Deps{
+		LookPath: func(string) (string, error) { return "fake", nil },
+		Run: func(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+			select {
+			case <-time.After(10 * time.Millisecond):
+				return []byte("fake 1.0"), nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+	}
+	b.ResetTimer()
+	for range b.N {
+		Discover(context.Background(), catalog, deps)
 	}
 }
 
@@ -413,7 +513,7 @@ func TestDefaultRunnerBoundedOutputAndEnvironment(t *testing.T) {
 	}
 	t.Setenv("DISCOVERY_TEST_SECRET", "PRIVATE_TOKEN")
 	for _, mode := range []string{"output", "env"} {
-		ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), versionTimeout)
 		output, err := runVersion(ctx, executable, "-test.run=^TestProbeProcess$", "--", "--discovery-fixture", mode)
 		cancel()
 		if err != nil {

@@ -55,6 +55,7 @@
     "onboarding.status.installed":  "INSTALLED",
     "onboarding.status.missing":  "MISSING",
     "onboarding.status.unknown":  "UNKNOWN",
+    "onboarding.status.checking":  "CHECKING",
     "onboarding.select.numbered_prompt":  "Enter numbers separated by spaces, Enter = defaults, n = none: ",
     "onboarding.select.manual":  "manual",
     "onboarding.select.prompt":  "Select what to install (space = toggle, enter = confirm, a = all, n = clear, esc = skip)",
@@ -93,5 +94,6 @@
     "onboarding.note.app_auth_not_checked":  "app; authentication not checked",
     "onboarding.note.auth_not_checked":  "authentication not checked",
     "onboarding.note.auth_probe_unsupported":  "no documented non-interactive authentication check",
-    "onboarding.note.auth_probe_unknown":  "authentication status could not be verified"
+    "onboarding.note.auth_probe_unknown":  "authentication status could not be verified",
+    "onboarding.note.probe_timeout":  "probe timed out (time limit)"
 }

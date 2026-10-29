@@ -35,3 +35,24 @@ func TestFormatDiagnosticOutputUsesSelectedCatalog(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatDiagnosticOutputLocalizesProbeTimeout(t *testing.T) {
+	previous := i18n.Language()
+	t.Cleanup(func() { i18n.SetLanguage(previous) })
+	result := []discovery.Result{{Name: "Codex", Status: discovery.Installed, Note: "doctor.reason.timeout"}}
+	for _, test := range []struct{ language, want string }{
+		{language: "en", want: "Probe timed out (time limit)"},
+		{language: "pt-BR", want: "verifica\u00e7\u00e3o expirou (tempo limite)"},
+	} {
+		t.Run(test.language, func(t *testing.T) {
+			i18n.SetLanguage(test.language)
+			var output bytes.Buffer
+			if err := formatDiagnosticOutput(&output, result); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(output.String(), test.want) || strings.Contains(output.String(), "doctor.reason.timeout") {
+				t.Fatalf("timeout diagnostics %q omit localized reason %q", output.String(), test.want)
+			}
+		})
+	}
+}

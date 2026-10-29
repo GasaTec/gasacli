@@ -39,6 +39,22 @@ type Options struct {
 	CurrentProject string
 	WebMode        string
 	Sender         sessions.Sender
+	Readiness      func() ReadinessSnapshot
+}
+
+// ReadinessSnapshot contains only public readiness state for the local UI.
+type ReadinessSnapshot struct {
+	Known      bool             `json:"known"`
+	Checking   bool             `json:"checking"`
+	ReadyCount int              `json:"readyCount"`
+	Total      int              `json:"total"`
+	Agents     []ReadinessAgent `json:"agents"`
+}
+
+type ReadinessAgent struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
 }
 
 // Server owns a loopback listener and its in-memory session secret.
@@ -274,10 +290,12 @@ func handler(origin string, port int, token string, session *launchSession, opti
 	var roots sessions.Roots
 	currentProject, webMode := "", "auto"
 	var sender sessions.Sender
+	var readiness func() ReadinessSnapshot
 	if len(options) > 0 {
 		home, roots = options[0].Home, options[0].SessionRoots
 		currentProject, webMode = options[0].CurrentProject, options[0].WebMode
 		sender = options[0].Sender
+		readiness = options[0].Readiness
 	}
 	if roots.Claude == "" && roots.Codex == "" {
 		roots = sessions.DefaultRoots()
@@ -348,6 +366,12 @@ func handler(origin string, port int, token string, session *launchSession, opti
 				capabilities = sender.Capabilities()
 			}
 			jsonResponse(w, capabilities)
+		case "/api/readiness":
+			snapshot := ReadinessSnapshot{}
+			if readiness != nil {
+				snapshot = readiness()
+			}
+			jsonResponse(w, snapshot)
 		case "/":
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			if r.Method != http.MethodHead {

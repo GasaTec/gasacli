@@ -13,5 +13,6 @@
     "doctor.reason.version_unknown":  "CLI encontrado; n\u00e3o foi poss\u00edvel conferir a vers\u00e3o",
     "doctor.reason.error":  "Falha na verifica\u00e7\u00e3o local",
     "doctor.reason.auth_probe_unsupported":  "N\u00e3o h\u00e1 comando documentado para verificar autentica\u00e7\u00e3o sem intera\u00e7\u00e3o",
-    "doctor.reason.auth_probe_unknown":  "N\u00e3o foi poss\u00edvel verificar o estado da autentica\u00e7\u00e3o"
+    "doctor.reason.auth_probe_unknown":  "N\u00e3o foi poss\u00edvel verificar o estado da autentica\u00e7\u00e3o",
+    "doctor.reason.timeout":  "verifica\u00e7\u00e3o expirou (tempo limite)"
 }

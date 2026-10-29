@@ -118,6 +118,28 @@ func TestWizardWelcomeAndBackNavigation(t *testing.T) {
 	}
 }
 
+func TestWizardShowsCheckingRowsBeforeDiscoveryCompletes(t *testing.T) {
+	called := false
+	model := wizardModel{
+		options: WizardOptions{Discover: func(context.Context) []discovery.Result {
+			called = true
+			return []discovery.Result{{ID: "claude", Name: "Claude Code", Status: discovery.Ready}}
+		}},
+		step: 1, language: 1, width: 80, discovering: true,
+	}
+	if got := model.View(); !strings.Contains(got, "Claude Code") || !strings.Contains(got, "VERIFICANDO") {
+		t.Fatalf("initial agent table should show checking rows: %s", got)
+	}
+	if called {
+		t.Fatal("discovery ran before the wizard could render")
+	}
+	updated, _ := model.Update(model.Init()())
+	result := updated.(wizardModel)
+	if result.discovering || len(result.results) != 1 || result.results[0].Status != discovery.Ready {
+		t.Fatalf("discovery result was not applied: %+v", result)
+	}
+}
+
 func TestWizardAgentRowsUseBoundedStatusesAndPaths(t *testing.T) {
 	model := wizardModel{step: 1, width: 80, language: 1, results: []discovery.Result{
 		{Name: "A very long agent name which must be shortened", Status: discovery.Ready, Auth: discovery.AuthReady, Version: "version output that is much too long", Path: "C:/tools/a/very/long/path/agent.exe"},

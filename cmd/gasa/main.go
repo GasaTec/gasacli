@@ -403,7 +403,22 @@ func startDashboardWithOutput(ctx context.Context, cfg config.Config, out io.Wri
 	if err != nil {
 		return nil, fmt.Errorf("resolve dashboard data home: %w", err)
 	}
-	server, err := web.Start(ctx, web.Options{Host: cfg.Web.Host, Port: cfg.Web.Port, Fallback: cfg.Web.FallbackPort, Home: home})
+	catalog := discovery.DefaultCatalog()
+	go discovery.Discover(ctx, catalog, discovery.Deps{})
+	server, err := web.Start(ctx, web.Options{
+		Host: cfg.Web.Host, Port: cfg.Web.Port, Fallback: cfg.Web.FallbackPort, Home: home,
+		Readiness: func() web.ReadinessSnapshot {
+			results, known, checking := discovery.Cached(catalog)
+			snapshot := web.ReadinessSnapshot{Known: known, Checking: checking, Total: len(catalog)}
+			for _, result := range results {
+				if result.Status == discovery.Ready {
+					snapshot.ReadyCount++
+				}
+				snapshot.Agents = append(snapshot.Agents, web.ReadinessAgent{ID: result.ID, Name: result.Name, Status: string(result.Status)})
+			}
+			return snapshot
+		},
+	})
 	if err != nil {
 		return nil, err
 	}

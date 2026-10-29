@@ -15,12 +15,14 @@ import (
 )
 
 const (
-	probeTimeout = 10 * time.Second
-	outputLimit  = 4 * 1024
-	versionLimit = 200
-	workerLimit  = 4
-	authNote     = "no documented non-interactive authentication probe"
-	cacheTTL     = 60 * time.Second
+	versionTimeout = 2 * time.Second
+	authTimeout    = 4 * time.Second
+	overallTimeout = 4500 * time.Millisecond
+	outputLimit    = 4 * 1024
+	versionLimit   = 200
+	maxConcurrent  = 8
+	authNote       = "no documented non-interactive authentication probe"
+	cacheTTL       = 60 * time.Second
 )
 
 const authProbeNote = "authentication status could not be verified"
@@ -71,50 +73,96 @@ type Deps struct {
 var productionCache = struct {
 	sync.Mutex
 	entries map[string]cacheEntry
-}{entries: make(map[string]cacheEntry)}
+	flights map[string]*discoveryFlight
+}{entries: make(map[string]cacheEntry), flights: make(map[string]*discoveryFlight)}
 
 type cacheEntry struct {
 	results []Result
 	expires time.Time
 }
 
-// Discover probes a trusted catalog with at most four concurrent workers and
-// returns one result per entry in catalog order, including after cancellation.
+type discoveryFlight struct {
+	done    chan struct{}
+	results []Result
+}
+
+// Discover probes a trusted catalog concurrently with a bounded worker count
+// and returns one result per entry in catalog order, including after cancellation.
 func Discover(ctx context.Context, catalog []Agent, deps Deps) []Result {
-	cacheKey := ""
-	if deps.LookPath == nil && deps.Run == nil {
-		cacheKey = discoveryCacheKey(catalog)
-		if results, ok := cachedDiscovery(cacheKey, time.Now()); ok {
-			return results
-		}
-	}
+	useProductionCache := deps.LookPath == nil && deps.Run == nil
 	if deps.LookPath == nil {
 		deps.LookPath = exec.LookPath
 	}
 	if deps.Run == nil {
 		deps.Run = runVersion
 	}
-	results := make([]Result, len(catalog))
-	jobs := make(chan int)
-	var workers sync.WaitGroup
-	for n := 0; n < workerLimit && n < len(catalog); n++ {
-		workers.Add(1)
-		go func() {
-			defer workers.Done()
-			for i := range jobs {
-				results[i] = probe(ctx, catalog[i], deps)
+	if useProductionCache {
+		key := discoveryCacheKey(catalog)
+		productionCache.Lock()
+		if results, ok := cachedDiscoveryLocked(key, time.Now()); ok {
+			productionCache.Unlock()
+			return results
+		}
+		if flight := productionCache.flights[key]; flight != nil {
+			productionCache.Unlock()
+			select {
+			case <-flight.done:
+				return append([]Result(nil), flight.results...)
+			case <-ctx.Done():
+				return canceledResults(catalog)
 			}
-		}()
+		}
+		flight := &discoveryFlight{done: make(chan struct{})}
+		productionCache.flights[key] = flight
+		productionCache.Unlock()
+
+		results := discoverWithinBudget(ctx, catalog, deps)
+		productionCache.Lock()
+		flight.results = append([]Result(nil), results...)
+		if ctx.Err() == nil {
+			storeDiscoveryLocked(key, results, time.Now())
+		}
+		delete(productionCache.flights, key)
+		close(flight.done)
+		productionCache.Unlock()
+		return results
 	}
-	for i := range catalog {
-		jobs <- i
-	}
-	close(jobs)
-	workers.Wait()
-	if cacheKey != "" && ctx.Err() == nil {
-		storeDiscovery(cacheKey, results, time.Now())
+	return discoverWithinBudget(ctx, catalog, deps)
+}
+
+func canceledResults(catalog []Agent) []Result {
+	results := make([]Result, len(catalog))
+	for i, agent := range catalog {
+		results[i] = Result{ID: agent.ID, Name: agent.Name, Status: Error, Auth: AuthUnknown, Err: "discovery canceled"}
 	}
 	return results
+}
+
+func discoverUncached(ctx context.Context, catalog []Agent, deps Deps) []Result {
+	results := make([]Result, len(catalog))
+	limit := len(catalog)
+	if limit > maxConcurrent {
+		limit = maxConcurrent
+	}
+	semaphore := make(chan struct{}, limit)
+	var workers sync.WaitGroup
+	for i, agent := range catalog {
+		workers.Add(1)
+		go func(i int, agent Agent) {
+			defer workers.Done()
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+			results[i] = probe(ctx, agent, deps)
+		}(i, agent)
+	}
+	workers.Wait()
+	return results
+}
+
+func discoverWithinBudget(ctx context.Context, catalog []Agent, deps Deps) []Result {
+	probeCtx, cancel := context.WithTimeout(ctx, overallTimeout)
+	defer cancel()
+	return discoverUncached(probeCtx, catalog, deps)
 }
 
 func discoveryCacheKey(catalog []Agent) string {
@@ -125,6 +173,22 @@ func discoveryCacheKey(catalog []Agent) string {
 func cachedDiscovery(key string, now time.Time) ([]Result, bool) {
 	productionCache.Lock()
 	defer productionCache.Unlock()
+	return cachedDiscoveryLocked(key, now)
+}
+
+// Cached returns the current process-local result, if its 60-second cache is
+// populated, and reports whether a matching discovery is still running.
+func Cached(catalog []Agent) (results []Result, known, checking bool) {
+	key := discoveryCacheKey(catalog)
+	productionCache.Lock()
+	defer productionCache.Unlock()
+	if results, ok := cachedDiscoveryLocked(key, time.Now()); ok {
+		return results, true, false
+	}
+	return nil, false, productionCache.flights[key] != nil
+}
+
+func cachedDiscoveryLocked(key string, now time.Time) ([]Result, bool) {
 	entry, ok := productionCache.entries[key]
 	if !ok {
 		return nil, false
@@ -138,13 +202,17 @@ func cachedDiscovery(key string, now time.Time) ([]Result, bool) {
 
 func storeDiscovery(key string, results []Result, now time.Time) {
 	productionCache.Lock()
+	storeDiscoveryLocked(key, results, now)
+	productionCache.Unlock()
+}
+
+func storeDiscoveryLocked(key string, results []Result, now time.Time) {
 	for existing, entry := range productionCache.entries {
 		if !now.Before(entry.expires) {
 			delete(productionCache.entries, existing)
 		}
 	}
 	productionCache.entries[key] = cacheEntry{results: append([]Result(nil), results...), expires: now.Add(cacheTTL)}
-	productionCache.Unlock()
 }
 
 func probe(ctx context.Context, agent Agent, deps Deps) Result {
@@ -179,10 +247,14 @@ func probe(ctx context.Context, agent Agent, deps Deps) Result {
 		if flag == "" {
 			flag = "--version"
 		}
-		probeCtx, cancel := context.WithTimeout(ctx, probeTimeout)
+		probeCtx, cancel := context.WithTimeout(ctx, versionTimeout)
 		if probeCtx.Err() != nil {
 			cancel()
-			r.Status, r.Err = Error, "discovery canceled"
+			if errors.Is(probeCtx.Err(), context.DeadlineExceeded) {
+				r.Status, r.Note = Installed, "doctor.reason.timeout"
+			} else {
+				r.Status, r.Err = Error, "discovery canceled"
+			}
 			return r
 		}
 		output, runErr := deps.Run(probeCtx, path, flag)
@@ -195,7 +267,7 @@ func probe(ctx context.Context, agent Agent, deps Deps) Result {
 		if ctxErr != nil || runErr != nil {
 			r.Status, r.Err = VersionUnknown, "version probe failed"
 			if errors.Is(ctxErr, context.DeadlineExceeded) || errors.Is(runErr, context.DeadlineExceeded) {
-				r.Err = "version probe timed out"
+				r.Status, r.Note, r.Err = Installed, "doctor.reason.timeout", ""
 			} else if errors.Is(ctxErr, context.Canceled) || errors.Is(runErr, context.Canceled) {
 				r.Err = "version probe canceled"
 			}
@@ -214,11 +286,13 @@ func probe(ctx context.Context, agent Agent, deps Deps) Result {
 			r.Status, r.Err = VersionUnknown, "version output empty"
 		}
 		if r.Status == Installed && len(agent.ReadyArgs) > 0 {
-			authCtx, authCancel := context.WithTimeout(ctx, probeTimeout)
+			authCtx, authCancel := context.WithTimeout(ctx, authTimeout)
 			authOutput, authErr := deps.Run(authCtx, path, agent.ReadyArgs...)
 			authCtxErr := authCtx.Err()
 			authCancel()
-			if authCtxErr == nil {
+			if errors.Is(authCtxErr, context.DeadlineExceeded) || errors.Is(authErr, context.DeadlineExceeded) {
+				r.Status, r.Auth, r.Note = Installed, AuthUnknown, "doctor.reason.timeout"
+			} else if authCtxErr == nil {
 				r.Auth = authVerdict(agent.ID, authOutput, authErr)
 				if r.Auth == AuthReady {
 					r.Status = Ready

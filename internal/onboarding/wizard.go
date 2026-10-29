@@ -34,9 +34,11 @@ type wizardModel struct {
 	missing                                                               []Item
 	selected                                                              map[string]bool
 	step, cursor, language, permission, dashboard, edition, width, height int
-	trustFolder, confirmInstall, installConfirmed, completed              bool
+	trustFolder, confirmInstall, installConfirmed, completed, discovering bool
 	err                                                                   error
 }
+
+type discoveredAgentsMsg struct{ results []discovery.Result }
 
 var permissionProfiles = []string{"restricted", "balanced", "autonomous"}
 var dashboardModes = []string{"auto", "manual", "always"}
@@ -77,13 +79,7 @@ func RunWizard(ctx context.Context, options WizardOptions) error {
 		return fmt.Errorf("load onboarding state: %w", err)
 	}
 	i18n.Configure(saved.Onboarding.Language)
-	results := options.Discover(ctx)
-	missing := missingItems(results)
-	selected := map[string]bool{}
-	for _, item := range missing {
-		selected[item.ID] = item.ID == "claude" || item.ID == "codex"
-	}
-	model := wizardModel{options: options, state: saved.Onboarding, results: results, missing: missing, selected: selected}
+	model := wizardModel{options: options, state: saved.Onboarding, discovering: true, selected: map[string]bool{}}
 	if saved.Onboarding.Language == "" {
 		model.language = 1
 	}
@@ -150,10 +146,22 @@ func RunWizard(ctx context.Context, options WizardOptions) error {
 	return nil
 }
 
-func (m wizardModel) Init() tea.Cmd { return nil }
+func (m wizardModel) Init() tea.Cmd {
+	return func() tea.Msg { return discoveredAgentsMsg{results: m.options.Discover(m.options.ctx)} }
+}
 
 func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := message.(type) {
+	case discoveredAgentsMsg:
+		m.discovering = false
+		m.results = msg.results
+		m.missing = missingItems(msg.results)
+		if m.selected == nil {
+			m.selected = map[string]bool{}
+		}
+		for _, item := range m.missing {
+			m.selected[item.ID] = item.ID == "claude" || item.ID == "codex"
+		}
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 	case tea.KeyMsg:
@@ -196,6 +204,8 @@ func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.language = (m.language + 1) % len(languages)
 			} else if m.step == 4 && msg.String() == "right" {
 				m.permission = (m.permission + 1) % len(permissionProfiles)
+			} else if m.step == 2 && m.discovering {
+				return m, nil
 			} else if m.step == 2 && anySelected(m.selected) {
 				m.confirmInstall = true
 			} else if m.step < 6 {
@@ -204,6 +214,9 @@ func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.complete()
 			}
 		case "s":
+			if m.step == 2 && m.discovering {
+				return m, nil
+			}
 			if m.step < 6 {
 				m.advance()
 			} else {
@@ -310,6 +323,11 @@ func (m wizardModel) View() string {
 		fmt.Fprintf(&body, "%s\n\n%s\n\n%s\n", onboardingT(m, "onboarding.language.title"), onboardingT(m, "onboarding.language.help"), onboardingT(m, "onboarding.language.label", onboardingT(m, languageKey)))
 	case 1:
 		fmt.Fprintf(&body, "%s\n\n%s\n", onboardingT(m, "onboarding.agents.title"), onboardingT(m, "onboarding.agents.header"))
+		if m.discovering {
+			for _, agent := range discovery.DefaultCatalog() {
+				fmt.Fprintf(&body, "%-20s %-15s [%s]\n", truncateColumns(agent.Name, 20), onboardingT(m, "onboarding.version.unknown"), onboardingT(m, "onboarding.status.checking"))
+			}
+		}
 		for _, result := range m.results {
 			name := truncateColumns(result.Name, 20)
 			version := result.Version

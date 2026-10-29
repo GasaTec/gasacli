@@ -559,6 +559,75 @@ func TestSessionExchange(t *testing.T) {
 	}
 }
 
+func TestUsedLaunchCodeKeepsOnlyValidCookieSession(t *testing.T) {
+	const origin = "http://127.0.0.1:3199"
+	for _, tc := range []struct {
+		name       string
+		keepCookie bool
+		wantStatus int
+	}{
+		{name: "valid code", keepCookie: true, wantStatus: http.StatusOK},
+		{name: "used code with valid cookie", keepCookie: true, wantStatus: http.StatusOK},
+		{name: "used code without cookie", wantStatus: http.StatusUnauthorized},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			state := &launchSession{secret: "session-secret", code: "launch-code", expires: time.Now().Add(time.Minute), now: time.Now}
+			h := handler(origin, 3199, state.secret, state)
+			exchange := func() *http.Cookie {
+				r := httptest.NewRequest(http.MethodPost, origin+"/api/session", strings.NewReader(`{"code":"launch-code"}`))
+				r.Header.Set("Origin", origin)
+				w := httptest.NewRecorder()
+				h.ServeHTTP(w, r)
+				if w.Code != http.StatusOK {
+					t.Fatalf("first code exchange = %d, want 200", w.Code)
+				}
+				return w.Result().Cookies()[0]
+			}
+			cookie := exchange()
+			if tc.name != "valid code" {
+				r := httptest.NewRequest(http.MethodPost, origin+"/api/session", strings.NewReader(`{"code":"launch-code"}`))
+				r.Header.Set("Origin", origin)
+				w := httptest.NewRecorder()
+				h.ServeHTTP(w, r)
+				if w.Code != http.StatusUnauthorized {
+					t.Fatalf("reused code exchange = %d, want 401", w.Code)
+				}
+			}
+			r := httptest.NewRequest(http.MethodGet, origin+"/api/projects", nil)
+			if tc.keepCookie {
+				r.AddCookie(cookie)
+			}
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, r)
+			if w.Code != tc.wantStatus {
+				t.Fatalf("projects with reused code = %d, want %d", w.Code, tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestReadinessEndpointUsesProcessSnapshot(t *testing.T) {
+	expected := ReadinessSnapshot{
+		Known: true, ReadyCount: 1, Total: 2,
+		Agents: []ReadinessAgent{{ID: "claude", Name: "Claude Code", Status: "ready"}, {ID: "codex", Name: "Codex", Status: "needs_login"}},
+	}
+	h := handler("http://127.0.0.1:3199", 3199, "session-secret", &launchSession{secret: "session-secret"}, Options{Readiness: func() ReadinessSnapshot { return expected }})
+	r := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3199/api/readiness", nil)
+	r.AddCookie(&http.Cookie{Name: "gasa_session", Value: "session-secret"})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("readiness status = %d", w.Code)
+	}
+	var got ReadinessSnapshot
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("readiness = %+v, want %+v", got, expected)
+	}
+}
+
 func TestConcurrentSessionExchangeIsSingleUse(t *testing.T) {
 	state := &launchSession{secret: "secret", code: "code", expires: time.Now().Add(time.Minute), now: time.Now}
 	results := make(chan int, 2)

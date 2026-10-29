@@ -55,6 +55,7 @@
     "onboarding.status.installed":  "INSTALADO",
     "onboarding.status.missing":  "AUSENTE",
     "onboarding.status.unknown":  "DESCONHECIDO",
+    "onboarding.status.checking":  "VERIFICANDO",
     "onboarding.select.numbered_prompt":  "Digite números separados por espaço, Enter = padrão, n = nenhum: ",
     "onboarding.select.manual":  "manual",
     "onboarding.select.prompt":  "Selecione o que instalar (espaço = marcar, Enter = confirmar, a = todos, n = limpar, Esc = pular)",
@@ -93,5 +94,6 @@
     "onboarding.note.app_auth_not_checked":  "aplicativo; autenticação não verificada",
     "onboarding.note.auth_not_checked":  "autenticação não verificada",
     "onboarding.note.auth_probe_unsupported":  "não há verificação de autenticação não interativa documentada",
-    "onboarding.note.auth_probe_unknown":  "não foi possível verificar o estado da autenticação"
+    "onboarding.note.auth_probe_unknown":  "não foi possível verificar o estado da autenticação",
+    "onboarding.note.probe_timeout":  "verifica\u00e7\u00e3o expirou (tempo limite)"
 }

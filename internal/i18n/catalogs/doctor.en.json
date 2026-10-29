@@ -13,5 +13,6 @@
     "doctor.reason.version_unknown":  "CLI found; version could not be checked",
     "doctor.reason.error":  "Local probe failed",
     "doctor.reason.auth_probe_unsupported":  "No documented non-interactive authentication command",
-    "doctor.reason.auth_probe_unknown":  "Authentication status could not be verified"
+    "doctor.reason.auth_probe_unknown":  "Authentication status could not be verified",
+    "doctor.reason.timeout":  "Probe timed out (time limit)"
 }

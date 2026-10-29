@@ -356,6 +356,8 @@ func writeTable(w io.Writer, rows []discovery.Result) error {
 		note := r.Note
 		if note == "authentication not checked" {
 			note = i18n.T("onboarding.note.auth_not_checked")
+		} else if note == "doctor.reason.timeout" {
+			note = i18n.T("onboarding.note.probe_timeout")
 		} else if note == "no documented non-interactive authentication probe" {
 			note = i18n.T("onboarding.note.auth_probe_unsupported")
 		} else if note == "authentication status could not be verified" {
