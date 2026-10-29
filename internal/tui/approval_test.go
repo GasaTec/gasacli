@@ -59,3 +59,15 @@ func TestApprovalDialogGolden80x24(t *testing.T) {
 		t.Fatalf("approval dialog differs from %s\n--- got ---\n%s\n--- want ---\n%s", path, got, want)
 	}
 }
+
+func TestApprovalDialogTabMovesThroughOptions(t *testing.T) {
+	model := newInteractiveModel(&Session{}, "/tmp/project", true)
+	answer := make(chan ApprovalChoice, 1)
+	model.approval = &approvalPrompt{request: PermissionRequest{Action: "write_vault"}, answer: answer, choice: ApprovalDeny}
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyTab})
+	model = updated.(interactiveModel)
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if updated.(interactiveModel).approval != nil || <-answer != ApprovalOnce {
+		t.Fatal("Tab did not move the approval selection from deny to once")
+	}
+}

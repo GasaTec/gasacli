@@ -14,6 +14,6 @@
  |                                                                            |
  |    Permitir uma vez      Permitir nesta execução    > Negar                |
  |                                                                            |
- |  Use esquerda/direita e Enter. Padrão: Negar.                              |
+ |  ←/→ ou Tab escolhem; Enter confirma. Esc nega. Padrão: Não.               |
  |                                                                            |
  +----------------------------------------------------------------------------+

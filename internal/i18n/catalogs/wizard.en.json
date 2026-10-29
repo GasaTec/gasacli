@@ -1,0 +1,15 @@
+{
+  "wizard.step": "Step %d of 8",
+  "wizard.dashboard.title": "Dashboard startup mode",
+  "wizard.permission.matrix": "Permission matrix: %s",
+  "wizard.trust.yes": "Yes, trust this folder",
+  "wizard.trust.no": "No, keep it untrusted",
+  "wizard.edition.activation": "activation later",
+  "wizard.saved": "Configuration saved. Run `gasa setup` to continue.",
+  "wizard.hint.continue": "Enter continue · S skip · Esc exit",
+  "wizard.hint.back": "Enter continue · S skip · B back · Esc exit",
+  "wizard.hint.single": "↑/↓ move · Space choose · Enter continue · S skip · B back · Esc exit",
+  "wizard.hint.multi": "↑/↓ move · Space mark · A toggle all · Enter continue · S skip · B back · Esc exit",
+  "wizard.hint.finish": "Enter finish · B back · Esc exit",
+  "wizard.hint.help": "Enter continue · S skip · B back · Esc exit · ? close help"
+}

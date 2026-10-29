@@ -1,16 +1,23 @@
-┌────────────────────────────────────────────────────────────────────────────┐
-│                                                                            │
-│  +G>+ gasacli                                                              │
-│                                                                            │
-│  Passo 2 de 6                                                              │
-│                                                                            │
-│  Agentes e ferramentas locais                                              │
-│                                                                            │
-│  NOME                 VERSÃO          STATUS                               │
-│  Codex                1.2.3           [READY]                              │
-│    C:/tools/codex.exe                                                      │
-│                                                                            │
-│                                                                            │
-│  ←: Voltar | Enter: Avançar | S: Pular                                     │
-│                                                                            │
-└────────────────────────────────────────────────────────────────────────────┘
+
+
+
+ ┌────────────────────────────────────────────────────────────────────────────┐
+ │                                                                            │
+ │  +G>+ gasacli                                                              │
+ │  **......                                                                  │
+ │                                                                            │
+ │  Passo 2 de 8                                                              │
+ │                                                                            │
+ │  Agentes e ferramentas locais                                              │
+ │                                                                            │
+ │  NOME                 VERSÃO          STATUS                               │
+ │  Codex                1.2.3           [READY]                              │
+ │    C:/tools/codex.exe                                                      │
+ │                                                                            │
+ │                                                                            │
+ │  Enter continuar · S pular · B voltar · Esc sair                           │
+ │                                                                            │
+ └────────────────────────────────────────────────────────────────────────────┘
+
+
+

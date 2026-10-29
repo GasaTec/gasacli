@@ -1,21 +1,23 @@
-┌────────────────────────────────────────────────────────────────────────────┐
-│                                                                            │
-│  +G>+ gasacli                                                              │
-│                                                                            │
-│  Passo 6 de 6                                                              │
-│                                                                            │
-│  Resumo da configuração                                                    │
-│                                                                            │
-│  Revise suas escolhas                                                      │
-│                                                                            │
-│  Perfil de permissões: restricted                                          │
-│  Dashboard: auto                                                           │
-│  Edição: Community                                                         │
-│  Confiança do workspace: Não confiável                                     │
-│  Instalações confirmadas: Nenhuma (não confirmada)                         │
-│                                                                            │
-│  Enter inicia o GasaCLI.                                                   │
-│                                                                            │
-│  Enter: Concluir | Esc: Voltar                                             │
-│                                                                            │
-└────────────────────────────────────────────────────────────────────────────┘
+
+
+ ┌────────────────────────────────────────────────────────────────────────────┐
+ │                                                                            │
+ │  +G>+ gasacli                                                              │
+ │  ********                                                                  │
+ │                                                                            │
+ │  Passo 8 de 8                                                              │
+ │                                                                            │
+ │  Resumo da configuração                                                    │
+ │                                                                            │
+ │  Revise suas escolhas                                                      │
+ │  Perfil de permissões: restricted                                          │
+ │  Dashboard: auto                                                           │
+ │  Edição: Community                                                         │
+ │  Confiança do workspace: Não confiável                                     │
+ │  Instalações confirmadas: Nenhuma (não confirmada)                         │
+ │                                                                            │
+ │  Enter concluir · B voltar · Esc sair                                      │
+ │                                                                            │
+ └────────────────────────────────────────────────────────────────────────────┘
+
+

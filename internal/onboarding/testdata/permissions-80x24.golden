@@ -1,19 +1,23 @@
-┌────────────────────────────────────────────────────────────────────────────┐
-│                                                                            │
-│  +G>+ gasacli                                                              │
-│                                                                            │
-│  Passo 4 de 6                                                              │
-│                                                                            │
-│  Perfil de permissões (←/→ para alterar: restricted)                       │
-│                                                                            │
-│  [x] restricted - Pergunta antes de gravar, executar comandos, instalar    │
-│  ou acessar a rede.                                                        │
-│  [ ] balanced - Permite ações comuns; pergunta antes de ações arriscadas   │
-│  ou externas.                                                              │
-│  [ ] autonomous - Permite ações comuns; operações sensíveis ainda exigem   │
-│  aprovação.                                                                │
-│                                                                            │
-│                                                                            │
-│  ←: Voltar | Enter: Avançar | S: Pular                                     │
-│                                                                            │
-└────────────────────────────────────────────────────────────────────────────┘
+
+ ┌────────────────────────────────────────────────────────────────────────────┐
+ │                                                                            │
+ │  +G>+ gasacli                                                              │
+ │  *****...                                                                  │
+ │                                                                            │
+ │  Passo 5 de 8                                                              │
+ │                                                                            │
+ │  Perfil de permissões: restricted                                          │
+ │                                                                            │
+ │    (*) restricted - Pergunta antes de gravar, executar comandos, instalar  │
+ │  ou acessar a rede.                                                        │
+ │  > ( ) balanced - Permite ações comuns; pergunta antes de ações            │
+ │  arriscadas ou externas.                                                   │
+ │    ( ) autonomous - Permite ações comuns; operações sensíveis ainda        │
+ │  exigem aprovação.                                                         │
+ │  Matriz de permissões: write_project=ask, execute_commands=deny,           │
+ │  secret_access=deny                                                        │
+ │                                                                            │
+ │                                                                            │
+ │  Enter continuar · S pular · B voltar · Esc sair                           │
+ │                                                                            │
+ └────────────────────────────────────────────────────────────────────────────┘

@@ -1,17 +1,23 @@
-┌────────────────────────────────────────────────────────────────────────────┐
-│                                                                            │
-│  +G>+ gasacli                                                              │
-│                                                                            │
-│  Confirmação de workspace                                                  │
-│                                                                            │
-│  Confirmação de pasta confiável                                            │
-│                                                                            │
-│  A confiança permite descobrir ferramentas e acessar arquivos do projeto   │
-│  quando solicitado. Ela não aprova comandos ou instalações.                │
-│                                                                            │
-│    Sim, confiar em C:/workspace                                            │
-│  > Manter sem confiança (padrão). Pressione y ou n para escolher.          │
-│                                                                            │
-│  ←: Voltar | Enter: Avançar | S: Pular                                     │
-│                                                                            │
-└────────────────────────────────────────────────────────────────────────────┘
+
+
+ ┌────────────────────────────────────────────────────────────────────────────┐
+ │                                                                            │
+ │  +G>+ gasacli                                                              │
+ │  ****....                                                                  │
+ │                                                                            │
+ │  Passo 4 de 8                                                              │
+ │                                                                            │
+ │  Confirmação de pasta confiável                                            │
+ │                                                                            │
+ │  A confiança permite descobrir ferramentas e acessar arquivos do projeto   │
+ │  quando solicitado. Ela não aprova comandos ou instalações.                │
+ │                                                                            │
+ │    ( ) Sim, confiar nesta pasta                                            │
+ │  > (*) Não, manter sem confiança                                           │
+ │                                                                            │
+ │                                                                            │
+ │  Enter continuar · S pular · B voltar · Esc sair                           │
+ │                                                                            │
+ └────────────────────────────────────────────────────────────────────────────┘
+
+

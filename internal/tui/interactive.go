@@ -397,6 +397,8 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				if m.approval.choice < ApprovalDeny {
 					m.approval.choice++
 				}
+			case "tab":
+				m.approval.choice = (m.approval.choice + 1) % (ApprovalDeny + 1)
 			case "y", "Y":
 				m.approval.choice = ApprovalRun
 			case "n", "N":
@@ -850,7 +852,32 @@ func (m interactiveModel) matches() []commandInfo {
 
 func (m interactiveModel) renderMessage(text string) string {
 	if strings.HasPrefix(text, "You  > ") {
-		return terminalText(text)
+		label := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#1ECFA5")).Render("Você")
+		return label + "  " + renderTranscript(strings.TrimPrefix(text, "You  > "), m.view.Width, m.lightTheme)
+	}
+	if strings.HasPrefix(text, "GasaCLI\n") {
+		labelColor := lipgloss.Color("#F4F7FB")
+		if m.lightTheme {
+			labelColor = lipgloss.Color("#172A46")
+		}
+		label := lipgloss.NewStyle().Bold(true).Foreground(labelColor).Render("GasaCLI")
+		body := strings.TrimPrefix(text, "GasaCLI\n")
+		upper := strings.ToUpper(body)
+		for _, state := range []struct {
+			name  string
+			color lipgloss.Color
+		}{{"BLOCKED", "#FF7272"}, {"DONE", "#43D19E"}, {"GATES", "#79B8FF"}, {"REVIEW", "#79B8FF"}, {"RUNNING", "#F2B84B"}} {
+			if strings.Contains(upper, state.name) {
+				badge := lipgloss.NewStyle().Bold(true).Foreground(state.color).Render("[" + state.name + "]")
+				body = strings.Replace(body, state.name, badge, 1)
+				break
+			}
+		}
+		content := label + "\n" + renderTranscript(body, m.view.Width, m.lightTheme)
+		if strings.Contains(upper, "DONE") || strings.Contains(upper, "BLOCKED") {
+			return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.AdaptiveColor{Light: "#7F8CA0", Dark: "#596982"}).Padding(0, 1).Render(content)
+		}
+		return content
 	}
 	return renderTranscript(text, m.view.Width, m.lightTheme)
 }
@@ -1092,7 +1119,15 @@ func (m interactiveModel) View() string {
 			if index == m.selected {
 				marker = "> "
 			}
-			rows = append(rows, truncateLine(marker+command.name+"  "+command.description, m.view.Width))
+			row := truncateLine(marker+command.name+"  "+command.description, m.view.Width)
+			if index == m.selected {
+				fill, ink := lipgloss.Color("#1ECFA5"), lipgloss.Color("#172A46")
+				if m.lightTheme {
+					fill, ink = lipgloss.Color("#087E68"), lipgloss.Color("#FFFFFF")
+				}
+				row = lipgloss.NewStyle().Background(fill).Foreground(ink).Bold(true).Render(row)
+			}
+			rows = append(rows, row)
 		}
 		conversationContent = strings.Join(rows, "\n")
 	}
@@ -1185,8 +1220,15 @@ func (m interactiveModel) View() string {
 				prefix = "> "
 			}
 			choices[index] = prefix + choices[index]
+			if int(m.approval.choice) == index {
+				fill, ink := lipgloss.Color("#1ECFA5"), lipgloss.Color("#172A46")
+				if m.lightTheme {
+					fill, ink = lipgloss.Color("#087E68"), lipgloss.Color("#FFFFFF")
+				}
+				choices[index] = lipgloss.NewStyle().Background(fill).Foreground(ink).Bold(true).Render(choices[index])
+			}
 		}
-		content := fmt.Sprintf("%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n\n%s    %s    %s\n\n%s", i18n.T("tui.approval.title"), i18n.T("tui.approval.agent"), valueOr(request.Agent, "GasaCLI"), i18n.T("tui.approval.action"), i18n.T("permission."+request.Action), i18n.T("tui.approval.target"), request.Target, i18n.T("tui.approval.command"), request.ExactCommand, choices[0], choices[1], choices[2], i18n.T("goal.approval.help"))
+		content := fmt.Sprintf("%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n\n%s    %s    %s\n\n%s", i18n.T("tui.approval.title"), i18n.T("tui.approval.agent"), valueOr(request.Agent, "GasaCLI"), i18n.T("tui.approval.action"), i18n.T("permission."+request.Action), i18n.T("tui.approval.target"), request.Target, i18n.T("tui.approval.command"), request.ExactCommand, choices[0], choices[1], choices[2], i18n.T("tui.approval.help"))
 		if m.width < 40 || m.height < 16 {
 			return m.smallDialog(content)
 		}
@@ -1194,7 +1236,11 @@ func (m interactiveModel) View() string {
 		if os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != "" {
 			border = lipgloss.Border{Top: "-", Bottom: "-", Left: "|", Right: "|", TopLeft: "+", TopRight: "+", BottomLeft: "+", BottomRight: "+"}
 		}
-		dialog := lipgloss.NewStyle().Border(border).Padding(1, 2).Width(max(40, min(76, m.width-4))).Render(content)
+		accent := lipgloss.Color("#1ECFA5")
+		if m.lightTheme {
+			accent = lipgloss.Color("#087E68")
+		}
+		dialog := lipgloss.NewStyle().Border(border).BorderForeground(accent).Padding(1, 2).Width(max(40, min(76, m.width-4))).Render(content)
 		return lipgloss.Place(max(40, m.width), max(12, m.height), lipgloss.Center, lipgloss.Center, dialog)
 	}
 	return view

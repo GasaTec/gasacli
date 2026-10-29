@@ -21,6 +21,21 @@ Comandos locais disponíveis incluem:
 | `gasa web open` | Inicia o painel local e aguarda Ctrl+C. |
 | `gasa reset`, `gasa uninstall` | Mostra um plano antes de remover dados locais. |
 
+### Teclas do onboarding interativo
+
+| Tecla | Ação |
+|---|---|
+| `Enter` | Continua; em uma lista, aceita a opção destacada. |
+| `Esc`, `Ctrl+C` | Salva o progresso e sai; rode `gasa setup` para continuar. |
+| `S` | Pula a etapa mantendo o valor atual. |
+| `B`, `Backspace` | Volta uma etapa. |
+| `↑` / `↓`, `k` / `j` | Move o destaque nas listas. |
+| `Espaço` | Escolhe uma opção ou alterna o item destacado. |
+| `A` | Alterna todos os itens na lista de instalação. |
+| `?` | Mostra a ajuda de teclas em uma linha. |
+
+Setas `←` e `→` e letras sem ação definida não mudam valores. `gasa setup --plain` continua usando prompts numerados.
+
 ## Limites atuais
 
 O chat não encaminha texto livre a um modelo. O orquestrador local pode executar tarefas com agentes instalados, mas não oferece sincronização em nuvem. Integrações com GitHub usam o CLI `gh` e exigem configuração e escopos adequados. O painel é local; serviços remotos, Linear e recursos Cloud continuam planejados. A lista de comandos registra o estado exposto pelo build atual, que pode variar entre versões.

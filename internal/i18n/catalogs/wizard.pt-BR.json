@@ -1,0 +1,15 @@
+{
+  "wizard.step": "Passo %d de 8",
+  "wizard.dashboard.title": "Modo de inicialização do dashboard",
+  "wizard.permission.matrix": "Matriz de permissões: %s",
+  "wizard.trust.yes": "Sim, confiar nesta pasta",
+  "wizard.trust.no": "Não, manter sem confiança",
+  "wizard.edition.activation": "ativação depois",
+  "wizard.saved": "Configuração salva. Rode `gasa setup` para continuar.",
+  "wizard.hint.continue": "Enter continuar · S pular · Esc sair",
+  "wizard.hint.back": "Enter continuar · S pular · B voltar · Esc sair",
+  "wizard.hint.single": "↑/↓ mover · Espaço escolher · Enter continuar · S pular · B voltar · Esc sair",
+  "wizard.hint.multi": "↑/↓ mover · Espaço marcar · A todos · Enter continuar · S pular · B voltar · Esc sair",
+  "wizard.hint.finish": "Enter concluir · B voltar · Esc sair",
+  "wizard.hint.help": "Enter continuar · S pular · B voltar · Esc sair · ? fechar ajuda"
+}

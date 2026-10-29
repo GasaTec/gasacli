@@ -9,7 +9,7 @@
     "tui.approval.command":  "Command",
     "tui.approval.yes":  "Yes",
     "tui.approval.no":  "No",
-    "tui.approval.help":  "Use left/right or y/n, then press Enter. Default: No.",
+    "tui.approval.help":  "Left/right or Tab choose; Enter confirms. Esc denies. Default: No.",
     "command.history": "Show a trusted project's session history",
     "command.help":  "Show commands and keyboard shortcuts",
     "command.agents":  "Discover installed coding agents",

@@ -1,10 +1,10 @@
 ﻿# Primeira execução e ciclo de vida dos dados
 
-Na primeira execução interativa, o GasaCLI detecta CLIs de agentes e o Obsidian, que é opcional. Para cada agente, a descoberta distingue instalação, prontidão e necessidade de login quando o provedor oferece uma verificação local segura; isso não prova que uma futura chamada ao agente terá sucesso. A seleção permite navegar com setas ou `k`/`j`, marcar com espaço, marcar todos com `a`, limpar com `n`, confirmar com Enter ou pular com Esc/`q`. Ctrl+C cancela o onboarding. Se o terminal não permitir modo raw, a seleção numerada é usada.
+Na primeira execução interativa, o assistente mostra idioma, agentes detectados, ferramentas ausentes, confiança da pasta, perfil de permissões, modo do dashboard, edição e resumo. A descoberta distingue instalação, prontidão e necessidade de login quando o agente oferece uma verificação local; isso não garante que uma chamada futura terá sucesso. Em qualquer tela, Enter continua, Esc salva e sai, S pula mantendo o valor atual, B ou Backspace volta, ↑/↓ (ou k/j) move o destaque, Espaço escolhe ou marca e `?` mostra ajuda. As setas ←/→ não alteram valores; letras sem ação definida são ignoradas. Ctrl+C salva e sai como Esc. Na lista de instalação, A alterna todos os itens; nenhum comando executa sem a confirmação explícita da prévia do comando.
 
 Claude Code e Codex aparecem selecionados por padrão quando ausentes. O plano mostra o comando exato e a origem oficial. A execução automática pergunta `Run the automatic installs now? [y/N/s]`; o padrão é `N`. Scripts oficiais `curl | sh` e `irm | iex` são exibidos como instruções e nunca executados pelo GasaCLI.
 
-`gasa setup` fora do chat pode executar os comandos selecionados após a confirmação. `/setup` dentro do chat mostra status, seleção numerada e plano, sem executar comandos. Para instalar, rode `gasa setup` fora do chat. Para pular o onboarding inicial, use `GASA_SKIP_ONBOARDING=1` ou `--no-onboarding`; isso não impede `gasa setup`.
+`gasa setup` fora do chat pode executar os comandos selecionados após a confirmação. `/setup` dentro do chat mostra status, seleção numerada e plano, sem executar comandos. `gasa setup --plain` mantém prompts numerados para terminais sem modo interativo. Para instalar, rode `gasa setup` fora do chat. Para pular o onboarding inicial, use `GASA_SKIP_ONBOARDING=1` ou `--no-onboarding`; isso não impede `gasa setup`.
 
 ## Estado dos recursos
 

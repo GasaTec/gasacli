@@ -9,7 +9,7 @@
     "tui.approval.command":  "Comando",
     "tui.approval.yes":  "Sim",
     "tui.approval.no":  "Não",
-    "tui.approval.help":  "Use ←/→ ou y/n e pressione Enter. Padrão: Não.",
+    "tui.approval.help":  "←/→ ou Tab escolhem; Enter confirma. Esc nega. Padrão: Não.",
     "command.history": "Exibe o histórico de uma sessão do projeto confiável",
     "command.help":  "Exibe comandos e atalhos",
     "command.agents":  "Descobre agentes de programação instalados",
