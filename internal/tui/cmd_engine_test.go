@@ -134,13 +134,13 @@ func TestGoalRequiresTrustedProjectAndInstalledAgent(t *testing.T) {
 	}
 }
 
-func TestGoalReportsConfiguredAgentThatNeedsLogin(t *testing.T) {
+func TestGoalReportsConfiguredAgentThatIsMissing(t *testing.T) {
 	home, project := t.TempDir(), t.TempDir()
 	if err := os.WriteFile(home+"/config.yaml", []byte("agents:\n  developer: claude\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	cc := &engineCommandContext{home: home, project: project, trusted: true, discover: []discovery.Result{{ID: "claude", Status: discovery.NeedsLogin}}}
-	if _, err := goalCommand(context.Background(), cc, []string{"--agent", "claude", "create", "file"}); err == nil || !strings.Contains(err.Error(), "needs_login") {
+	cc := &engineCommandContext{home: home, project: project, trusted: true, discover: []discovery.Result{{ID: "claude", Status: discovery.Missing}}}
+	if _, err := goalCommand(context.Background(), cc, []string{"--agent", "claude", "create", "file"}); err == nil || !strings.Contains(err.Error(), "missing") {
 		t.Fatalf("unavailable configured agent error = %v", err)
 	}
 }

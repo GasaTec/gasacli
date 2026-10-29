@@ -160,3 +160,17 @@ func TestSnapshotTracksFilesButIgnoresGitMetadata(t *testing.T) {
 		t.Fatalf("file content did not change snapshot: %q %q %v", second, third, err)
 	}
 }
+
+func TestUnconfirmedLoginIsALastResortNotARefusal(t *testing.T) {
+	results := []discovery.Result{{ID: "claude", Status: discovery.NeedsLogin}}
+	if !AgentAvailable(results, "claude") {
+		t.Fatal("an explicit choice must not be refused because the login probe was negative")
+	}
+	if got := SelectDeveloper(results, ""); got != "claude" {
+		t.Fatalf("default developer = %q, want claude as the last resort", got)
+	}
+	results = []discovery.Result{{ID: "claude", Status: discovery.NeedsLogin}, {ID: "codex", Status: discovery.Ready}}
+	if got := SelectDeveloper(results, ""); got != "codex" {
+		t.Fatalf("a confirmed login must win, got %q", got)
+	}
+}
