@@ -318,7 +318,7 @@ func SelectDeveloper(results []discovery.Result, preferred string) string {
 		}
 		return ""
 	}
-	for _, status := range []discovery.Status{discovery.Ready, discovery.Installed} {
+	for _, status := range []discovery.Status{discovery.Ready, discovery.Installed, discovery.NeedsLogin} {
 		for _, id := range []string{"codex", "claude"} {
 			for _, result := range results {
 				if result.ID == id && result.Status == status {
@@ -344,13 +344,13 @@ func AgentAvailable(results []discovery.Result, agent string) bool {
 		return false
 	}
 	status := AgentStatus(results, agent)
-	return status == discovery.Ready || status == discovery.Installed
+	return status == discovery.Ready || status == discovery.Installed || status == discovery.NeedsLogin
 }
 
 // SelectReviewer prefers a different ready agent, then a different installed
 // agent, and finally the developer as an isolated fresh session.
 func SelectReviewer(results []discovery.Result, developer string) string {
-	for _, status := range []discovery.Status{discovery.Ready, discovery.Installed} {
+	for _, status := range []discovery.Status{discovery.Ready, discovery.Installed, discovery.NeedsLogin} {
 		for _, result := range results {
 			if result.ID != developer && AgentAvailable(results, result.ID) && result.Status == status {
 				return result.ID

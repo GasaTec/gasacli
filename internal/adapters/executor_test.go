@@ -200,3 +200,20 @@ func TestAllowedEnvironmentIsCaseInsensitiveAndKeepsSecretsOut(t *testing.T) {
 		}
 	}
 }
+
+func TestAllowedEnvironmentKeepsAgentConfigDirectories(t *testing.T) {
+	got := strings.Join(allowedEnvironmentFrom([]string{
+		`CLAUDE_CONFIG_DIR=C:\profiles\claude`,
+		`GH_CONFIG_DIR=C:\profiles\gh`,
+		`XDG_CONFIG_HOME=C:\cfg`,
+		`GITHUB_TOKEN=secret`,
+	}, nil), "\n")
+	for _, want := range []string{`CLAUDE_CONFIG_DIR=C:\profiles\claude`, `GH_CONFIG_DIR=C:\profiles\gh`, `XDG_CONFIG_HOME=C:\cfg`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("config directory %q was dropped: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "GITHUB_TOKEN") {
+		t.Fatalf("token leaked: %s", got)
+	}
+}

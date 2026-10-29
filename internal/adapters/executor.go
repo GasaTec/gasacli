@@ -455,7 +455,7 @@ func allowedEnvironment(extra map[string]string) []string {
 // search path "Path" while Unix uses "PATH"; dropping it left codex.cmd without
 // node on PATH.
 func allowedEnvironmentFrom(environ []string, extra map[string]string) []string {
-	rawAllowed := map[string]bool{"PATH": true, "HOME": true, "USERPROFILE": true, "SystemRoot": true, "WINDIR": true, "PATHEXT": true, "TEMP": true, "TMP": true, "TMPDIR": true, "LOCALAPPDATA": true, "APPDATA": true, "CODEX_HOME": true, "ANTHROPIC_API_KEY": false, "OPENAI_API_KEY": false}
+	rawAllowed := map[string]bool{"PATH": true, "HOME": true, "USERPROFILE": true, "SystemRoot": true, "WINDIR": true, "PATHEXT": true, "TEMP": true, "TMP": true, "TMPDIR": true, "LOCALAPPDATA": true, "APPDATA": true, "CODEX_HOME": true, "CLAUDE_CONFIG_DIR": true, "GH_CONFIG_DIR": true, "XDG_CONFIG_HOME": true, "XDG_DATA_HOME": true, "XDG_STATE_HOME": true, "XDG_CACHE_HOME": true, "ANTHROPIC_API_KEY": false, "OPENAI_API_KEY": false}
 	allowed := make(map[string]bool, len(rawAllowed))
 	for name, ok := range rawAllowed {
 		allowed[strings.ToUpper(name)] = ok
