@@ -178,3 +178,25 @@ func TestCodexExecArgsAcceptedByNonInteractiveCLI(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowedEnvironmentIsCaseInsensitiveAndKeepsSecretsOut(t *testing.T) {
+	got := allowedEnvironmentFrom([]string{
+		`Path=C:\Program Files\nodejs;C:\Windows`,
+		`SystemRoot=C:\Windows`,
+		`PATHEXT=.COM;.EXE;.CMD`,
+		`ANTHROPIC_API_KEY=secret`,
+		`openai_api_key=secret`,
+		`UNRELATED_TOKEN=secret`,
+	}, nil)
+	joined := strings.Join(got, "\n")
+	for _, want := range []string{`Path=C:\Program Files\nodejs;C:\Windows`, `SystemRoot=C:\Windows`, `PATHEXT=.COM;.EXE;.CMD`} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("missing %q in %v", want, got)
+		}
+	}
+	for _, leaked := range []string{"ANTHROPIC_API_KEY", "openai_api_key", "UNRELATED_TOKEN", "secret"} {
+		if strings.Contains(joined, leaked) {
+			t.Fatalf("environment leaked %q: %v", leaked, got)
+		}
+	}
+}

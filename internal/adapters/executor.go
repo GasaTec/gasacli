@@ -447,16 +447,28 @@ func captureMetrics(line []byte, result *Result) {
 }
 
 func allowedEnvironment(extra map[string]string) []string {
-	allowed := map[string]bool{"PATH": true, "HOME": true, "USERPROFILE": true, "SystemRoot": true, "WINDIR": true, "PATHEXT": true, "TEMP": true, "TMP": true, "TMPDIR": true, "LOCALAPPDATA": true, "APPDATA": true, "CODEX_HOME": true, "ANTHROPIC_API_KEY": false, "OPENAI_API_KEY": false}
+	return allowedEnvironmentFrom(os.Environ(), extra)
+}
+
+// allowedEnvironmentFrom filters an environment block to the variables an agent
+// may inherit. Names are compared case-insensitively because Windows spells the
+// search path "Path" while Unix uses "PATH"; dropping it left codex.cmd without
+// node on PATH.
+func allowedEnvironmentFrom(environ []string, extra map[string]string) []string {
+	rawAllowed := map[string]bool{"PATH": true, "HOME": true, "USERPROFILE": true, "SystemRoot": true, "WINDIR": true, "PATHEXT": true, "TEMP": true, "TMP": true, "TMPDIR": true, "LOCALAPPDATA": true, "APPDATA": true, "CODEX_HOME": true, "ANTHROPIC_API_KEY": false, "OPENAI_API_KEY": false}
+	allowed := make(map[string]bool, len(rawAllowed))
+	for name, ok := range rawAllowed {
+		allowed[strings.ToUpper(name)] = ok
+	}
 	values := map[string]string{}
-	for _, entry := range os.Environ() {
+	for _, entry := range environ {
 		key, value, ok := strings.Cut(entry, "=")
-		if ok && allowed[key] {
+		if ok && allowed[strings.ToUpper(key)] {
 			values[key] = value
 		}
 	}
 	for key, value := range extra {
-		if allowed[key] && allowed[key] == true {
+		if allowed[strings.ToUpper(key)] {
 			values[key] = value
 		}
 	}
