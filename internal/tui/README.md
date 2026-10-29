@@ -1,8 +1,12 @@
 # Adding a TUI command
 
-The interactive shell lists local Claude Code and Codex sessions for the
-trusted project with `/sessions`. `/use <id>` selects an existing session for
-free-text messages; `/send <id> <message>` sends directly. Both resume the
+The interactive shell automatically loads the most recent resumable local Claude
+Code or Codex session for the trusted project and displays its agent and history.
+`/sessions` lists available sessions and `/use <id>` switches the selected
+session; `/send <id> <message>` sends directly. The automatic selection excludes
+sessions marked as working. If no resumable session is found, creating a new
+provider conversation is not yet supported. The session index is bounded, so
+older projects may not appear if they fall outside its latest entries. Both resume the
 provider CLI and require execution and network permission. The sender checks
 project trust and records the decision before starting the provider. A session
 must already exist; discovering a provider does not create a conversation.
@@ -31,7 +35,9 @@ also supported. Colliding or reserved bindings are rejected.
 
 Create one `cmd_<name>.go` file in this package and call `Register` from its `init` function. Set the slash `Name`, aliases, localized `Summary` catalog key, usage, category, and optional `Planned`/`IssueRef` fields. The command palette, autocomplete candidates, and `/help` are generated from registered metadata.
 
-Handlers run on a worker goroutine in the interactive model and receive a cancellable context. Use `Emit` to stream complete transcript lines while work continues; return a string for the final response. Check `ctx.Done()` in long operations. `Ask` blocks until the user answers in the framed approval dialog (or a y/N prompt in plain mode); the permission policy is checked and the decision is recorded before the handler continues.
+Trust and approval dialogs use vertical lists: Up/Down moves the highlight, Space or Enter chooses, and Esc exits the trust prompt or denies approval. Left/Right, Tab, and unassigned letters do not change a choice. The approval list starts on Deny. Onboarding uses the same keys; its welcome screen has no list, so Enter starts and Esc exits. Plain onboarding remains numbered.
+
+Handlers run on a worker goroutine in the interactive model and receive a cancellable context. Use `Emit` to stream complete transcript lines while work continues; return a string for the final response. Check `ctx.Done()` in long operations. `Ask` blocks until the user answers in the framed approval dialog (or a plain prompt in line-oriented mode); the permission policy is checked and the decision is recorded before the handler continues.
 
 ```go
 package tui

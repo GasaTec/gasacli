@@ -32,6 +32,11 @@ const (
 
 var providerSessionID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
+// Resumable checks the provider identifier shape, not trust or permissions.
+func Resumable(item Session) bool {
+	return (item.Agent == "Claude Code" || item.Agent == "Codex") && providerSessionID.MatchString(item.ProviderID)
+}
+
 type approvalContextKey struct{}
 type auditedApprovalContextKey struct{}
 type expectedProjectContextKey struct{}
@@ -131,7 +136,7 @@ func (s *CLISender) Send(ctx context.Context, request SendRequest) (<-chan Event
 			break
 		}
 	}
-	if selected.ID == "" || !providerSessionID.MatchString(selected.ProviderID) {
+	if selected.ID == "" || !Resumable(selected) {
 		return nil, errors.New("session is unknown or expired")
 	}
 	if s.Policy.Trust == nil {

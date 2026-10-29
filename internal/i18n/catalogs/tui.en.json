@@ -9,7 +9,7 @@
     "tui.approval.command":  "Command",
     "tui.approval.yes":  "Yes",
     "tui.approval.no":  "No",
-    "tui.approval.help":  "Left/right or Tab choose; Enter confirms. Esc denies. Default: No.",
+    "tui.approval.help":  "Up/down move; Space or Enter choose. Esc denies. Default: Deny.",
     "command.history": "Show a trusted project's session history",
     "command.help":  "Show commands and keyboard shortcuts",
     "command.agents":  "Discover installed coding agents",
@@ -48,6 +48,12 @@
     "tui.agents.checking":  "checking...",
     "tui.trust.granted":  "granted",
     "tui.trust.label":  "Trust",
+    "tui.trust.title": "Confirm trust for this folder",
+    "tui.trust.description": "Trust allows GasaCLI to discover tools and access project files when you ask. It does not approve commands, installations, or network access.\n\nFolder: %s",
+    "tui.trust.yes": "Yes, trust this folder",
+    "tui.trust.no": "No, keep it untrusted",
+    "tui.trust.help": "Up/down move · Space/Enter choose · Esc exit",
+    "tui.trust.denied": "This folder remains untrusted. GasaCLI does not access project files.\n\nTo review trust later, run `gasa setup`.\n\nPress Esc to exit.",
     "tui.agents.ready":  "Agents ready: %s",
     "tui.project":  "Project: %s"
 }

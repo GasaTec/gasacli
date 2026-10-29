@@ -11,5 +11,8 @@
   "wizard.hint.single": "↑/↓ mover · Espaço escolher · Enter continuar · S pular · B voltar · Esc sair",
   "wizard.hint.multi": "↑/↓ mover · Espaço marcar · A todos · Enter continuar · S pular · B voltar · Esc sair",
   "wizard.hint.finish": "Enter concluir · B voltar · Esc sair",
+  "wizard.hint.compact.single": "\u2191/\u2193 mover \u00b7 Espa\u00e7o escolher \u00b7 Enter seguir \u00b7 S pular \u00b7 B voltar \u00b7 Esc sair",
+  "wizard.hint.compact.multi": "\u2191/\u2193 mover \u00b7 Espa\u00e7o marcar \u00b7 A todos \u00b7 B voltar \u00b7 S pular \u00b7 Esc sair",
+  "wizard.hint.compact.finish": "Enter concluir \u00b7 Esc sair",
   "wizard.hint.help": "Enter continuar · S pular · B voltar · Esc sair · ? fechar ajuda"
 }

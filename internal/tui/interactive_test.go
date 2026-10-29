@@ -115,25 +115,96 @@ func TestSecondCtrlCConfirmsWhenGoalIsActive(t *testing.T) {
 
 func TestInteractiveTrustAndKeys(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
+	pinTestLanguage(t, "pt-BR")
 	session := &Session{ProjectPath: t.TempDir(), TrustStore: trust.NewStore(t.TempDir())}
 	model := newInteractiveModel(session, session.ProjectPath, false)
 	model.width, model.height = 80, 24
 	view := model.View()
-	for _, want := range []string{"Confirme a confiança do workspace", "Pasta:", "Padrão: manter sem confiança", "> Manter sem confiança"} {
+	for _, want := range []string{"Confirme a confiança nesta pasta", "Sim, confiar nesta pasta", "Não, manter sem confiança", "> Não, manter sem confiança"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("trust view missing %q: %s", want, view)
 		}
 	}
-	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyUp})
 	model = updated.(interactiveModel)
-	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeySpace})
 	model = updated.(interactiveModel)
 	if !model.trusted {
-		t.Fatal("y then enter did not grant trust")
+		t.Fatal("Up then Space did not grant trust")
 	}
 	trusted, err := session.TrustStore.IsTrusted(session.ProjectPath)
 	if err != nil || !trusted {
 		t.Fatalf("persisted trust=%v err=%v", trusted, err)
+	}
+}
+
+func TestTrustDialogGolden80x24(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	t.Setenv("TERM", "dumb")
+	pinTestLanguage(t, "pt-BR")
+	model := newInteractiveModel(&Session{}, "/tmp/project", false)
+	model.width, model.height = 80, 24
+	got := normalizeInteractiveGolden(model.View())
+	path := filepath.Join("testdata", "trust-80x24.golden")
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != normalizeInteractiveGolden(string(want)) {
+		t.Fatalf("trust dialog differs from %s\n--- got ---\n%s\n--- want ---\n%s", path, got, want)
+	}
+}
+
+func TestTrustDialogKeyMatrix(t *testing.T) {
+	keys := []struct {
+		name string
+		key  tea.KeyMsg
+	}{{"enter", tea.KeyMsg{Type: tea.KeyEnter}}, {"esc", tea.KeyMsg{Type: tea.KeyEsc}}, {"space", tea.KeyMsg{Type: tea.KeySpace}}, {"up", tea.KeyMsg{Type: tea.KeyUp}}, {"down", tea.KeyMsg{Type: tea.KeyDown}}, {"left", tea.KeyMsg{Type: tea.KeyLeft}}, {"right", tea.KeyMsg{Type: tea.KeyRight}}, {"letter", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")}}, {"y", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")}}, {"n", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")}}, {"tab", tea.KeyMsg{Type: tea.KeyTab}}}
+	for _, test := range keys {
+		t.Run(test.name, func(t *testing.T) {
+			home, project := t.TempDir(), t.TempDir()
+			model := newInteractiveModel(&Session{ProjectPath: project, TrustStore: trust.NewStore(home)}, project, false)
+			updated, cmd := model.Update(test.key)
+			got := updated.(interactiveModel)
+			switch test.name {
+			case "enter", "space":
+				if !got.trustDenied || got.trusted {
+					t.Fatal("default No selection did not show the untrusted panel")
+				}
+			case "esc":
+				if cmd == nil || !got.closed || got.quitErr != nil {
+					t.Fatal("Esc did not exit cleanly")
+				}
+			case "up":
+				if got.trustChoice != 0 {
+					t.Fatal("Up did not move selection to Yes")
+				}
+			case "down":
+				if got.trustChoice != 0 {
+					t.Fatal("Down did not wrap from the default No selection to Yes")
+				}
+			default:
+				if got.trustChoice != 1 || got.trustDenied || got.trusted {
+					t.Fatalf("%q changed trust choice: %+v", test.name, got)
+				}
+			}
+		})
+	}
+}
+
+func TestWizardTrustDecisionOpensUntrustedPanelWithoutPrompt(t *testing.T) {
+	pinTestLanguage(t, "pt-BR")
+	model := newInteractiveModel(&Session{TrustDecisionHandled: true}, t.TempDir(), false)
+	if !model.trustDenied || strings.Contains(model.View(), i18n.T("tui.trust.yes")) {
+		t.Fatal("an explicit wizard No decision reopened the trust prompt")
+	}
+	if !strings.Contains(model.View(), "gasa setup") {
+		t.Fatal("the untrusted panel does not explain how to change trust")
 	}
 }
 
@@ -339,6 +410,50 @@ func TestEscClosesCommandSuggestionsWithoutClearingInput(t *testing.T) {
 	}
 }
 
+func TestPaletteEnterSelectsHighlightedCommand(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.chat.SetValue("/")
+	model.palette = true
+	matches := model.matches()
+	if len(matches) < 2 {
+		t.Fatal("expected multiple registered commands")
+	}
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	model = updated.(interactiveModel)
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updated.(interactiveModel)
+	if cmd != nil || model.palette || model.chat.Value() != matches[1].name+" " {
+		t.Fatalf("selection: value=%q palette=%v command=%v", model.chat.Value(), model.palette, cmd)
+	}
+}
+
+func TestPalettePrefersCommandNameOverDescription(t *testing.T) {
+	for _, language := range []string{"en", "pt-BR"} {
+		t.Run(language, func(t *testing.T) {
+			i18n.SetLanguage(language)
+			model := newInteractiveModel(&Session{}, t.TempDir(), true)
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/he")})
+			model = updated.(interactiveModel)
+			updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			model = updated.(interactiveModel)
+			if model.chat.Value() != "/help " {
+				t.Fatalf("typing /he then Enter selected %q", model.chat.Value())
+			}
+		})
+	}
+}
+
+func TestPaletteEnterExecutesExactCommand(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.chat.SetValue("/help")
+	model.palette = true
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updated.(interactiveModel)
+	if model.chat.Value() != "" || len(model.history) != 1 || model.history[0] != "/help" {
+		t.Fatalf("exact command was not submitted: value=%q history=%v", model.chat.Value(), model.history)
+	}
+}
+
 func TestCtrlCCancelsCurrentCommandAndSecondPressExits(t *testing.T) {
 	model := newInteractiveModel(&Session{}, t.TempDir(), true)
 	model.busy = true
@@ -369,8 +484,50 @@ func TestInteractiveWelcomeAndEnterSends(t *testing.T) {
 	model.chat.SetValue("hello")
 	updated, command := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	model = updated.(interactiveModel)
-	if command != nil || model.chat.Value() != "" || !strings.Contains(strings.Join(model.lines, "\n"), "Selecione uma sessão") {
+	if command == nil || model.chat.Value() != "" || !model.busy {
 		t.Fatalf("Enter did not send the message: model=%+v", model)
+	}
+}
+
+func TestRecentSessionResultDoesNotReplaceManualSelection(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.selectedSession, model.selectedAgent = "manual", "codex"
+	updated, _ := model.Update(recentSessionLoaded{project: model.project, id: "older", agent: "claude", history: "history"})
+	model = updated.(interactiveModel)
+	if model.selectedSession != "manual" || strings.Contains(strings.Join(model.lines, "\n"), "history") {
+		t.Fatal("background load replaced the manual session")
+	}
+}
+
+func TestCancelledRecentSessionNeverStartsProvider(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	model.selectedSession = "already-loaded"
+	model.busy = true
+	updated, cmd := model.Update(recentSessionLoaded{project: model.project, pending: "hello", err: context.Canceled})
+	model = updated.(interactiveModel)
+	if cmd != nil || model.busy {
+		t.Fatal("cancelled selection started a provider")
+	}
+}
+
+func TestRecentSessionCancellationAfterResultWasQueued(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	ctx, cancel := context.WithCancel(context.Background())
+	model.recentContext, model.commandCancel, model.busy = ctx, cancel, true
+	cancel()
+	updated, cmd := model.Update(recentSessionLoaded{project: model.project, pending: "hello", id: "session", agent: "codex"})
+	model = updated.(interactiveModel)
+	if cmd != nil || model.busy || model.selectedSession != "" {
+		t.Fatal("queued result started a cancelled request")
+	}
+}
+
+func TestRecentSessionReportsHistoryError(t *testing.T) {
+	model := newInteractiveModel(&Session{}, t.TempDir(), true)
+	updated, _ := model.Update(recentSessionLoaded{project: model.project, id: "session", agent: "codex", historyErr: errors.New("history unavailable")})
+	model = updated.(interactiveModel)
+	if !strings.Contains(strings.Join(model.lines, "\n"), "history unavailable") {
+		t.Fatal("history failure was hidden")
 	}
 }
 
@@ -615,7 +772,7 @@ func TestSmallApprovalDialogFitsAndScrolls(t *testing.T) {
 		}
 	}
 	for i := 0; i < 40; i++ {
-		updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyPgDown})
 		model = updated.(interactiveModel)
 	}
 	if !strings.Contains(model.View(), "important-command") {

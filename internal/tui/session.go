@@ -14,30 +14,32 @@ import (
 )
 
 type Session struct {
-	Version          string
-	Context          context.Context
-	In               io.Reader
-	Out              io.Writer
-	ProjectPath      string
-	TrustStore       *trust.Store
-	Agents           func(io.Writer)
-	Doctor           func(io.Writer)
-	AgentsContext    func(context.Context, io.Writer)
-	DoctorContext    func(context.Context, io.Writer)
-	OnTrusted        func() error
-	Web              func(io.Writer, []string) error
-	Setup            func(out io.Writer) error
-	Interactive      bool
-	Dashboard        string
-	DashboardState   string
-	ReadyAgents      int
-	DiscoverReady    func() int
-	Language         string
-	ConfigHome       string
-	Storage          any
-	DiscoveryResults func() any
-	Notify           func(string)
-	sendMessage      func(any)
+	Version              string
+	Context              context.Context
+	In                   io.Reader
+	Out                  io.Writer
+	ProjectPath          string
+	TrustStore           *trust.Store
+	Agents               func(io.Writer)
+	Doctor               func(io.Writer)
+	AgentsContext        func(context.Context, io.Writer)
+	DoctorContext        func(context.Context, io.Writer)
+	OnTrusted            func() error
+	Web                  func(io.Writer, []string) error
+	Setup                func(out io.Writer) error
+	Interactive          bool
+	Dashboard            string
+	DashboardState       string
+	ReadyAgents          int
+	DiscoverReady        func() int
+	Language             string
+	ConfigHome           string
+	TrustDecisionHandled bool
+	ExitRequested        bool
+	Storage              any
+	DiscoveryResults     func() any
+	Notify               func(string)
+	sendMessage          func(any)
 }
 
 func (s *Session) Run() error {
@@ -59,7 +61,7 @@ func (s *Session) Run() error {
 	scanner := bufio.NewScanner(s.In)
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	if !trusted {
-		if _, err := fmt.Fprintf(s.Out, "Trust this project directory \"%s\"? [y/N]: ", project); err != nil {
+		if _, err := fmt.Fprintf(s.Out, "Trust this project directory \"%s\"? [1=trust, 2=continue untrusted]: ", project); err != nil {
 			return fmt.Errorf("write trust prompt: %w", err)
 		}
 		if !scanner.Scan() {
@@ -69,10 +71,12 @@ func (s *Session) Run() error {
 				}
 				return fmt.Errorf("read trust answer: %w", err)
 			}
-			return fmt.Errorf("project not trusted")
+			_, _ = fmt.Fprintln(s.Out, "This folder remains untrusted. Project files were not accessed. Run `gasa setup` to review trust.")
+			return nil
 		}
-		if strings.ToLower(strings.TrimSpace(scanner.Text())) != "y" {
-			return fmt.Errorf("project not trusted")
+		if strings.TrimSpace(scanner.Text()) != "1" {
+			_, _ = fmt.Fprintln(s.Out, "This folder remains untrusted. Project files were not accessed. Run `gasa setup` to review trust.")
+			return nil
 		}
 		if err := s.TrustStore.Grant(project); err != nil {
 			return fmt.Errorf("grant project trust: %w", err)

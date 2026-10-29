@@ -55,7 +55,7 @@
   "goal.approval.once": "Allow once",
   "goal.approval.run": "Allow for this run",
   "goal.approval.deny": "Deny",
-  "goal.approval.help": "Use left/right and Enter. Default: Deny.",
+  "goal.approval.help": "Up/down move; Space/Enter choose. Esc denies. Default: Deny.",
   "tui.quit.active": "An orchestration run is active. Cancel it and quit?",
   "tui.quit.stay": "Keep running",
   "tui.quit.cancel": "Cancel run and quit",

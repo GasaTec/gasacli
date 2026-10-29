@@ -129,7 +129,16 @@ func run(ctx context.Context, args []string) error {
 				if err != nil {
 					return err
 				}
-				return onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: os.Stdout, GrantTrust: trust.NewStore(home).Grant})
+				state, err := config.LoadState(home)
+				if err != nil {
+					return err
+				}
+				wizardExited := false
+				err = onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: os.Stdout, Resume: state.Onboarding.Version > 0 && !state.Onboarding.Completed, GrantTrust: trust.NewStore(home).Grant, OnExit: func() { wizardExited = true }})
+				if err != nil || wizardExited {
+					return err
+				}
+				return nil
 			}
 			if err := onboarding.Run(ctx, onboarding.Options{In: os.Stdin, Out: os.Stdout, InFile: os.Stdin, OutFile: os.Stdout, Interactive: interactive}); err != nil {
 				return err
@@ -180,6 +189,7 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 	interactiveTerminal := !*plain && !headless && onboarding.Interactive(os.Stdin, os.Stdout)
+	wizardTrustDecisionHandled := false
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -191,9 +201,14 @@ func run(ctx context.Context, args []string) error {
 		}
 		state, _ := loadStartupState(home, os.Stderr)
 		if !state.Onboarding.Completed || state.Onboarding.Version < 2 {
-			if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: os.Stdout, Resume: state.Onboarding.Version > 0 && !state.Onboarding.Completed, GrantTrust: trust.NewStore(home).Grant}); err != nil {
+			wizardExited, trustDecisionHandled := false, false
+			if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: cwd, Out: os.Stdout, Resume: state.Onboarding.Version > 0 && !state.Onboarding.Completed, GrantTrust: trust.NewStore(home).Grant, OnExit: func() { wizardExited = true }, OnTrustChoice: func(bool) { trustDecisionHandled = true }}); err != nil {
 				return err
 			}
+			if wizardExited {
+				return nil
+			}
+			wizardTrustDecisionHandled = trustDecisionHandled
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
@@ -247,9 +262,9 @@ func run(ctx context.Context, args []string) error {
 	session = tui.Session{
 		Version: version,
 		Context: ctx, In: sessionInput, Out: os.Stdout, ProjectPath: cwd, TrustStore: trust.NewStore(home),
-		Interactive: interactiveTerminal,
-		Language:    language,
-		ConfigHome:  home,
+		Interactive: interactiveTerminal, TrustDecisionHandled: wizardTrustDecisionHandled,
+		Language:   language,
+		ConfigHome: home,
 		DiscoveryResults: func() any {
 			return discovery.Discover(ctx, discovery.DefaultCatalog(), discovery.Deps{})
 		},
@@ -324,7 +339,11 @@ func run(ctx context.Context, args []string) error {
 		},
 		Setup: func(out io.Writer) error {
 			if interactiveTerminal {
-				if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: session.ProjectPath, Out: out, GrantTrust: trust.NewStore(home).Grant}); err != nil {
+				state, err := config.LoadState(home)
+				if err != nil {
+					return err
+				}
+				if err := onboarding.RunWizard(ctx, onboarding.WizardOptions{Home: home, Project: session.ProjectPath, Out: out, Resume: state.Onboarding.Version > 0 && !state.Onboarding.Completed, GrantTrust: trust.NewStore(home).Grant, OnExit: func() { session.ExitRequested = true }}); err != nil {
 					return err
 				}
 				cfg, err = config.Load()
@@ -337,6 +356,9 @@ func run(ctx context.Context, args []string) error {
 		},
 	}
 	err = session.Run()
+	if session.ExitRequested {
+		return nil
+	}
 	if ctx.Err() != nil {
 		return nil
 	}

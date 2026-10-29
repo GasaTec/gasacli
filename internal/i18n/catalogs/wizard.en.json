@@ -11,5 +11,8 @@
   "wizard.hint.single": "↑/↓ move · Space choose · Enter continue · S skip · B back · Esc exit",
   "wizard.hint.multi": "↑/↓ move · Space mark · A toggle all · Enter continue · S skip · B back · Esc exit",
   "wizard.hint.finish": "Enter finish · B back · Esc exit",
+  "wizard.hint.compact.single": "Up/down move \u00b7 Space choose \u00b7 Enter next \u00b7 S skip \u00b7 B back \u00b7 Esc exit",
+  "wizard.hint.compact.multi": "Up/down move \u00b7 Space mark \u00b7 A all \u00b7 B back \u00b7 S skip \u00b7 Esc exit",
+  "wizard.hint.compact.finish": "Enter finish \u00b7 Esc exit",
   "wizard.hint.help": "Enter continue · S skip · B back · Esc exit · ? close help"
 }

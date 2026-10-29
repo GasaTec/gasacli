@@ -126,7 +126,7 @@ func testCancellation(t *testing.T, args []string, delimiter byte) {
 		}
 		_, _ = io.Copy(io.Discard, reader)
 	}()
-	if _, err := inputWriter.Write([]byte("y\n")); err != nil {
+	if _, err := inputWriter.Write([]byte("1\n")); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())

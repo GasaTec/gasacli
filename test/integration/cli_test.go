@@ -167,28 +167,28 @@ func TestCLI(t *testing.T) {
 	t.Run("HelpAndTrustPersistence", func(t *testing.T) {
 		t.Setenv("GASACLI_LANG", "pt-BR")
 		_, home, project := newHome(t)
-		out := run(t, home, project, "y\n/help\n/status\n/goal test\n/web status\n/exit\n", 0)
-		contains(t, out, "[y/N]", "/help", "/exit", "/agents", "/doctor", "/status", "/goal", "/permissions", "/backup", "/restore", "/web", "/cancel", "/runs", "No orchestration run for this project.", "no ready or installed supported coding CLI is available", "Dashboard:")
+		out := run(t, home, project, "1\n/help\n/status\n/goal test\n/web status\n/exit\n", 0)
+		contains(t, out, "[1=trust, 2=continue untrusted]", "/help", "/exit", "/agents", "/doctor", "/status", "/goal", "/permissions", "/backup", "/restore", "/web", "/cancel", "/runs", "No orchestration run for this project.", "no ready or installed supported coding CLI is available", "Dashboard:")
 		t.Logf("real startup and /help output (public URL only):\n%s", out)
 		out = run(t, home, project, "/help\n/exit\n", 0)
-		if strings.Contains(out, "[y/N]") {
+		if strings.Contains(out, "[1=trust, 2=continue untrusted]") {
 			t.Fatal("trust asked again")
 		}
 		t.Log("real binary startup, /help, /status, /goal, /web status and persisted trust passed")
 	})
 	t.Run("PlainFlagKeepsLineMode", func(t *testing.T) {
 		_, home, project := newHome(t)
-		out := run(t, home, project, "y\n/help\n/exit\n", 0, "--plain")
-		contains(t, out, "[y/N]", "gasa> ", "/help")
+		out := run(t, home, project, "1\n/help\n/exit\n", 0, "--plain")
+		contains(t, out, "[1=trust, 2=continue untrusted]", "gasa> ", "/help")
 		if strings.Contains(out, "G> GasaCLI") {
 			t.Fatalf("--plain started the interactive renderer: %s", out)
 		}
 	})
 	t.Run("TrustRefusedAndEOF", func(t *testing.T) {
-		for _, input := range []string{"n\n", ""} {
+		for _, input := range []string{"2\n", ""} {
 			_, home, project := newHome(t)
-			out := run(t, home, project, input, 1)
-			contains(t, out, "project not trusted")
+			out := run(t, home, project, input, 0)
+			contains(t, out, "This folder remains untrusted")
 			if strings.Contains(out, "Dashboard:") || strings.Contains(out, "gasa> ") {
 				t.Fatal("started before trust")
 			}
@@ -217,7 +217,7 @@ func TestCLI(t *testing.T) {
 		}
 		defer listener.Close()
 		_, home, project := newHome(t)
-		out := run(t, home, project, "y\n/help\n/exit\n", 0)
+		out := run(t, home, project, "1\n/help\n/exit\n", 0)
 		contains(t, out, "Dashboard: http://127.0.0.1:", "/help", "gasa> ")
 		if strings.Contains(out, "http://127.0.0.1:3199/") {
 			t.Fatal("did not fall back")
@@ -230,7 +230,7 @@ func TestCLI(t *testing.T) {
 		}
 		listener.Close()
 		_, home, project := newHome(t)
-		out := run(t, home, project, "y\n/exit\n", 0)
+		out := run(t, home, project, "1\n/exit\n", 0)
 		if !strings.Contains(out, "http://127.0.0.1:3199/") {
 			if !strings.Contains(out, "Dashboard: http://127.0.0.1:") {
 				t.Fatalf("dashboard did not start after successful preferred-port probe:\n%s", out)
@@ -246,12 +246,12 @@ func TestCLI(t *testing.T) {
 		defer listener.Close()
 		_, home, project := newHome(t)
 		writeConfig(t, home, "auto", false)
-		out := run(t, home, project, "y\n/help\n/web status\n/exit\n", 0)
+		out := run(t, home, project, "1\n/help\n/web status\n/exit\n", 0)
 		contains(t, out, "Warning: dashboard unavailable", "/help", "/web: dashboard unavailable")
 	})
 	t.Run("IsolatedHome", func(t *testing.T) {
 		sandbox, home, project := newHome(t)
-		run(t, home, project, "y\n/exit\n", 0)
+		run(t, home, project, "1\n/exit\n", 0)
 		for _, name := range []string{"config.yaml", "trust.json", "agents", "prompts", "skills", "plugins", "segundo-cerebro", "backups", "logs"} {
 			if _, err := os.Stat(filepath.Join(home, name)); err != nil {
 				t.Errorf("home entry %s: %v", name, err)
@@ -271,7 +271,7 @@ func TestCLI(t *testing.T) {
 	})
 	t.Run("OnboardingNeverPromptsOrCompletesInPipe", func(t *testing.T) {
 		_, home, project := newHome(t)
-		out := run(t, home, project, "y\n/exit\n", 0)
+		out := run(t, home, project, "1\n/exit\n", 0)
 		if strings.Contains(out, "Select what to install") || strings.Contains(out, "Run the automatic installs") {
 			t.Fatalf("first-run onboarding ran without TTY: %s", out)
 		}
@@ -292,7 +292,7 @@ func TestCLI(t *testing.T) {
 	})
 	t.Run("ChatSetupIsPlanOnly", func(t *testing.T) {
 		_, home, project := newHome(t)
-		out := run(t, home, project, "y\n/setup\n/exit\n", 0)
+		out := run(t, home, project, "1\n/setup\n/exit\n", 0)
 		contains(t, out, "Comando:", "Origem oficial:", "Para instalar, rode `gasa setup` fora do chat.")
 		if strings.Contains(out, "Run the automatic installs now?") {
 			t.Fatalf("chat setup offered execution: %s", out)
@@ -305,7 +305,7 @@ func TestCLI(t *testing.T) {
 		for _, mode := range []string{"manual", "always"} {
 			_, home, project := newHome(t)
 			writeConfig(t, home, mode, true)
-			out := run(t, home, project, "y\n/web open\n/exit\n", 0)
+			out := run(t, home, project, "1\n/web open\n/exit\n", 0)
 			contains(t, out, "Dashboard:")
 			if strings.Contains(out, "browser unavailable") {
 				t.Fatal("attempted browser with --no-browser")
@@ -318,7 +318,7 @@ func TestCLI(t *testing.T) {
 	t.Run("ConfigFailure", func(t *testing.T) {
 		_, home, project := newHome(t)
 		writeConfig(t, home, "invalid", true)
-		contains(t, run(t, home, project, "y\n", 1), "load config", "invalid web.mode")
+		contains(t, run(t, home, project, "1\n", 1), "load config", "invalid web.mode")
 	})
 	t.Run("ShellHelp", func(t *testing.T) {
 		for _, arg := range []string{"help", "--help"} {

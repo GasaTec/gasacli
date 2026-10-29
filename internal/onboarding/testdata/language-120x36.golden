@@ -7,24 +7,24 @@
 
 
 
-                   ┌────────────────────────────────────────────────────────────────────────────────┐
-                   │                                                                                │
-                   │  +G>+ gasacli                                                                  │
-                   │  *.......                                                                      │
-                   │                                                                                │
-                   │  Passo 1 de 8                                                                  │
-                   │                                                                                │
-                   │  Idioma do terminal                                                            │
-                   │                                                                                │
-                   │  Português (Brasil) é recomendado. A saída padrão pode ser alterada depois.    │
-                   │    ( ) English (US)                                                            │
-                   │  > (*) Português (Brasil)                                                      │
-                   │                                                                                │
-                   │                                                                                │
-                   │  ↑/↓ mover · Espaço escolher · Enter continuar · S pular · B voltar · Esc      │
-                   │  sair                                                                          │
-                   │                                                                                │
-                   └────────────────────────────────────────────────────────────────────────────────┘
+           ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+           │                                                                                                │
+           │  +G>+ gasacli                                                                                  │
+           │  *.......                                                                                      │
+           │                                                                                                │
+           │  Passo 1 de 8                                                                                  │
+           │                                                                                                │
+           │  Idioma do terminal                                                                            │
+           │                                                                                                │
+           │  Português (Brasil) é recomendado. A saída padrão pode ser alterada depois.                    │
+           │    ( ) English (US)                                                                            │
+           │  > (*) Português (Brasil)                                                                      │
+           │                                                                                                │
+           │                                                                                                │
+           │  ↑/↓ mover · Espaço escolher · Enter continuar · S pular · B voltar · Esc sair                 │
+           │                                                                                                │
+           └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
 
 
 

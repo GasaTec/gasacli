@@ -29,7 +29,7 @@ type interactiveModel struct {
 	session          *Session
 	project          string
 	trusted          bool
-	trustYes         bool
+	trustChoice      int
 	chat             textarea.Model
 	spinner          spinner.Model
 	view             viewport.Model
@@ -53,6 +53,7 @@ type interactiveModel struct {
 	trustDenied      bool
 	agentsChecking   bool
 	commandCancel    context.CancelFunc
+	recentContext    context.Context
 	lastCtrlC        time.Time
 	lastCtrlCValid   bool
 	approval         *approvalPrompt
@@ -110,6 +111,10 @@ type sessionSelected struct {
 	id, agent string
 	err       error
 }
+type recentSessionLoaded struct {
+	project, id, agent, history, pending string
+	err, historyErr                      error
+}
 type approvalAskMsg struct {
 	request PermissionRequest
 	answer  chan ApprovalChoice
@@ -135,10 +140,11 @@ func newInteractiveModel(s *Session, project string, trusted bool) interactiveMo
 	spin.Spinner = spinner.Dot
 	spin.Style = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#16866d", Dark: "#1ECFA5"})
 	return interactiveModel{
-		session: s, project: project, trusted: trusted, trustYes: false, width: 80, height: 24, keys: keys,
+		session: s, project: project, trusted: trusted, trustChoice: 1, width: 80, height: 24, keys: keys,
 		chat: input, view: viewport.New(80, 12), spinner: spin,
 		status:         i18n.T("tui.status.ready"),
 		agentsChecking: s.DiscoverReady != nil,
+		trustDenied:    s.TrustDecisionHandled && !trusted,
 	}
 }
 
@@ -196,8 +202,14 @@ func (s *Session) runInteractive() error {
 		if s.Setup == nil {
 			model.append("Setup is not configured.")
 		} else if err := s.Setup(s.Out); err != nil {
+			if s.ExitRequested {
+				return nil
+			}
 			model.append(fmt.Sprintf("/setup: %v", err))
 		} else {
+			if s.ExitRequested {
+				return nil
+			}
 			model.append("Setup finished. Your chat session has resumed.")
 		}
 		m = model
@@ -223,6 +235,9 @@ func (m interactiveModel) Init() tea.Cmd {
 	commands := []tea.Cmd{textarea.Blink, sampleHeap()}
 	if m.trusted {
 		commands = append(commands, m.loadSidebar())
+		if m.selectedSession == "" {
+			commands = append(commands, m.loadRecentSession(""))
+		}
 	}
 	if m.session.DiscoverReady != nil {
 		commands = append(commands, func() tea.Msg { return readyAgentsResult{count: m.session.DiscoverReady()} })
@@ -266,6 +281,44 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case sidebarLoaded:
 		m.sidebar, m.sidebarLoading = msg.snapshot, false
+		return m, nil
+	case recentSessionLoaded:
+		if msg.project != m.project || !m.trusted {
+			return m, nil
+		}
+		if msg.pending == "" && m.busy {
+			return m, nil
+		}
+		if msg.pending != "" {
+			m.busy = false
+			if m.recentContext != nil && m.recentContext.Err() != nil {
+				msg.err = m.recentContext.Err()
+			}
+			m.recentContext = nil
+			if m.commandCancel != nil {
+				m.commandCancel()
+				m.commandCancel = nil
+			}
+		}
+		if msg.err != nil {
+			if msg.pending != "" {
+				m.append("GasaCLI\n" + msg.err.Error())
+				m.status = i18n.T("tui.status.ready")
+				return m, nil
+			}
+		} else if m.selectedSession == "" {
+			m.selectedSession, m.selectedAgent = msg.id, msg.agent
+			m.append("GasaCLI\nConversa recente: " + shortSessionID(msg.id) + " (" + msg.agent + ")")
+			if msg.history != "" {
+				m.append(msg.history)
+			}
+			if msg.historyErr != nil {
+				m.append("GasaCLI\nNão foi possível carregar o histórico: " + msg.historyErr.Error())
+			}
+		}
+		if msg.pending != "" && m.selectedSession != "" {
+			return m, m.startLiveChat(msg.pending)
+		}
 		return m, nil
 	case sessionSelected:
 		m.busy = false
@@ -366,11 +419,11 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			switch msg.String() {
-			case "y", "Y", "right", "l":
+			case "up":
 				m.quitYes = true
-			case "n", "N", "left", "h":
+			case "down":
 				m.quitYes = false
-			case "enter":
+			case "enter", " ":
 				m.quitConfirmation = false
 				if m.quitYes {
 					cancelProjectRuns(m.project)
@@ -389,21 +442,17 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			switch msg.String() {
-			case "left", "h":
+			case "up":
 				if m.approval.choice > ApprovalOnce {
 					m.approval.choice--
 				}
-			case "right", "l":
+			case "down":
 				if m.approval.choice < ApprovalDeny {
 					m.approval.choice++
 				}
-			case "tab":
-				m.approval.choice = (m.approval.choice + 1) % (ApprovalDeny + 1)
-			case "y", "Y":
-				m.approval.choice = ApprovalRun
-			case "n", "N":
-				m.approval.choice = ApprovalDeny
 			case "enter":
+				m.finishApproval(m.approval.choice)
+			case " ":
 				m.finishApproval(m.approval.choice)
 			case "esc", "ctrl+c":
 				m.finishApproval(ApprovalDeny)
@@ -415,20 +464,29 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if m.trustDenied {
+				if msg.String() == "esc" || msg.String() == "ctrl+c" {
+					m.closed = true
+					return m, tea.Quit
+				}
 				return m, nil
 			}
 			switch msg.String() {
-			case "y", "Y":
-				m.trustYes = true
-			case "left", "right", "h", "l":
-				m.trustYes = !m.trustYes
-			case "n", "N":
-				m.trustYes = false
-			case "enter":
-				if !m.trustYes {
-					m.quitErr = fmt.Errorf("project not trusted")
+			case "up":
+				if m.trustChoice == 0 {
+					m.trustChoice = 1
+				} else if m.trustChoice > 0 {
+					m.trustChoice--
+				}
+			case "down":
+				if m.trustChoice == 1 {
+					m.trustChoice = 0
+				} else if m.trustChoice < 1 {
+					m.trustChoice++
+				}
+			case "enter", " ":
+				if m.trustChoice != 0 {
 					m.trustDenied = true
-					return m, tea.Tick(900*time.Millisecond, func(time.Time) tea.Msg { return tea.QuitMsg{} })
+					return m, nil
 				}
 				if err := m.session.TrustStore.Grant(m.project); err != nil {
 					m.quitErr = fmt.Errorf("grant project trust: %w", err)
@@ -442,13 +500,10 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				m.sidebarLoading = true
-				return m, m.loadSidebar()
-			case "ctrl+c":
-				m.status = "Trust was not granted. Press n then Enter to leave, or y then Enter to trust."
-			case "ctrl+d", "esc":
-				m.quitErr = fmt.Errorf("project not trusted")
-				m.trustDenied = true
-				return m, tea.Tick(900*time.Millisecond, func(time.Time) tea.Msg { return tea.QuitMsg{} })
+				return m, tea.Batch(m.loadSidebar(), m.loadRecentSession(""))
+			case "ctrl+c", "esc":
+				m.closed = true
+				return m, tea.Quit
 			}
 			return m, nil
 		}
@@ -496,7 +551,7 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.chat.SetValue("")
 				m.projectPicker = false
 				m.status = i18n.T("tui.status.ready")
-				return m, m.loadSidebar()
+				return m, tea.Batch(m.loadSidebar(), m.loadRecentSession(""))
 			}
 			return m, nil
 		}
@@ -512,11 +567,22 @@ func (m interactiveModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					m.selected++
 				}
 				return m, nil
-			case "tab":
-				if matches := m.matches(); len(matches) > 0 {
-					m.chat.SetValue(matches[m.selected].name + " ")
-					m.palette = false
+			case "tab", "enter":
+				matches := m.matches()
+				if len(matches) == 0 {
+					if msg.String() == "tab" {
+						return m, nil
+					}
+					break
 				}
+				selected := matches[min(m.selected, len(matches)-1)].name
+				// An exact command is ready to execute; otherwise Enter selects
+				// the highlighted suggestion, just like Tab.
+				if msg.String() == "enter" && strings.EqualFold(strings.TrimSpace(m.chat.Value()), selected) {
+					break
+				}
+				m.chat.SetValue(selected + " ")
+				m.palette = false
 				return m, nil
 			case "esc":
 				m.palette = false
@@ -689,8 +755,17 @@ func (m *interactiveModel) submit(input string) tea.Cmd {
 	trimmed := strings.TrimSpace(input)
 	if !strings.HasPrefix(trimmed, "/") {
 		if m.selectedSession == "" {
-			m.append("GasaCLI\nSelecione uma sessão com /sessions e /use <id> antes de enviar uma mensagem.")
-			return nil
+			m.busy = true
+			m.status = i18n.T("tui.running")
+			parent := m.session.Context
+			if parent == nil {
+				parent = context.Background()
+			}
+			ctx, cancel := context.WithCancel(parent)
+			m.commandCancel = cancel
+			m.recentContext = ctx
+			m.lastCtrlCValid = false
+			return m.recentSessionCommand(ctx, input)
 		}
 		return m.startLiveChat(input)
 	}
@@ -715,6 +790,30 @@ func (m *interactiveModel) submit(input string) tea.Cmd {
 		return m.startSessionSelection(args[0])
 	}
 	return m.startCommand(trimmed)
+}
+
+func (m interactiveModel) loadRecentSession(pending string) tea.Cmd {
+	parent := m.session.Context
+	if parent == nil {
+		parent = context.Background()
+	}
+	return m.recentSessionCommand(parent, pending)
+}
+
+func (m interactiveModel) recentSessionCommand(parent context.Context, pending string) tea.Cmd {
+	session, project, trusted, agent := m.session, m.project, m.trusted, m.selectedAgent
+	return func() tea.Msg {
+		item, err := selectRecentLiveSession(parent, session, project, trusted, agent)
+		result := recentSessionLoaded{project: project, id: item.ID, agent: item.Agent, pending: pending, err: err}
+		if err == nil {
+			cc := &sessionCommandContext{session: session, project: project, trusted: trusted}
+			result.history, result.historyErr = historyCommand(parent, cc, []string{item.ID})
+		}
+		if err := parent.Err(); err != nil {
+			result.err = err
+		}
+		return result
+	}
 }
 
 func (m *interactiveModel) startSessionSelection(query string) tea.Cmd {
@@ -840,14 +939,16 @@ func valueOr(value, fallback string) string {
 func (m interactiveModel) matches() []commandInfo {
 	value := strings.TrimSpace(m.chat.Value())
 	needle := strings.ToLower(value)
-	var found []commandInfo
+	var found, descriptions []commandInfo
 	for _, command := range RegisteredCommands() {
 		info := commandInfo{name: command.Name, description: commandSummary(command)}
-		if strings.Contains(strings.ToLower(info.name), needle) || strings.Contains(strings.ToLower(info.description), strings.TrimPrefix(needle, "/")) {
+		if strings.Contains(strings.ToLower(info.name), needle) {
 			found = append(found, info)
+		} else if strings.Contains(strings.ToLower(info.description), strings.TrimPrefix(needle, "/")) {
+			descriptions = append(descriptions, info)
 		}
 	}
-	return found
+	return append(found, descriptions...)
 }
 
 func (m interactiveModel) renderMessage(text string) string {
@@ -1204,11 +1305,11 @@ func (m interactiveModel) View() string {
 		} else {
 			choices[1] = "> " + choices[1]
 		}
-		content := i18n.T("tui.quit.active") + "\n\n" + choices[0] + "    " + choices[1] + "\n\n" + i18n.T("goal.approval.help")
+		content := i18n.T("tui.quit.active") + "\n\n" + choices[0] + "\n" + choices[1] + "\n\n" + i18n.T("goal.approval.help")
 		if m.width < 40 || m.height < 16 {
 			return m.smallDialog(content)
 		}
-		style := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#F59E0B")).Padding(1, 2).Width(max(40, min(76, m.width-4)))
+		style := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#F59E0B")).Padding(1, 2).Width(max(40, min(96, m.width-4)))
 		return lipgloss.Place(max(40, m.width), max(12, m.height), lipgloss.Center, lipgloss.Center, style.Render(content))
 	}
 	if m.approval != nil {
@@ -1228,7 +1329,7 @@ func (m interactiveModel) View() string {
 				choices[index] = lipgloss.NewStyle().Background(fill).Foreground(ink).Bold(true).Render(choices[index])
 			}
 		}
-		content := fmt.Sprintf("%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n\n%s    %s    %s\n\n%s", i18n.T("tui.approval.title"), i18n.T("tui.approval.agent"), valueOr(request.Agent, "GasaCLI"), i18n.T("tui.approval.action"), i18n.T("permission."+request.Action), i18n.T("tui.approval.target"), request.Target, i18n.T("tui.approval.command"), request.ExactCommand, choices[0], choices[1], choices[2], i18n.T("tui.approval.help"))
+		content := fmt.Sprintf("%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n\n%s\n%s\n%s\n\n%s", i18n.T("tui.approval.title"), i18n.T("tui.approval.agent"), valueOr(request.Agent, "GasaCLI"), i18n.T("tui.approval.action"), i18n.T("permission."+request.Action), i18n.T("tui.approval.target"), request.Target, i18n.T("tui.approval.command"), request.ExactCommand, choices[0], choices[1], choices[2], i18n.T("tui.approval.help"))
 		if m.width < 40 || m.height < 16 {
 			return m.smallDialog(content)
 		}
@@ -1240,7 +1341,7 @@ func (m interactiveModel) View() string {
 		if m.lightTheme {
 			accent = lipgloss.Color("#087E68")
 		}
-		dialog := lipgloss.NewStyle().Border(border).BorderForeground(accent).Padding(1, 2).Width(max(40, min(76, m.width-4))).Render(content)
+		dialog := lipgloss.NewStyle().Border(border).BorderForeground(accent).Padding(1, 2).Width(max(40, min(96, m.width-4))).Render(content)
 		return lipgloss.Place(max(40, m.width), max(12, m.height), lipgloss.Center, lipgloss.Center, dialog)
 	}
 	return view
@@ -1251,10 +1352,10 @@ func (m *interactiveModel) scrollDialog(msg tea.KeyMsg) bool {
 		return false
 	}
 	switch msg.String() {
-	case "up", "pgup":
+	case "pgup":
 		m.dialogScroll = max(0, m.dialogScroll-1)
 		return true
-	case "down", "pgdown":
+	case "pgdown":
 		m.dialogScroll++
 		return true
 	}
@@ -1268,7 +1369,7 @@ func (m interactiveModel) smallDialog(content string) string {
 	visible := max(1, h-3)
 	start := min(m.dialogScroll, max(0, len(lines)-visible))
 	end := min(len(lines), start+visible)
-	text := strings.Join(lines[start:end], "\n") + "\n" + "Up/Down: scroll"
+	text := strings.Join(lines[start:end], "\n") + "\n" + "Page Up/Down: scroll"
 	border := lipgloss.NormalBorder()
 	if os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != "" {
 		border = lipgloss.Border{Top: "-", Bottom: "-", Left: "|", Right: "|", TopLeft: "+", TopRight: "+", BottomLeft: "+", BottomRight: "+"}
@@ -1278,27 +1379,36 @@ func (m interactiveModel) smallDialog(content string) string {
 
 func (m interactiveModel) trustView() string {
 	if m.trustDenied {
-		content := "Configuração encerrada\n\nEsta pasta continua sem confiança. O GasaCLI não acessou arquivos do projeto.\n\nPara revisar a confiança depois, execute `gasa setup`.\n\nVocê pode fechar este terminal."
+		content := i18n.T("tui.trust.denied")
 		if m.width < 40 || m.height < 16 {
 			return m.smallDialog(content)
 		}
 		return lipgloss.Place(max(40, m.width), max(12, m.height), lipgloss.Center, lipgloss.Center, lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(1, 2).Render(content))
 	}
-	yes, no := "  Confiar nesta pasta", "  Manter sem confiança"
-	if m.trustYes {
-		yes = "> Confiar nesta pasta"
-	} else {
-		no = "> Manter sem confiança"
+	choices := []string{i18n.T("tui.trust.yes"), i18n.T("tui.trust.no")}
+	for index := range choices {
+		prefix := "  "
+		if index == m.trustChoice {
+			prefix = "> "
+		}
+		choices[index] = prefix + choices[index]
+		if index == m.trustChoice {
+			fill, ink := lipgloss.Color("#1ECFA5"), lipgloss.Color("#172A46")
+			if m.lightTheme {
+				fill, ink = lipgloss.Color("#087E68"), lipgloss.Color("#FFFFFF")
+			}
+			choices[index] = lipgloss.NewStyle().Background(fill).Foreground(ink).Bold(true).Render(choices[index])
+		}
 	}
-	content := "Confirme a confiança do workspace\n\nA confiança permite descobrir ferramentas e acessar arquivos do projeto quando você solicitar. Ela não aprova comandos, instalações ou acesso à rede.\n\nPasta:\n" + m.project + "\n\n" + yes + "\n" + no + "\n\nUse ←/→ ou y/n e pressione Enter. Padrão: manter sem confiança."
+	content := fmt.Sprintf("%s\n\n%s\n\n%s\n%s\n\n%s", i18n.T("tui.trust.title"), i18n.T("tui.trust.description", m.project), choices[0], choices[1], i18n.T("tui.trust.help"))
 	if m.width < 40 || m.height < 16 {
 		return m.smallDialog(content)
 	}
-	border := lipgloss.RoundedBorder()
+	border := lipgloss.Border{Top: "─", Bottom: "─", Left: "│", Right: "│", TopLeft: "┌", TopRight: "┐", BottomLeft: "└", BottomRight: "┘"}
 	if os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != "" {
 		border = lipgloss.Border{Top: "-", Bottom: "-", Left: "|", Right: "|", TopLeft: "+", TopRight: "+", BottomLeft: "+", BottomRight: "+"}
 	}
-	style := lipgloss.NewStyle().Border(border).Padding(1, 2).Width(max(40, min(76, m.width-4))).BorderForeground(lipgloss.AdaptiveColor{Light: "#16866d", Dark: "#1ECFA5"})
+	style := lipgloss.NewStyle().Border(border).Padding(1, 2).Width(max(40, min(96, m.width-4))).BorderForeground(lipgloss.AdaptiveColor{Light: "#087E68", Dark: "#1ECFA5"})
 	return lipgloss.Place(max(40, m.width), max(12, m.height), lipgloss.Center, lipgloss.Center, style.Render(content))
 }
 
@@ -1324,7 +1434,25 @@ func (m interactiveModel) welcomeCard() string {
 	}
 	title := lipgloss.NewStyle().Bold(true).Foreground(accent)
 	secondary := lipgloss.NewStyle().Foreground(muted)
-	fmt.Fprintf(&b, "%s\n", title.Render("CONVERSA"))
+	if m.view.Width >= 50 && m.view.Height >= 22 {
+		logo := []string{
+			"  ____    _    ____    _",
+			" / ___|  / \\  / ___|  / \\",
+			"| |  _  / _ \\ \\___ \\ / _ \\",
+			"| |_| |/ ___ \\ ___) / ___ \\",
+			" \\____/_/   \\_\\____/_/   \\_\\",
+		}
+		colors := []lipgloss.Color{"#4ECBE2", "#55D6CC", "#78D5A4", "#A4D981", "#D2DA76"}
+		if m.lightTheme {
+			colors = []lipgloss.Color{"#116C80", "#08766F", "#176D4E", "#3D6A2A", "#646C16"}
+		}
+		for i, line := range logo {
+			fmt.Fprintln(&b, lipgloss.NewStyle().Bold(true).Foreground(colors[i]).Render(line))
+		}
+		b.WriteString("\n")
+	} else {
+		fmt.Fprintf(&b, "%s\n", title.Render("CONVERSA"))
+	}
 	fmt.Fprintf(&b, "%s\n", secondary.Render(i18n.T("tui.project", filepath.Base(m.project))+"  |  "+i18n.T("tui.trust.label")+": "+i18n.T("tui.trust.granted")))
 	fmt.Fprintf(&b, "%s\n\n", secondary.Render(i18n.T("tui.agents.ready", m.agentsReadyLabel())))
 	b.WriteString(title.Render("Comece por aqui") + "\n")

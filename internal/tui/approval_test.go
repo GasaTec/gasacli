@@ -21,7 +21,7 @@ func TestApprovalDialogDefaultsToDenyAndAcceptsChoice(t *testing.T) {
 	if !strings.Contains(model.View(), i18n.T("goal.approval.deny")) || !strings.Contains(model.View(), "write note") {
 		t.Fatal("approval dialog is missing the default denial or exact command")
 	}
-	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyUp})
 	model = updated.(interactiveModel)
 	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	model = updated.(interactiveModel)
@@ -60,14 +60,56 @@ func TestApprovalDialogGolden80x24(t *testing.T) {
 	}
 }
 
-func TestApprovalDialogTabMovesThroughOptions(t *testing.T) {
+func TestApprovalDialogKeyMatrix(t *testing.T) {
+	keys := []struct {
+		name string
+		key  tea.KeyMsg
+	}{{"enter", tea.KeyMsg{Type: tea.KeyEnter}}, {"esc", tea.KeyMsg{Type: tea.KeyEsc}}, {"space", tea.KeyMsg{Type: tea.KeySpace}}, {"up", tea.KeyMsg{Type: tea.KeyUp}}, {"down", tea.KeyMsg{Type: tea.KeyDown}}, {"left", tea.KeyMsg{Type: tea.KeyLeft}}, {"right", tea.KeyMsg{Type: tea.KeyRight}}, {"letter", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")}}, {"y", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")}}, {"n", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")}}, {"tab", tea.KeyMsg{Type: tea.KeyTab}}}
+	for _, test := range keys {
+		t.Run(test.name, func(t *testing.T) {
+			answer := make(chan ApprovalChoice, 1)
+			model := newInteractiveModel(&Session{}, "/tmp/project", true)
+			model.approval = &approvalPrompt{request: PermissionRequest{Action: "write_vault"}, answer: answer, choice: ApprovalDeny}
+			updated, _ := model.Update(test.key)
+			got := updated.(interactiveModel)
+			switch test.name {
+			case "up":
+				if got.approval.choice != ApprovalRun {
+					t.Fatal("Up did not move from Deny to Allow for this run")
+				}
+			case "enter", "space", "esc":
+				want := ApprovalDeny
+				if test.name == "space" {
+					want = ApprovalDeny
+				}
+				if got.approval != nil || <-answer != want {
+					t.Fatalf("%s did not choose Deny", test.name)
+				}
+			default:
+				if got.approval.choice != ApprovalDeny || got.approval == nil {
+					t.Fatalf("%q changed the default denial", test.name)
+				}
+			}
+		})
+	}
+
 	model := newInteractiveModel(&Session{}, "/tmp/project", true)
 	answer := make(chan ApprovalChoice, 1)
-	model.approval = &approvalPrompt{request: PermissionRequest{Action: "write_vault"}, answer: answer, choice: ApprovalDeny}
-	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyTab})
-	model = updated.(interactiveModel)
-	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model.approval = &approvalPrompt{answer: answer, choice: ApprovalDeny}
+	for range 2 {
+		updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyUp})
+		model = updated.(interactiveModel)
+	}
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
 	if updated.(interactiveModel).approval != nil || <-answer != ApprovalOnce {
-		t.Fatal("Tab did not move the approval selection from deny to once")
+		t.Fatal("Up twice and Space did not allow once")
+	}
+
+	model = newInteractiveModel(&Session{}, "/tmp/project", true)
+	answer = make(chan ApprovalChoice, 1)
+	model.approval = &approvalPrompt{answer: answer, choice: ApprovalOnce}
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if updated.(interactiveModel).approval != nil || <-answer != ApprovalDeny {
+		t.Fatal("Esc did not deny an already selected approval")
 	}
 }

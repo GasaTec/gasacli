@@ -7,7 +7,7 @@
 - **Implementation status:** **partial**, based on inspected code on 2026-10-28; this is a design, not an implementation claim.
 
 ## Layout, region by region
-Character-cell composition: Portuguese text explains trust does not approve commands/network. Left/Right/y/n, Enter confirm, Esc; next profile. No blanket shell approval. Keep primary context, selection and action visible at 80x24; reveal secondary detail at 120x36. Never add planned/status banners to the mockup.
+Character-cell composition: Portuguese text explains trust does not approve commands/network. Up/Down move, Space or Enter choose, Esc; next profile. No blanket shell approval. Keep primary context, selection and action visible at 80x24; reveal secondary detail at 120x36. Never add planned/status banners to the mockup.
 
 ## Wireframes
 
@@ -90,7 +90,7 @@ Follow the screen's stated shortcuts and transitions. Keep labels understandable
 ```PROMPT
 Design the GasaCLI — Onboarding trust folder screen for a local-first coding-agent workspace. The user's goal is: Review the displayed information in Onboarding trust folder and complete its main task or choose the next safe action.
 
-Screen composition: Portuguese text explains trust does not approve commands/network. Left/Right/y/n, Enter confirm, Esc; next profile. No blanket shell approval.
+Screen composition: Portuguese text explains trust does not approve commands/network. Up/Down move, Space or Enter choose, Esc; next profile. No blanket shell approval.
 
 Render only a real character-cell terminal: monospace grid, square borders, box-drawing/ASCII, ANSI-style colors, visible block cursor/selection and keyboard hint bar in a plain terminal frame. No web chrome, sidebar, app bar, Material icons, rounded cards, blur, glow or emoji. Use 120x36, or 80x24 where specified. Exact documented hex values only, especially navy #172A46 and teal #1ECFA5. Draw a compact G+chevron box-drawing mark of at most 7 lines; no block-letter GASACLI banner. Use only glossary names. Onboarding has exactly 6 numbered steps; trust confirmation is an unnumbered interstitial. No external fonts/CDN. NO status banners in the mockup.
 

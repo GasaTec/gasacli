@@ -9,7 +9,7 @@
     "tui.approval.command":  "Comando",
     "tui.approval.yes":  "Sim",
     "tui.approval.no":  "Não",
-    "tui.approval.help":  "←/→ ou Tab escolhem; Enter confirma. Esc nega. Padrão: Não.",
+    "tui.approval.help":  "↑/↓ movem; Espaço ou Enter escolhem. Esc nega. Padrão: Negar.",
     "command.history": "Exibe o histórico de uma sessão do projeto confiável",
     "command.help":  "Exibe comandos e atalhos",
     "command.agents":  "Descobre agentes de programação instalados",
@@ -48,6 +48,12 @@
     "tui.agents.checking":  "verificando...",
     "tui.trust.granted":  "concedida",
     "tui.trust.label":  "Confiança",
+    "tui.trust.title": "Confirme a confiança nesta pasta",
+    "tui.trust.description": "A confiança permite descobrir ferramentas e acessar arquivos do projeto quando você solicitar. Ela não aprova comandos, instalações ou acesso à rede.\n\nPasta: %s",
+    "tui.trust.yes": "Sim, confiar nesta pasta",
+    "tui.trust.no": "Não, manter sem confiança",
+    "tui.trust.help": "↑/↓ mover · Espaço/Enter escolher · Esc sair",
+    "tui.trust.denied": "Esta pasta continua sem confiança. O GasaCLI não acessa arquivos do projeto.\n\nPara revisar a confiança depois, execute `gasa setup`.\n\nPressione Esc para sair.",
     "tui.agents.ready":  "Agentes prontos: %s",
     "tui.project":  "Projeto: %s"
 }

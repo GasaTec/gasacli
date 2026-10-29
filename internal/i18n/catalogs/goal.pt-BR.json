@@ -55,7 +55,7 @@
   "goal.approval.once": "Permitir uma vez",
   "goal.approval.run": "Permitir nesta execução",
   "goal.approval.deny": "Negar",
-  "goal.approval.help": "Use esquerda/direita e Enter. Padrão: Negar.",
+  "goal.approval.help": "Use ↑/↓ para mover; Espaço/Enter escolhem. Esc nega. Padrão: Negar.",
   "tui.quit.active": "Há uma execução ativa. Cancelar e sair?",
   "tui.quit.stay": "Continuar executando",
   "tui.quit.cancel": "Cancelar e sair",

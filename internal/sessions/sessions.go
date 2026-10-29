@@ -143,12 +143,15 @@ func scan(ctx context.Context, roots Roots, metadataOnly bool) ([]Session, error
 		if root.path == "" {
 			continue
 		}
-		rootSessions := 0
+		// WalkDir is ordered by filename, not activity. Index the newest files
+		// first so the per-provider limit does not hide recent conversations.
+		type candidate struct {
+			path     string
+			modified time.Time
+		}
+		var candidates []candidate
 		_ = filepath.WalkDir(root.path, func(path string, entry os.DirEntry, err error) error {
 			if ctx.Err() != nil {
-				return filepath.SkipAll
-			}
-			if len(out) >= maxSessions || rootSessions >= perRootLimit {
 				return filepath.SkipAll
 			}
 			if err != nil {
@@ -163,19 +166,35 @@ func scan(ctx context.Context, roots Roots, metadataOnly bool) ([]Session, error
 			if filepath.Ext(path) != ".jsonl" || (root.agent == "Codex" && !strings.HasPrefix(filepath.Base(path), "rollout-")) {
 				return nil
 			}
+			info, err := entry.Info()
+			if err == nil && info.Mode().IsRegular() {
+				candidates = append(candidates, candidate{path, info.ModTime()})
+			}
+			return nil
+		})
+		sort.Slice(candidates, func(i, j int) bool {
+			if candidates[i].modified.Equal(candidates[j].modified) {
+				return candidates[i].path < candidates[j].path
+			}
+			return candidates[i].modified.After(candidates[j].modified)
+		})
+		rootSessions := 0
+		for _, candidate := range candidates {
+			if ctx.Err() != nil || rootSessions >= perRootLimit || len(out) >= maxSessions {
+				break
+			}
 			var session Session
 			var ok bool
 			if metadataOnly {
-				session, ok = readMetadataContext(ctx, root.agent, path)
+				session, ok = readMetadataContext(ctx, root.agent, candidate.path)
 			} else {
-				session, ok = readTranscript(root.agent, path)
+				session, ok = readTranscript(root.agent, candidate.path)
 			}
 			if ok {
 				out = append(out, session)
 				rootSessions++
 			}
-			return nil
-		})
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

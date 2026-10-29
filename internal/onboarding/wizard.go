@@ -22,21 +22,23 @@ type WizardOptions struct {
 	Home, Project string
 	Out           io.Writer
 	Resume        bool
+	OnExit        func()
+	OnTrustChoice func(bool)
 	ctx           context.Context
 	Discover      func(context.Context) []discovery.Result
 	GrantTrust    func(string) error
 }
 
 type wizardModel struct {
-	options                                                               WizardOptions
-	state                                                                 config.OnboardingState
-	results                                                               []discovery.Result
-	missing                                                               []Item
-	selected                                                              map[string]bool
-	step, cursor, language, permission, dashboard, edition, width, height int
-	trustFolder, confirmInstall, installConfirmed, completed, discovering bool
-	savedAndExit, showHelp                                                bool
-	err                                                                   error
+	options                                                                              WizardOptions
+	state                                                                                config.OnboardingState
+	results                                                                              []discovery.Result
+	missing                                                                              []Item
+	selected                                                                             map[string]bool
+	step, cursor, language, permission, dashboard, edition, width, height                int
+	trustFolder, trustAnswered, confirmInstall, installConfirmed, completed, discovering bool
+	savedAndExit, showHelp                                                               bool
+	err                                                                                  error
 }
 
 type discoveredAgentsMsg struct{ results []discovery.Result }
@@ -89,7 +91,7 @@ func RunWizard(ctx context.Context, options WizardOptions) error {
 		model.step = -1
 	}
 	if options.Resume && (!saved.Onboarding.Completed || saved.Onboarding.Version < 2) {
-		model.step = max(0, min(7, saved.Onboarding.CurrentStep))
+		model.step = resumeWizardStep(saved.Onboarding)
 		model.state.Completed = false
 	}
 	for i, value := range permissionProfiles {
@@ -119,12 +121,23 @@ func RunWizard(ctx context.Context, options WizardOptions) error {
 		return fmt.Errorf("run onboarding wizard: %w", err)
 	}
 	result, ok := final.(wizardModel)
-	if !ok || !result.completed {
+	if !ok {
 		return nil
 	}
-	if !result.trustFolder {
-		fmt.Fprintln(options.Out, "\nConfiguração encerrada\nEsta pasta continua sem confiança; nenhum arquivo do projeto foi acessado.\nPara revisar depois, execute `gasa setup`.")
-		return fmt.Errorf("project not trusted; review this choice with `gasa setup`")
+	if result.savedAndExit {
+		if options.OnExit != nil {
+			options.OnExit()
+		}
+		return nil
+	}
+	if !result.completed {
+		return nil
+	}
+	if result.trustAnswered && options.OnTrustChoice != nil {
+		options.OnTrustChoice(result.trustFolder)
+	}
+	if result.trustAnswered && !result.trustFolder {
+		return nil
 	}
 	if result.trustFolder && options.GrantTrust != nil {
 		if err := options.GrantTrust(options.Project); err != nil {
@@ -147,6 +160,10 @@ func RunWizard(ctx context.Context, options WizardOptions) error {
 		}
 	}
 	return nil
+}
+
+func resumeWizardStep(state config.OnboardingState) int {
+	return max(0, min(7, state.CurrentStep))
 }
 
 func (m wizardModel) Init() tea.Cmd {
@@ -172,6 +189,7 @@ func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if m.step == -1 {
 			if key == "enter" {
 				m.step = 0
+				m.cursor = m.selectedCursor()
 				m.persist()
 			} else if key == "esc" || key == "ctrl+c" {
 				return m.exitSaved()
@@ -214,12 +232,16 @@ func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if m.step < 7 {
 				m.advance()
 			}
-		case "up", "k":
-			if m.choiceCount() > 0 && m.cursor > 0 {
+		case "up":
+			if m.step == 3 && m.cursor == 0 {
+				m.cursor = 1
+			} else if m.choiceCount() > 0 && m.cursor > 0 {
 				m.cursor--
 			}
-		case "down", "j":
-			if n := m.choiceCount(); n > 0 && m.cursor < n-1 {
+		case "down":
+			if m.step == 3 && m.cursor == 1 {
+				m.cursor = 0
+			} else if n := m.choiceCount(); n > 0 && m.cursor < n-1 {
 				m.cursor++
 			}
 		case " ":
@@ -233,6 +255,7 @@ func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case 3:
 				m.trustFolder = m.cursor == 0
+				m.trustAnswered = true
 			case 4:
 				m.permission = m.cursor
 			case 5:
@@ -261,6 +284,7 @@ func (m wizardModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmInstall = anySelected(m.selected)
 			case 3:
 				m.trustFolder = m.cursor == 0
+				m.trustAnswered = true
 			case 4:
 				m.permission = m.cursor
 			case 5:
@@ -361,8 +385,11 @@ func (m *wizardModel) complete() {
 }
 
 func (m wizardModel) View() string {
+	if m.step == -1 {
+		return m.welcomeView()
+	}
 	accent := lipgloss.AdaptiveColor{Light: "#087E68", Dark: "#1ECFA5"}
-	box := lipgloss.NewStyle().Border(lipgloss.Border{Top: "─", Bottom: "─", Left: "│", Right: "│", TopLeft: "┌", TopRight: "┐", BottomLeft: "└", BottomRight: "┘"}).BorderForeground(accent).Foreground(lipgloss.AdaptiveColor{Light: "#172A46", Dark: "#F4F7FB"}).Padding(1, 2).Width(max(40, min(80, m.width-4)))
+	box := lipgloss.NewStyle().Border(lipgloss.Border{Top: "─", Bottom: "─", Left: "│", Right: "│", TopLeft: "┌", TopRight: "┐", BottomLeft: "└", BottomRight: "┘"}).BorderForeground(accent).Foreground(lipgloss.AdaptiveColor{Light: "#172A46", Dark: "#F4F7FB"}).Padding(1, 2).Width(max(40, min(96, m.width-4)))
 	var body strings.Builder
 	if m.step == -1 {
 		body.WriteString(onboardingT(m, "onboarding.welcome") + "\n\n")
@@ -553,6 +580,16 @@ func (m wizardModel) View() string {
 	if m.showHelp {
 		footer = wizardT(m, "wizard.hint.help")
 	}
+	if m.width > 0 && m.width < 96 {
+		switch {
+		case m.step == 2:
+			footer = wizardT(m, "wizard.hint.compact.multi")
+		case m.step == 7:
+			footer = wizardT(m, "wizard.hint.compact.finish")
+		case m.step >= 0:
+			footer = wizardT(m, "wizard.hint.compact.single")
+		}
+	}
 	mark := "\u256dG\u203a\u256e"
 	if os.Getenv("TERM") == "dumb" {
 		mark = "+G>+"
@@ -568,6 +605,54 @@ func (m wizardModel) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
 	}
 	return content
+}
+
+// welcomeView gives the first-run screen its own identity while leaving the
+// trust and installation decisions in the existing wizard steps.
+func (m wizardModel) welcomeView() string {
+	width := m.width
+	if width <= 0 {
+		width = 80
+	}
+	padding := 2
+	if width < 40 {
+		padding = 1
+	}
+	contentWidth := max(1, width-padding*2)
+	accent := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#3457B2", Dark: "#80A9FF"})
+	muted := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#536078", Dark: "#9CA9C4"})
+	text := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#202B45", Dark: "#E2E8F5"}).Width(contentWidth)
+	logo := accent.Render("GASA CLI")
+	if contentWidth >= 40 && (m.height == 0 || m.height >= 20) {
+		lines := []string{
+			"  ██████╗  █████╗ ███████╗ █████╗ ",
+			" ██╔════╝ ██╔══██╗██╔════╝██╔══██╗",
+			" ██║  ███╗███████║███████╗███████║",
+			" ██║   ██║██╔══██║╚════██║██╔══██║",
+			" ╚██████╔╝██║  ██║███████║██║  ██║",
+			"  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝",
+		}
+		if os.Getenv("TERM") != "dumb" {
+			var rendered []string
+			for i, line := range lines {
+				color := []lipgloss.AdaptiveColor{{Light: "#3457B2", Dark: "#75B3FF"}, {Light: "#6547AA", Dark: "#A995F2"}, {Light: "#963F78", Dark: "#E18EBE"}}[i/2]
+				rendered = append(rendered, lipgloss.NewStyle().Foreground(color).Render(line))
+			}
+			logo = strings.Join(rendered, "\n")
+		}
+	}
+	project := fmt.Sprintf(onboardingT(m, "onboarding.project"), m.options.Project)
+	sections := []string{
+		logo,
+		accent.Render(onboardingT(m, "onboarding.welcome")),
+		text.Render(project),
+		text.Render(onboardingT(m, "onboarding.intro")),
+		muted.Width(contentWidth).Render(onboardingT(m, "onboarding.footer.start")),
+	}
+	if m.err != nil {
+		sections = append(sections, text.Render(fmt.Sprintf(onboardingT(m, "onboarding.error.save"), m.err.Error())))
+	}
+	return lipgloss.NewStyle().Padding(1, padding).Render(strings.Join(sections, "\n\n"))
 }
 
 func readinessLabel(m wizardModel, status discovery.Status) string {

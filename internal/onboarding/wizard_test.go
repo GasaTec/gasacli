@@ -1,6 +1,7 @@
 package onboarding
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -122,6 +123,20 @@ func TestWizardWelcomeAndBackNavigation(t *testing.T) {
 	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
 	if got := updated.(wizardModel).step; got != 2 {
 		t.Fatalf("b should go back in the wizard: step=%d", got)
+	}
+}
+
+func TestWizardWelcomeFitsNarrowTerminal(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	model := wizardModel{options: WizardOptions{Project: "C:/workspace"}, step: -1, width: 32, height: 18, language: 1}
+	view := model.View()
+	if !strings.Contains(view, "GASA CLI") || !strings.Contains(view, "pendente") {
+		t.Fatalf("compact welcome lost identity or trust status: %s", view)
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if width := lipgloss.Width(line); width > model.width {
+			t.Fatalf("welcome line exceeds terminal width (%d > %d): %q", width, model.width, line)
+		}
 	}
 }
 
@@ -255,8 +270,55 @@ func TestWizardSummaryEnterQuitsAndRecordsCompletion(t *testing.T) {
 	}
 }
 
+func TestWizardEscapeSavesProgressAndSetupResumesCurrentStep(t *testing.T) {
+	home := t.TempDir()
+	var output bytes.Buffer
+	model := wizardModel{options: WizardOptions{Home: home, Out: &output, ctx: context.Background()}, state: config.OnboardingState{}, step: 2, language: 1}
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model = updated.(wizardModel)
+	if cmd == nil || !model.savedAndExit {
+		t.Fatal("Esc did not save and quit the wizard")
+	}
+	if !strings.Contains(output.String(), "Configuração salva. Rode `gasa setup` para continuar.") {
+		t.Fatalf("friendly saved message missing: %q", output.String())
+	}
+	state, err := config.LoadState(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resumeWizardStep(state.Onboarding); got != 2 {
+		t.Fatalf("gasa setup would resume at step %d, want current step 2", got)
+	}
+}
+
+func TestWizardTrustSelectionStartsOnSavedChoiceAndWraps(t *testing.T) {
+	model := wizardModel{step: 3, cursor: 1, trustFolder: false}
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if got := updated.(wizardModel).cursor; got != 0 {
+		t.Fatalf("Down did not wrap from default No to Yes: cursor=%d", got)
+	}
+	model = wizardModel{step: 3, cursor: 0, trustFolder: true}
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	if got := updated.(wizardModel).cursor; got != 1 {
+		t.Fatalf("Down did not move to No: cursor=%d", got)
+	}
+}
+
+func TestWizardTrustExplicitNoDiffersFromSkip(t *testing.T) {
+	answered := wizardModel{step: 3, cursor: 1}
+	updated, _ := answered.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if got := updated.(wizardModel); !got.trustAnswered || got.trustFolder {
+		t.Fatalf("explicit No was not preserved: %+v", got)
+	}
+	skipped := wizardModel{step: 3, cursor: 1}
+	updated, _ = skipped.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	if got := updated.(wizardModel); got.trustAnswered {
+		t.Fatalf("skipping trust was recorded as an answer: %+v", got)
+	}
+}
+
 func TestWizardKeyMatrix(t *testing.T) {
-	keys := []string{"enter", "esc", "s", "b", "backspace", "up", "down", "k", "j", " ", "a", "A", "left", "right", "z", "?", "ctrl+c"}
+	keys := []string{"enter", "esc", "s", "b", "backspace", "up", "down", " ", "a", "A", "left", "right", "z", "k", "j", "y", "n", "?", "ctrl+c"}
 	for step := 0; step <= 7; step++ {
 		for _, key := range keys {
 			t.Run(fmt.Sprintf("step_%d/%q", step+1, key), func(t *testing.T) {
@@ -299,7 +361,7 @@ func TestWizardKeyMatrix(t *testing.T) {
 					if !got.showHelp {
 						t.Fatal("? did not show help")
 					}
-				case "left", "right", "z":
+				case "left", "right", "z", "k", "j", "y", "n":
 					if got.step != beforeStep || got.language != beforeLanguage || got.permission != beforePermission || got.dashboard != beforeDashboard || got.edition != beforeEdition {
 						t.Fatalf("%q unexpectedly changed a value: %+v", key, got)
 					}
@@ -307,7 +369,7 @@ func TestWizardKeyMatrix(t *testing.T) {
 					if beforeStep == 2 && (!got.selected["one"] || !got.selected["two"]) {
 						t.Fatal("A did not select all install tools")
 					}
-				case "up", "down", "k", "j":
+				case "up", "down":
 					if got.step != beforeStep {
 						t.Fatalf("%q changed the step", key)
 					}

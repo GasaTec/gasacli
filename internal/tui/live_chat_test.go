@@ -5,9 +5,33 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GasaTec/gasacli/internal/sessions"
 )
+
+func TestRecentSessionForAgentRespectsProviderAndActivity(t *testing.T) {
+	valid := "12345678-1234-1234-1234-123456789abc"
+	items := []sessions.Session{
+		{ID: "old", Agent: "Codex", ProviderID: valid},
+		{ID: "active", Agent: "Codex", ProviderID: valid, Status: "working"},
+		{ID: "other", Agent: "Claude Code", ProviderID: valid},
+		{ID: "invalid", Agent: "Codex", ProviderID: "not-resumable"},
+	}
+	latest := time.Now()
+	items[2].UpdatedAt = latest
+	auto, err := recentSessionForAgent(items, "")
+	if err != nil || auto.ID != "other" || auto.Agent != "Claude Code" {
+		t.Fatalf("automatic selection = %#v: %v", auto, err)
+	}
+	got, err := recentSessionForAgent(items, "Codex")
+	if err != nil || got.ID != "old" {
+		t.Fatalf("selected %q: %v", got.ID, err)
+	}
+	if _, err := recentSessionForAgent(items, "Kimi"); err == nil {
+		t.Fatal("unsupported provider selected")
+	}
+}
 
 type streamTestContext struct {
 	fakeHandlerContext

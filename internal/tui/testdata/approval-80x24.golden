@@ -2,7 +2,6 @@
 
 
 
-
  +----------------------------------------------------------------------------+
  |                                                                            |
  |  Solicitação de permissão                                                  |
@@ -12,8 +11,10 @@
  |  Alvo: vault/note.md                                                       |
  |  Comando: write note                                                       |
  |                                                                            |
- |    Permitir uma vez      Permitir nesta execução    > Negar                |
+ |    Permitir uma vez                                                        |
+ |    Permitir nesta execução                                                 |
+ |  > Negar                                                                   |
  |                                                                            |
- |  ←/→ ou Tab escolhem; Enter confirma. Esc nega. Padrão: Não.               |
+ |  ↑/↓ movem; Espaço ou Enter escolhem. Esc nega. Padrão: Negar.             |
  |                                                                            |
  +----------------------------------------------------------------------------+

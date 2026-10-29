@@ -230,6 +230,30 @@ func TestScanKeepsCodexSessionsWhenClaudeRootIsFull(t *testing.T) {
 	t.Fatal("Codex session was omitted when Claude exceeded its scan share")
 }
 
+func TestScanIndexesRecentlyModifiedFilesBeforeLimit(t *testing.T) {
+	root := t.TempDir()
+	project := filepath.ToSlash(t.TempDir())
+	old := time.Now().Add(-time.Hour)
+	for i := 0; i < maxSessions+1; i++ {
+		path := filepath.Join(root, fmt.Sprintf("session-%03d.jsonl", i))
+		row := `{"type":"user","cwd":"` + project + `","message":{"role":"user","content":"Test"}}`
+		if err := os.WriteFile(path, []byte(row), 0600); err != nil {
+			t.Fatal(err)
+		}
+		modified := old
+		if i == maxSessions {
+			modified = time.Now()
+		}
+		if err := os.Chtimes(path, modified, modified); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items := ScanMetadata(Roots{Claude: root})
+	if len(items) != maxSessions || filepath.Base(items[0].SourcePath) != fmt.Sprintf("session-%03d.jsonl", maxSessions) {
+		t.Fatalf("recent session missing from capped index: %d items", len(items))
+	}
+}
+
 func TestRedactPrivateKeyBlock(t *testing.T) {
 	got := redact("before\n-----BEGIN PRIVATE KEY-----\nSECRET MATERIAL\n-----END PRIVATE KEY-----\nafter")
 	if strings.Contains(got, "SECRET MATERIAL") || !strings.Contains(got, "[redacted]") || !strings.Contains(got, "after") {
