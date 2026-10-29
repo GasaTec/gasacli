@@ -6,21 +6,23 @@
 
 > **Status:** pre-alpha.
 >
-> **Works today:** terminal shell with project trust, first-run onboarding (`gasa setup`), agent discovery (`gasa doctor`), a local dashboard, and a safe `gasa reset` / `gasa uninstall`.
-> **Not implemented yet:** chatting with a model, `/goal`, the orchestration engine, and Cloud. The sections below describe the goal, not what is available now.
+> **Works today (v0.2.0):** terminal chat with project trust and a first-run wizard (`gasa setup`); agent discovery with real login checks (`gasa doctor`); `/goal` and `gasa run` orchestration with an independent reviewer and your own test/build/lint gates (Claude Code and Codex CLI); a permission engine with an approval dialog (`/permissions`); local backup and restore; `/config` and `/prompts`; `/skills`; a read-only Markdown/Obsidian second brain (`/brain`); optional GitHub issues through `gh`; and a local dashboard that shows your Claude Code and Codex sessions, diffs, and can send a message to an existing session after your approval.
+>
+> **Known limits:** other agents (Gemini CLI, Cursor CLI, OpenCode, Kimi) are detected but not driven yet; there is no free-text model chat; reviews by Codex can take several minutes; Cloud and sync are not implemented. Review `docs/launch-checklist.md` before relying on it.
 
 ## Vision
 Run `gasa` in a trusted project directory to open a terminal chat. Use `/goal` to request an outcome, not a sequence of prompts. GasaCLI will discover available coding CLIs, plan work, coordinate implementers and independent reviewers, and only mark tasks DONE after applicable verification gates pass. If blocked, it must explain why rather than loop indefinitely.
 
-## Planned capabilities
-- Interactive chat with `/goal`, `/agents`, `/config`, `/prompts`, `/skills`, `/brain`, `/github` and `/resume`.
-- Installed agent discovery for supported CLIs (Claude Code, Codex, Gemini CLI, Cursor CLI, OpenCode and others), subject to each provider's supported interfaces and account limits.
-- Native durable orchestration: run/task/dispatch/worker events, retries, checkpoints, worktrees, test/build gates and independent review.
+## Capabilities
+Available in v0.2.0 (see the status note above for limits):
+- Installed agent discovery for supported CLIs (Claude Code, Codex, Gemini CLI, Cursor CLI, OpenCode and others), with real login checks where the provider documents a non-interactive status command.
+- Native durable orchestration: run/task events in SQLite, bounded retries, test/build/lint gates run by GasaCLI itself, and an independent reviewer.
+- Editable prompts, opt-in skills, a local Markdown/Obsidian second brain indexed with SQLite FTS5, and optional GitHub Issues integration via the `gh` CLI.
+
+Planned:
 - Fixed agent routing through editable YAML, or optional intelligent routing via the JEV plugin.
-- Versioned, editable prompts, microagents and opt-in third-party skills.
-- Optional Markdown/Obsidian second brain, indexed locally using SQLite FTS5.
-- Optional GitHub Issues integration via the `gh` CLI; Linear may follow.
-- Optional Orca integration, both as an executor and (if supported upstream) a selectable hosted agent.
+- Drivers for more agents (Gemini CLI, Cursor CLI, OpenCode), git worktree isolation per task, and optional Orca integration.
+- Linear integration and GasaCLI Cloud.
 
 ## Technology decisions
 **Go** powers the CLI, native orchestrator, agent discovery and local SQLite integration. **Rust** is reserved for isolated components when profiling justifies it. **TypeScript** may power the optional Cloud web dashboard. See [ADR-0006](docs/adr/0006-go-rust-stack.md). Earlier TypeScript CLI proposals are superseded.
@@ -36,7 +38,7 @@ See [monorepo design](docs/monorepo.md), [interactive UX](docs/adr/0004-interact
 
 ## Install
 
-Latest release: **v0.1.0**. Use the one-line installer for your system below, or build from source.
+Latest release: **v0.2.0**. Use the one-line installer for your system below, or build from source.
 
 ### Build from source (Windows, Linux, macOS)
 Needs [Go](https://go.dev/dl/) 1.24 or newer and Git.
@@ -105,7 +107,7 @@ Run `gasa` in a project folder. The first time, it offers to install missing age
 
 ### Commands
 
-In the terminal, `/help` lists the available chat commands. Local commands include `gasa config`, `gasa prompts list|show|path|reset`, `gasa skills`, `gasa brain`, `gasa permissions`, `gasa run|runs|resume`, `gasa backup|backups|restore`, and `gasa doctor`. Availability depends on local setup and permissions; provider-backed actions require the relevant CLI or account. See the [CLI guide](docs/02-cli-e-comandos.md) for current behavior and planned work.
+In the terminal, `/help` lists the available chat commands. `/goal` starts an orchestrated run using supported discovered agents; `/sessions` lists local sessions for the trusted project. In the interactive terminal, `/use <id>` selects an existing session for subsequent free-text messages; `/send <id> <message>` also resumes a supported session. Sending checks execution and network permissions and requires the corresponding provider CLI. Local commands include `gasa config`, `gasa prompts list|show|path|reset`, `gasa skills`, `gasa brain`, `gasa permissions`, `gasa run|runs|resume`, `gasa backup|backups|restore`, and `gasa doctor`. See the [CLI guide](docs/02-cli-e-comandos.md) for current behavior and planned work.
 
 Your data lives in `%AppData%\gasacli` on Windows, `${XDG_DATA_HOME:-~/.local/share}/gasacli` on Linux and `~/Library/Application Support/gasacli` on macOS. See [onboarding and reset](docs/onboarding.md) (Portuguese) for the safety rules.
 
