@@ -1,44 +1,55 @@
-<!doctype html>
-<html lang="pt-BR" data-theme="dark">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark light">
-  <title>GasaCLI · Workspace</title>
-  <link rel="stylesheet" href="/static/dashboard.css">
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/layout.css">
-  <link rel="stylesheet" href="/static/interactions.css">
-  <link rel="stylesheet" href="/static/theme.css">
-  <link rel="stylesheet" href="/static/send.css">
-  <link rel="stylesheet" href="/static/readiness.css">
-  <link rel="stylesheet" href="/static/polish.css">
-  <script type="module" src="/static/bootstrap.js"></script>
-  <script type="module" src="/static/app.js"></script>
-  <script type="module" src="/static/send.js"></script>
-</head>
-<body>
-  <div class="app-shell">
-    <aside class="sidebar" aria-label="Workspace navigation">
-      <header class="brand"><img class="brand-mark" src="/static/mark.svg" alt="Marca GasaCLI"><span>gasacli</span><button class="icon-button" id="collapse-sidebar" aria-label="Recolher navegação">‹</button></header>
-      <label class="mobile-project-label" for="mobile-projects">Projeto</label><select id="mobile-projects" aria-label="Selecionar projeto"><option value="">Selecione um projeto</option></select>
-      <label class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar sessões" aria-label="Buscar sessões"><kbd>Ctrl/⌘ K</kbd></label>
-      <nav class="primary-nav" aria-label="Navegação principal"><button class="nav-item selected" data-view="workspace">▦ <span>Sessões</span></button><button class="nav-item" data-view="analytics">▤ <span>Analytics</span></button><button class="nav-item" data-view="settings">⚙ <span>Configurações</span></button></nav>
-      <div class="section-head"><span>Projetos</span><span id="project-count" class="count-badge">0</span></div>
-      <div id="projects" class="project-list" role="tree" aria-label="Projects"></div>
-      <div class="sidebar-bottom"><div id="usage" class="usage"></div></div>
-    </aside>
-    <div class="splitter" data-split="0" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" tabindex="0"></div>
-    <main class="main-pane">
-      <div class="tabs" id="tabs" role="tablist" aria-label="Sessões abertas"><span class="empty-tab">Workspace</span><button class="icon-button add-tab" aria-label="Nova aba">＋</button></div>
-      <div class="session-head"><div><div id="crumb" class="crumb">Sessões</div><h1 id="session-title">Selecione uma sessão</h1></div><div id="session-state" class="state-pill"><i></i><span>Ocioso</span></div></div>
-      <section id="chat" class="chat" aria-live="polite" aria-busy="false"><div class="empty-state"><div class="empty-orbit">◉</div><h2>Seu workspace</h2><p>Selecione um projeto confiável para consultar sessões e atividade.</p></div></section>
-      <div id="working" class="working hidden"><i></i> Working…</div>
-      <section class="composer hidden" id="composer" aria-label="Enviar mensagem"><textarea id="send-text" rows="2" placeholder="Enviar uma mensagem para esta conversa" aria-label="Mensagem para o agente"></textarea><p id="send-error" class="send-error" role="alert"></p><div class="composer-footer"><div class="chips"><span class="chip">Modelo <b id="model-chip">Indisponível</b></span><span class="chip" id="send-capability">Somente leitura</span></div><button class="secondary-button hidden" id="cancel-send" type="button">Cancelar</button><button class="send-button" id="send-message" type="button" disabled title="Agente sem suporte para envio" aria-label="Enviar mensagem">Enviar</button></div></section>
-      <footer class="statusbar"><span><i class="connection-dot"></i><span id="connection">Conectando</span></span><span id="status-projects">0 projetos</span><span>GasaCLI pre-alpha</span></footer>
-    </main>
-    <div class="splitter detail-splitter" data-split="1" role="separator" aria-label="Resize details panel" aria-orientation="vertical" tabindex="0"></div>
-    <aside class="details" aria-label="Detalhes da sessão"><div class="detail-tabs" role="tablist" aria-label="Painéis de detalhes"><button class="detail-tab active" data-panel="changes">Mudanças</button><button class="detail-tab" data-panel="checks">Checks</button><button class="detail-tab" data-panel="info">Informações</button></div><section id="detail-content" class="detail-content"><div class="detail-empty">Selecione uma sessão para consultar as mudanças.</div></section></aside>
-  </div>
-</body>
+﻿<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>GasaCLI · Seu estúdio</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/office-style.css" />
+    <script type="module" src="/static/office-app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#page">Ir para o conteúdo</a>
+    <header class="topbar">
+      <a class="brand" href="#/escritorio"
+        ><img src="/static/mark-light.svg" alt="" /><strong
+          >gasa<span>cli</span></strong
+        ><span class="brand-caption">SEU ESTÚDIO DE IA</span></a
+      ><label class="project-picker"
+        ><span>ESCRITÓRIO</span
+        ><select id="project" aria-label="Projeto ativo">
+          <option value="">Carregando projetos…</option>
+        </select></label
+      ><span id="connection" class="connection" role="status">Conectando</span
+      ><button id="notifications" class="quiet" aria-label="Abrir solicitações">
+        ♧ <span id="notification-count">0</span></button
+      ><button id="stop-team" class="stop">■ <span>Parar equipe</span></button>
+    </header>
+    <div id="notice" class="notice" role="status" hidden></div>
+    <main id="page" tabindex="-1"></main>
+    <nav class="dock" aria-label="Navegação principal">
+      <a href="#/escritorio" data-nav="escritorio"><span>⌂</span>Escritório</a
+      ><a href="#/equipe" data-nav="equipe"><span>♧</span>Equipe</a
+      ><a href="#/tarefas" data-nav="tarefas"><span>▤</span>Tarefas</a
+      ><a href="#/dashboard" data-nav="dashboard"><span>▥</span>Dashboard</a
+      ><a href="#/ajustes/ferramentas" data-nav="ajustes"
+        ><span>⚙</span>Ajustes</a
+      >
+    </nav>
+    <dialog id="modal">
+      <div id="modal-content"></div>
+      <button
+        id="close-modal"
+        class="quiet modal-close"
+        aria-label="Fechar painel"
+      >
+        ×
+      </button>
+    </dialog>
+    <noscript
+      >Ative JavaScript para abrir o escritório. Nenhum agente é iniciado ao
+      abrir esta página.</noscript
+    >
+  </body>
 </html>

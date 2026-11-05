@@ -319,6 +319,7 @@ func handler(origin string, port int, token string, session *launchSession, opti
 	}
 	cache := &snapshotCache{home: home, roots: roots, currentProject: currentProject}
 	getSnapshot := cache.get
+	office := &officeAPI{home: home, projects: getSnapshot}
 	allowed := map[string]bool{}
 	for _, host := range []string{"127.0.0.1", "localhost", "::1"} {
 		allowed[net.JoinHostPort(host, strconv.Itoa(port))] = true
@@ -326,6 +327,9 @@ func handler(origin string, port int, token string, session *launchSession, opti
 	routes := authenticateAPI(token, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/session" && r.Method == http.MethodPost {
 			session.exchange(w, r)
+			return
+		}
+		if office.serve(w, r) {
 			return
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {

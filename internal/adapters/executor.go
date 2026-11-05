@@ -23,15 +23,16 @@ const defaultOutputLimit = 1 << 20
 const defaultTimeout = 15 * time.Minute
 
 type Request struct {
-	Agent       string
-	Project     string
-	Prompt      string
-	RunID       string
-	Profile     string
-	Model       string
-	Timeout     time.Duration
-	Environment map[string]string
-	ReadOnly    bool
+	Agent        string
+	Project      string
+	Prompt       string
+	RunID        string
+	Profile      string
+	Model        string
+	Timeout      time.Duration
+	Environment  map[string]string
+	ReadOnly     bool
+	OutputSchema json.RawMessage
 }
 type Event struct {
 	Type string          `json:"type"`
@@ -49,20 +50,21 @@ type AttemptEvent struct {
 var executionSequence atomic.Uint64
 
 type Result struct {
-	ExitCode          int           `json:"exit_code"`
-	Events            int           `json:"events"`
-	OutputBytes       int           `json:"output_bytes"`
-	Duration          time.Duration `json:"duration"`
-	CostUSD           float64       `json:"cost_usd,omitempty"`
-	CostKnown         bool          `json:"cost_known"`
-	InputTokens       int64         `json:"input_tokens,omitempty"`
-	OutputTokens      int64         `json:"output_tokens,omitempty"`
-	InputTokensKnown  bool          `json:"input_tokens_known,omitempty"`
-	OutputTokensKnown bool          `json:"output_tokens_known,omitempty"`
-	Text              string        `json:"-"`
-	TextTruncated     bool          `json:"-"`
-	FailureReason     string        `json:"failure_reason,omitempty"`
-	LaunchRetries     int           `json:"launch_retries,omitempty"`
+	ExitCode          int             `json:"exit_code"`
+	Events            int             `json:"events"`
+	OutputBytes       int             `json:"output_bytes"`
+	Duration          time.Duration   `json:"duration"`
+	CostUSD           float64         `json:"cost_usd,omitempty"`
+	CostKnown         bool            `json:"cost_known"`
+	InputTokens       int64           `json:"input_tokens,omitempty"`
+	OutputTokens      int64           `json:"output_tokens,omitempty"`
+	InputTokensKnown  bool            `json:"input_tokens_known,omitempty"`
+	OutputTokensKnown bool            `json:"output_tokens_known,omitempty"`
+	Text              string          `json:"-"`
+	TextTruncated     bool            `json:"-"`
+	FailureReason     string          `json:"failure_reason,omitempty"`
+	LaunchRetries     int             `json:"launch_retries,omitempty"`
+	StructuredOutput  json.RawMessage `json:"-"`
 }
 type Executor struct {
 	Policy      *permissions.Engine
@@ -105,7 +107,11 @@ func (e *Executor) execute(ctx context.Context, request Request, retried bool, e
 	}
 	if strings.EqualFold(request.Agent, "codex") && request.ReadOnly {
 		var schemaPath string
-		args, schemaPath, err = addReviewSchema(args)
+		if len(request.OutputSchema) > 0 {
+			args, schemaPath, err = addOutputSchema(args, request.OutputSchema)
+		} else {
+			args, schemaPath, err = addReviewSchema(args)
+		}
 		if err != nil {
 			return Result{}, fmt.Errorf("adapter: prepare reviewer output schema: %w", err)
 		}
@@ -244,6 +250,11 @@ func (e *Executor) execute(ctx context.Context, request Request, retried bool, e
 			}
 			result.Events++
 			captureMetrics(line, &result)
+			if len(request.OutputSchema) > 0 {
+				if payload, observed := structuredPayload(request.Agent, line); observed {
+					result.StructuredOutput = payload
+				}
+			}
 			if text := structuredText(line, event.Type); text != "" {
 				if event.Type == "content_block_delta" {
 					result.Text += text
@@ -307,6 +318,9 @@ func (e *Executor) execute(ctx context.Context, request Request, retried bool, e
 		return result, fmt.Errorf("adapter: %s", result.FailureReason)
 	}
 	result.ExitCode = 0
+	if len(request.OutputSchema) > 0 && len(result.StructuredOutput) == 0 {
+		return result, errors.New("adapter: provider returned no valid structured object for the requested output schema")
+	}
 	return result, nil
 }
 
@@ -367,11 +381,18 @@ func classifyFailure(agent string, exitCode int, stderr string) string {
 }
 
 func commandFor(request Request) (string, []string, error) {
+	schema, err := explicitSchema(request)
+	if err != nil {
+		return "", nil, err
+	}
 	switch strings.ToLower(request.Agent) {
 	case "claude":
 		args := []string{"-p", request.Prompt, "--output-format", "stream-json", "--verbose"}
 		if request.Model != "" {
 			args = append(args, "--model", request.Model)
+		}
+		if len(schema) > 0 {
+			args = append(args, "--json-schema", string(schema))
 		}
 		if request.ReadOnly {
 			args = append(args, "--permission-mode", "plan")
@@ -387,16 +408,17 @@ func commandFor(request Request) (string, []string, error) {
 		}
 		return "claude", args, nil
 	case "codex":
-		args := []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--skip-git-repo-check"}
+		sandbox := "workspace-write"
+		// The reviewer restriction takes precedence over the global profile.
+		// An autonomous implementer must never make its reviewer writable.
 		if request.ReadOnly {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "read-only", "--skip-git-repo-check"}
-		} else if request.Profile == "restricted" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--skip-git-repo-check"}
-		} else if request.Profile == "balanced" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "workspace-write", "--skip-git-repo-check"}
+			sandbox = "read-only"
+		} else if request.Profile == "autonomous" {
+			sandbox = "danger-full-access"
 		}
-		if request.Profile == "autonomous" {
-			args = []string{"exec", "--json", "--cd", request.Project, "--sandbox", "danger-full-access", "--skip-git-repo-check"}
+		args := []string{"exec", "--json", "--cd", request.Project, "--sandbox", sandbox, "--skip-git-repo-check"}
+		if request.Model != "" {
+			args = append(args, "--model", request.Model)
 		}
 		args = append(args, request.Prompt)
 		return "codex", args, nil
@@ -408,22 +430,8 @@ func commandFor(request Request) (string, []string, error) {
 }
 
 func writeReviewSchema() (string, error) {
-	file, err := os.CreateTemp("", "gasacli-review-schema-*.json")
-	if err != nil {
-		return "", err
-	}
-	path := file.Name()
 	const schema = `{"type":"object","additionalProperties":false,"required":["verdict","findings"],"properties":{"verdict":{"type":"string","enum":["approve","changes_requested"]},"findings":{"type":"array","items":{"type":"string"}}}}`
-	if _, err = file.WriteString(schema); err != nil {
-		_ = file.Close()
-		_ = os.Remove(path)
-		return "", err
-	}
-	if err = file.Close(); err != nil {
-		_ = os.Remove(path)
-		return "", err
-	}
-	return path, nil
+	return writeOutputSchema(json.RawMessage(schema))
 }
 
 func addReviewSchema(args []string) ([]string, string, error) {

@@ -1,5 +1,7 @@
 # GasaCLI Design System
 
+> Product direction update, 2026-11-04: the localhost experience is being redesigned as a full 3D office, per the user's supplied references. The IDE/sidebar/session-tab layouts in earlier prompts are historical references, not the target shell. Preserve brand and accessibility guidance where applicable; use [the office visual specification](../escritorio-3d/05-especificacao-3d.md) for the new composition. Documentation only; no runtime change yet.
+
 Status: visual source of truth for product prompts. Product features in these screens are not evidence of implementation.
 
 ## Brand

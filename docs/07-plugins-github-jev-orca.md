@@ -1,5 +1,7 @@
 # 07 — Plugins e integrações
 
+> Evolução proposta em 2026-11-04: o [escritório 3D](escritorio-3d/README.md) adota Orca como backend preferencial de novos runs e reaproveita plugins conforme capacidades verificadas. Consulte a [pesquisa](escritorio-3d/01-pesquisa-e-evidencias.md) e o [ADR-0021](adr/0021-localhost-office-and-orca-runtime.md). A integração inbound e os comandos propostos abaixo não são capacidades já implementadas.
+
 ## SDK de plugins
 Manifesto versionado com nome, versão, origem, permissões, compatibilidade, comandos, hooks e ciclo de vida. Instalação opt-in, revisão de permissões, isolamento e desinstalação. Plugins não podem contornar trust gate nem políticas do core.
 

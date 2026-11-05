@@ -1,5 +1,7 @@
 # GasaCLI — Architecture (draft)
 
+> Historical draft: the `apps/cli` / `packages/*` boundaries below predate the current Go implementation. For the 2026-11-04 localhost 3D office direction and proposed Orca runtime boundary, see [the office specification](escritorio-3d/03-arquitetura-e-integracao.md) and [ADR-0021](adr/0021-localhost-office-and-orca-runtime.md). This proposal does not change the runtime yet.
+
 ## Principles
 Local-first memory; modular adapters; deterministic policy enforcement; observable decisions; minimal context injection; explicit approvals; recoverable execution.
 

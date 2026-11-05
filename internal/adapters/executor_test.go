@@ -44,6 +44,69 @@ func TestCommandForMapsSupportedNonInteractiveModes(t *testing.T) {
 	}
 }
 
+func TestReadOnlyCommandOverridesEveryProfile(t *testing.T) {
+	for _, agent := range []string{"codex", "claude"} {
+		for _, profile := range []string{"", "restricted", "balanced", "autonomous"} {
+			t.Run(agent+"/"+profile, func(t *testing.T) {
+				_, args, err := commandFor(Request{Agent: agent, Project: "project with spaces", Prompt: "review only", Profile: profile, ReadOnly: true, Model: "review-model"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				flag, value := "--sandbox", "read-only"
+				if agent == "claude" {
+					flag, value = "--permission-mode", "plan"
+				}
+				count := 0
+				for i, arg := range args {
+					if arg == flag {
+						count++
+						if i+1 >= len(args) || args[i+1] != value {
+							t.Fatalf("review restriction overridden: %#v", args)
+						}
+					}
+				}
+				if count != 1 {
+					t.Fatalf("expected exactly one reviewer restriction: %#v", args)
+				}
+				for _, forbidden := range []string{"workspace-write", "danger-full-access", "acceptEdits", "--dangerously-bypass-approvals-and-sandbox", "--dangerously-skip-permissions", "--full-auto"} {
+					if has(args, forbidden) {
+						t.Fatalf("read-only command grants %s: %#v", forbidden, args)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestCodexCommandPreservesRequestedModelAndPrompt(t *testing.T) {
+	for _, profile := range []string{"restricted", "balanced", "autonomous"} {
+		for _, readOnly := range []bool{false, true} {
+			for _, model := range []string{"", "configured-model"} {
+				request := Request{Agent: "codex", Project: "project with spaces", Prompt: "review Unicode: ação", Profile: profile, ReadOnly: readOnly, Model: model}
+				_, args, err := commandFor(request)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if args[len(args)-1] != request.Prompt {
+					t.Fatalf("prompt is not a single trailing argument: %#v", args)
+				}
+				modelFlags := 0
+				for i, arg := range args {
+					if arg == "--model" {
+						modelFlags++
+						if i+1 >= len(args) || args[i+1] != model {
+							t.Fatalf("requested model lost: %#v", args)
+						}
+					}
+				}
+				if (model == "" && modelFlags != 0) || (model != "" && modelFlags != 1) {
+					t.Fatalf("model override does not match request: %#v", args)
+				}
+			}
+		}
+	}
+}
+
 func TestWriteReviewSchemaCreatesStructuredVerdictSchema(t *testing.T) {
 	args, path, err := addReviewSchema([]string{"exec", "--json", "review prompt"})
 	if err != nil {
